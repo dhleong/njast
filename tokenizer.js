@@ -104,6 +104,12 @@ Tokenizer.prototype.getLine = function() {
     return this._lineno;
 }
 
+Tokenizer.prototype.peekName = function() {
+    var read = this.readName();
+    this._fp.offset -= read.length;
+    return read;
+}
+
 Tokenizer.prototype.readName = function() {
     this._countBlank();
     var length = 0;

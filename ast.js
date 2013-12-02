@@ -47,14 +47,16 @@ function JavaFile(path, tok) {
 
     // parse the file
     for (;;) {
-        var type = tok.readName();
+        var type = tok.peekName();
         console.log('type = ' + type);
-        if (type == 'package')
+        if (type == 'package') {
+            tok.readName();
             this.package = tok.readQualified();
-        else if (type == 'import')
+        } else if (type == 'import') {
+            tok.readName();
             this.imports.push(tok.readQualified());
-        else {
-            console.log("At line: " + this.tok.getLine());
+        } else {
+            console.log("At line: " + this.tok.getLine() + "; ");
             return; //this.classes.push(new Class(path, tok));
         }
     }
