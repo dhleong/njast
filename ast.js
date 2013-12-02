@@ -216,16 +216,16 @@ Class.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
 Class.prototype.dump = function(level) {
     var nextLevel = level + 2;
+    var parentsLevel = nextLevel + 2;
     var buf = indent(level);
     buf += "[Class:" + this.modifiers.join(' ') 
         + " ``" + this.name + "'' (@" + this.line + ")";
 
     if (this.superclass)
-        buf += "\n" + indent(nextLevel) + "extends [" + this.superclass + "]";
+        buf += "\n" + indent(parentsLevel) + "extends [" + this.superclass + "]";
 
-    if (this.interfaces.length > 0) {
-        buf += "\n" + indent(nextLevel) + "implements [" + this.interfaces.join(", ") + "]";
-    }
+    if (this.interfaces.length > 0)         
+        buf += "\n" + indent(parentsLevel) + "implements [" + this.interfaces.join(", ") + "]";
 
     buf += dumpArray("Subclasses", this.subclasses, nextLevel);
     buf += dumpArray("Fields", this.fields, nextLevel);
@@ -233,6 +233,12 @@ Class.prototype.dump = function(level) {
     return buf + "\n" + indent(level) + "]";
 }
 
+
+/**
+ * A variable definition; could be 
+ *  a field, a local variable, or even
+ *  a method arg definition
+ */
 function VarDef(path, tok, type, name) {
     this._path = path;
     this.line = tok.getLine();
@@ -242,8 +248,8 @@ function VarDef(path, tok, type, name) {
 
     this.initializer = null;
 
-    if (tok.readSemicolon())
-        return;
+    if (tok.readSemicolon() || tok.peekComma() || tok.peekParenClose())
+        return; // just defined; not initialized
     else if (!tok.readEquals())
         tok.expect(true, tok.readEquals);
 
