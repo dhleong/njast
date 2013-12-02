@@ -1,5 +1,5 @@
 
-var VALS = "\r\n09azAZ_$.{}";
+var VALS = "\r\n09azAZ_$.,{}<>=;";
 var NAME_RANGES = [];
 
 var _val = 0;
@@ -13,13 +13,26 @@ var OTHER_NAME_CHARS = [
     VALS.charCodeAt(_val++)
 ];
 var DOT = VALS.charCodeAt(_val++);
+var COMMA = VALS.charCodeAt(_val++);
 var BLOCK_OPEN = VALS.charCodeAt(_val++);
 var BLOCK_CLOSE = VALS.charCodeAt(_val++);
+var GENERIC_OPEN = VALS.charCodeAt(_val++);
+var GENERIC_CLOSE = VALS.charCodeAt(_val++);
+var EQUALS = VALS.charCodeAt(_val++);
+var SEMICOLON = VALS.charCodeAt(_val++);
+
 var OTHER_TOKENS = [
     DOT,
+    COMMA,
     BLOCK_OPEN,
-    BLOCK_CLOSE
+    BLOCK_CLOSE,
+    GENERIC_OPEN,
+    GENERIC_CLOSE,
+    EQUALS,
+    SEMICOLON
 ];
+
+var MODIFIERS = ['public', 'private', 'final', 'static', 'final', 'abstract'];
 
 function isName(charCode) {
     for (i = 0; i < NAME_RANGES.length; i++) {
@@ -40,6 +53,11 @@ function Tokenizer(buffer) {
     this._lineno = 1;
     
     this._lastComment = null;
+}
+
+/** Static method */
+Tokenizer.isModifier = function(token) {
+    return MODIFIERS.indexOf(token) >= 0;
 }
 
 /** Skip non-tokens */
@@ -83,7 +101,18 @@ Tokenizer.prototype._skip = function(length) {
         : 1;
     if (length > this._fp.length)
         throw "_skip " + length + "; length = " + this._fp.length;
-    return this._fp.offset += length;
+    this._fp.offset += length;
+}
+
+Tokenizer.prototype._read = function(length) {
+    length = length 
+        ? length
+        : 1;
+    if (length > this._fp.length)
+        throw "_read " + length + "; length = " + this._fp.length;
+    var value = this._fp.toString("UTF-8", 0, length);
+    this._fp.offset += length;
+    return value;
 }
 
 /** 
@@ -104,11 +133,24 @@ Tokenizer.prototype.getLine = function() {
     return this._lineno;
 }
 
+Tokenizer.prototype.isModifier = function() {
+    var name = this.peekName();
+    return Tokenizer.isModifier(name);
+}
+
 Tokenizer.prototype.peekName = function() {
     var read = this.readName();
     this._fp.offset -= read.length;
     return read;
 }
+
+// util methods to read specific tokens
+var _doRead = function(token) { return function() { return this._readToken(token); } };
+Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);
+Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
+Tokenizer.prototype.readComma      = _doRead(COMMA);
+Tokenizer.prototype.readEquals     = _doRead(EQUALS);
+Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 
 Tokenizer.prototype.readName = function() {
     this._countBlank();
@@ -129,6 +171,54 @@ Tokenizer.prototype.readQualified = function() {
     }
 
     return name;
+}
+
+Tokenizer.prototype.readGeneric = function() {
+    name = this.readQualified();
+    var genericLen = 0;
+    if (this._readToken(GENERIC_OPEN)) {
+        // read through generic stuff
+        var generics = 1;
+        name += "<";
+
+        for (;;) {
+            var tok = this._peek();
+            switch (tok) {
+            case GENERIC_OPEN:
+                console.log("OPEN");
+                name += this._read();
+                generics++;
+                break;
+            case GENERIC_CLOSE:
+                console.log("CLOSE");
+                name += this._read();
+                if (--generics == 0)
+                    return name;
+                break;
+                
+            default:
+                this._countBlank();
+
+                if (tok == COMMA || isName(tok)) {
+                    name += this._read();
+                } else
+                    throw new Error("Unexpected token ``" + tok + "'' in generic name ``" + name + "''");
+            } 
+        }
+    }
+
+    return name;
+}
+
+Tokenizer.prototype.expect = function(expected, methodOrValue) {
+    var result = (typeof(methodOrValue) == 'function')
+        ? methodOrValue.call(this)
+        : methodOrValue;
+
+    if (expected != result) {
+        throw new Error("At line #" + this.getLine() 
+            + "\nExpected ``" + expected + "'' but was ``" + result + "''");
+    }
 }
 
 /*
