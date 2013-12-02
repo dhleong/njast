@@ -1,5 +1,5 @@
 
-var VALS = "\r\n09azAZ_$.,{}<>=;";
+var VALS = "\r\n09azAZ_$.,{}<>=;@";
 var NAME_RANGES = [];
 
 var _val = 0;
@@ -20,6 +20,7 @@ var GENERIC_OPEN = VALS.charCodeAt(_val++);
 var GENERIC_CLOSE = VALS.charCodeAt(_val++);
 var EQUALS = VALS.charCodeAt(_val++);
 var SEMICOLON = VALS.charCodeAt(_val++);
+var AT = VALS.charCodeAt(_val++);
 
 var OTHER_TOKENS = [
     DOT,
@@ -29,7 +30,8 @@ var OTHER_TOKENS = [
     GENERIC_OPEN,
     GENERIC_CLOSE,
     EQUALS,
-    SEMICOLON
+    SEMICOLON,
+    AT
 ];
 
 var MODIFIERS = ['public', 'private', 'final', 'static', 'final', 'abstract'];
@@ -152,6 +154,11 @@ Tokenizer.prototype.readComma      = _doRead(COMMA);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 
+// just peek; return True if it matches
+var _doPeek = function(token) { return function(offset) { this._countBlank(); return this._peek(offset) == token; } };
+Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);
+Tokenizer.prototype.peekSemicolon  = _doPeek(SEMICOLON);
+
 Tokenizer.prototype.readName = function() {
     this._countBlank();
     var length = 0;
@@ -185,12 +192,10 @@ Tokenizer.prototype.readGeneric = function() {
             var tok = this._peek();
             switch (tok) {
             case GENERIC_OPEN:
-                console.log("OPEN");
                 name += this._read();
                 generics++;
                 break;
             case GENERIC_CLOSE:
-                console.log("CLOSE");
                 name += this._read();
                 if (--generics == 0)
                     return name;

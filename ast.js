@@ -71,7 +71,7 @@ function JavaFile(path, tok) {
     // parse the file
     for (;;) {
         var type = tok.peekName();
-        console.log('type = ' + type);
+        //console.log('type = ' + type);
         if (type == 'package') {
             tok.readName();
             this.package = tok.readQualified();
@@ -91,7 +91,7 @@ function JavaFile(path, tok) {
 }
 
 JavaFile.prototype.dump = function() {
-    var buf = "[JavaFile: package " + this.package + ";\n";
+    var buf = "[JavaFile:package " + this.package + ";\n";
     this.imports.forEach(function(i) {
         buf += 'import ' + i + ";\n";
     });
@@ -181,16 +181,14 @@ function Class(path, tok, modifiers) {
         if ("class" == token) {
             this.subclasses.push(new Class(path, tok, _mods));
         } else {
-            var fom = this._parseFieldOrMethod(tok, _mods);
+            var fom = this._parseFieldOrMethod(path, tok, _mods);
             if (!fom)
                 break; // TODO ?
 
-            if ('Field' == fom.constructor.name)
+            if ('VarDef' == fom.constructor.name)
                 this.fields.push(fom);
             else if ('Method' == fom.constructor.name)
                 this.methods.push(fom);
-
-            break;
         }
 
         _mods = [];
@@ -198,37 +196,23 @@ function Class(path, tok, modifiers) {
     }
 }
 
-Class.prototype._parseFieldOrMethod = function(tok, modifiers) {
+Class.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
     var type = tok.readGeneric();
     var name = tok.readName();
-    console.log('fom=', modifiers.join(' '), type, name);
+    console.log('!!!fom=', modifiers.join(' '), type, name);
 
-    if (tok.readEquals()) {
-        return this._parseFieldAssignment(tok, modifiers, type, name);
-    } else if (tok.readSemicolon()) {
-        return new Field(tok, modifiers, type, name);
+    if (tok.peekEquals() || tok.peekSemicolon()) {
+        console.log("vardef!", type, name);
+        var field = new VarDef(path, tok, type, name);
+        field.modifiers = modifiers;
+        return field;
+        return null; // FIXME
     } else {
-        // method
+        // TODO method
         return null;
     }
 };
-
-Class.prototype._parseFieldAssignment = function(tok, modifiers, type, name) {
-
-    var field = new Field(tok, modifiers, type, name);
-    var value = tok.peekName();
-    console.log('field=', modifiers.join(' '), type, name);
-    
-    if ('new' == value) {
-        // FIXME initialize value
-    } else {
-        // constant value
-        
-    }
-
-    return field;
-}
 
 Class.prototype.dump = function(level) {
     var nextLevel = level + 2;
@@ -249,17 +233,45 @@ Class.prototype.dump = function(level) {
     return buf + "\n" + indent(level) + "]";
 }
 
-function Field(tok, modifiers, type, name) {
-    this.modifiers = modifiers ? modifiers : [];
+function VarDef(path, tok, type, name) {
+    this._path = path;
+    this.line = tok.getLine();
+
     this.type = type;
     this.name = name;
-    this.line = tok.getLine();
+
+    this.initializer = null;
+
+    if (tok.readSemicolon())
+        return;
+    else if (!tok.readEquals())
+        tok.expect(true, tok.readEquals);
+
+    var value = tok.peekName();
+    console.log('vardef=', type, name, value);
+    
+    if ('new' == value) {
+        this._parseInstantiation(tok);
+    } else {
+        // TODO constant value
+        this.initializer = tok.readName(); // FIXME
+    }
 }
 
-Field.prototype.dump = function(level) {
+VarDef.prototype.dump = function(level) {
     var buf = indent(level);
-    return buf + "[Field:" + this.modifiers.join(' ')
-        + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")";
+    var mods = this.modifiers ? this.modifiers.join(' ') : "";
+    var init = this.initializer ? "\n" + indent(level+2) + this.initializer : "";
+    return buf + "[VarDef:" + mods
+        + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
+        + init
+        + "\n";
+}
+
+VarDef.prototype._parseInstantiation = function(tok) {
+
+    tok.expect("new", tok.readName);
+    console.log("Instantiate!");
 }
 
 module.exports = Ast;
