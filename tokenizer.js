@@ -139,6 +139,10 @@ Tokenizer.prototype.getLine = function() {
     return this._lineno;
 }
 
+Tokenizer.prototype.isAnnotation = function() {
+    return this.peekAt();
+}
+
 Tokenizer.prototype.isModifier = function() {
     var name = this.peekName();
     return Tokenizer.isModifier(name);
@@ -154,15 +158,20 @@ Tokenizer.prototype.peekName = function() {
 var _doRead = function(token) { return function() { return this._readToken(token); } };
 Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);
 Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
+Tokenizer.prototype.readAt         = _doRead(AT); // at symbol, for annotations
 Tokenizer.prototype.readComma      = _doRead(COMMA);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
+Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
+Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
 
 // just peek; return True if it matches
 var _doPeek = function(token) { return function(offset) { this._countBlank(); return this._peek(offset) == token; } };
+Tokenizer.prototype.peekAt         = _doPeek(AT); // at symbol, for annotations
 Tokenizer.prototype.peekComma      = _doPeek(COMMA);
 Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);
 Tokenizer.prototype.peekSemicolon  = _doPeek(SEMICOLON);
+Tokenizer.prototype.peekParenOpen  = _doPeek(PAREN_OPEN);
 Tokenizer.prototype.peekParenClose = _doPeek(PAREN_CLOSE);
 
 Tokenizer.prototype.readName = function() {

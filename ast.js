@@ -178,7 +178,15 @@ function Class(path, tok, modifiers) {
             continue;
         }
 
-        if ("class" == token) {
+        if ("" == token) {
+            if (tok.isAnnotation()) {
+                _mods.push(new Annotations(tok));
+                continue;
+            } 
+
+            break; // TODO ?
+
+        } else if ("class" == token) {
             this.subclasses.push(new Class(path, tok, _mods));
         } else {
             var fom = this._parseFieldOrMethod(path, tok, _mods);
@@ -200,17 +208,17 @@ Class.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
     var type = tok.readGeneric();
     var name = tok.readName();
-    console.log('!!!fom=', modifiers.join(' '), type, name);
+    //console.log('!!!fom=', modifiers.join(' '), type, name);
 
     if (tok.peekEquals() || tok.peekSemicolon()) {
-        console.log("vardef!", type, name);
+        //console.log("vardef!", type, name);
         var field = new VarDef(path, tok, type, name);
         field.modifiers = modifiers;
         return field;
-        return null; // FIXME
     } else {
-        // TODO method
-        return null;
+        //console.log("method!", type, name, tok.getLine());
+        //console.log("mods:", modifiers);
+        return new Method(path, tok, modifiers, type, name);
     }
 };
 
@@ -229,6 +237,30 @@ Class.prototype.dump = function(level) {
 
     buf += dumpArray("Subclasses", this.subclasses, nextLevel);
     buf += dumpArray("Fields", this.fields, nextLevel);
+    buf += dumpArray("Methods", this.methods, nextLevel);
+
+    return buf + "\n" + indent(level) + "]";
+}
+
+
+/**
+ * Method in a class
+ */
+function Method(path, tok, modifiers, returnType, name) {
+    this._path = path;
+    this.line = tok.getLine();
+    this.modifiers = modifiers;
+    
+    this.returnType = returnType;
+    this.name = name;
+}
+
+Method.prototype.dump = function(level) {
+    var nextLevel = level + 2;
+    var buf = indent(level);
+    buf += "[Method:" + this.modifiers.join(' ')
+        + " ``" + this.name + "'' (@" + this.line + ")";
+        + "\n" + indent(nextLevel) + " -> " + this.returnType;
 
     return buf + "\n" + indent(level) + "]";
 }
@@ -268,6 +300,7 @@ VarDef.prototype.dump = function(level) {
     var buf = indent(level);
     var mods = this.modifiers ? this.modifiers.join(' ') : "";
     var init = this.initializer ? "\n" + indent(level+2) + this.initializer : "";
+    init += this.args ? this.args.dump() : "";
     return buf + "[VarDef:" + mods
         + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
         + init
@@ -277,7 +310,77 @@ VarDef.prototype.dump = function(level) {
 VarDef.prototype._parseInstantiation = function(tok) {
 
     tok.expect("new", tok.readName);
-    console.log("Instantiate!");
+    var type = tok.readGeneric();
+    this.initializer = '= [new] ' + type; // TODO fancier
+    this.args = new Arguments(tok);
+    
+    tok.expect(true, tok.readSemicolon);
+    //console.log("Instantiate!", type, this.args);
 }
+
+
+/**
+ * Arguments list, ex: `(var1, 2, 3)`
+ */
+function Arguments(tok) {
+
+    this.line = tok.getLine();
+    this.expressions = [];
+
+    tok.expect(true, tok.readParenOpen);
+
+    do {
+        // FIXME: allow instantiations, maths, etc.
+        this.expressions.push(tok.readName());
+    } while (tok.readComma());
+
+    tok.expect(true, tok.readParenClose);
+}
+
+Arguments.prototype.dump = function(level) {
+    return "[ARGS:@" + this.line + " [" + this.expressions.join("] , [") + "]]";
+}
+
+
+/**
+ * Using annotations
+ */
+function Annotations(tok) {
+    this.line = tok.getLine();
+
+    this.annotations = [];
+
+    while (tok.isAnnotation()) {
+        this.annotations.push(new Annotation(tok));
+    }
+}
+
+function Annotation(tok) {
+    this.line = tok.getLine();
+
+    tok.expect(true, tok.readAt);
+    this.name = '@' + tok.readQualified();
+    this.args = new AnnotationArguments(tok);
+}
+
+function AnnotationArguments(tok) {
+    this.line = tok.getLine();
+
+    this.expressions = [];
+
+    if (!tok.peekParenOpen())
+        return; // no args
+
+    tok.expect(true, tok.readParenOpen);
+
+    do {
+        // FIXME: allow var=val
+        this.expressions.push(tok.readName());
+    } while (tok.readComma());
+
+    tok.expect(true, tok.readParenClose);
+
+}
+
 
 module.exports = Ast;
