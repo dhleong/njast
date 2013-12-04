@@ -360,7 +360,7 @@ function VarDef(path, tok, type, name) {
     //console.log('vardef=', type, name, value);
     
     if ('new' == value) {
-        this._parseInstantiation(tok);
+        this._parseInstantiation(path, tok);
     } else {
         // TODO constant value
         this.initializer = tok.readName(); // FIXME
@@ -378,12 +378,12 @@ VarDef.prototype.dump = function(level) {
         + "\n";
 }
 
-VarDef.prototype._parseInstantiation = function(tok) {
+VarDef.prototype._parseInstantiation = function(path, tok) {
 
     tok.expect("new", tok.readName);
     var type = tok.readGeneric();
     this.initializer = '= [new] ' + type; // TODO fancier
-    this.args = new Arguments(tok);
+    this.args = new Arguments(path, tok);
     
     tok.expect(true, tok.readSemicolon);
     //console.log("Instantiate!", type, this.args);
@@ -393,7 +393,7 @@ VarDef.prototype._parseInstantiation = function(tok) {
 /**
  * Arguments list, ex: `(var1, 2, 3)`
  */
-function Arguments(tok) {
+function Arguments(path, tok) {
 
     this.line = tok.getLine();
     this.expressions = [];
@@ -401,7 +401,7 @@ function Arguments(tok) {
     tok.expect(true, tok.readParenOpen);
 
     do {
-        var expr = Expression.read(tok);
+        var expr = Expression.read(path, tok);
         if (!expr)
             break;
 
@@ -544,7 +544,7 @@ Statement.read = function read(path, tok) {
         return new Statement(path, tok, control);
     } else {
         // some sort of expression
-        return Expression.read(tok);
+        return Expression.read(path, tok);
     }
 }
 
@@ -559,7 +559,13 @@ function Expression(tok) {
     this.name = tok.readName();
 }
 
-Expression.read = function read(tok) {
+Expression.read = function read(path, tok) {
+
+    if (tok.isModifier()) {
+        // definitely a vardef, I think
+        return new VarDef(path, tok);
+    }
+
     // FIXME: allow instantiations, maths, etc.
     if (tok.peekName())
         return new Expression(tok);
