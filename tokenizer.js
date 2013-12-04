@@ -1,28 +1,37 @@
 
-var VALS = "\r\n09azAZ_$.,{}<>()=;@";
 var NAME_RANGES = [];
+var VALS = {
+    _val: "\r\n/*09azAZ_$.,{}<>()=;@",
+    _idx: 0,
+    next: function() {
+        return this._val.charCodeAt(this._idx++);
+    }
+}
 
-var _val = 0;
-var CR = VALS.charCodeAt(_val++);
-var NL = VALS.charCodeAt(_val++);
+var CR = VALS.next();
+var NL = VALS.next();
+
+var SLASH = VALS.next();
+var STAR = VALS.next();
+
 for (i = 0; i < 3; i++) {
-    NAME_RANGES.push([VALS.charCodeAt(_val++), VALS.charCodeAt(_val++)]);
+    NAME_RANGES.push([VALS.next(), VALS.next()]);
 }
 var OTHER_NAME_CHARS = [ 
-    VALS.charCodeAt(_val++),
-    VALS.charCodeAt(_val++)
+    VALS.next(),
+    VALS.next()
 ];
-var DOT = VALS.charCodeAt(_val++);
-var COMMA = VALS.charCodeAt(_val++);
-var BLOCK_OPEN = VALS.charCodeAt(_val++);
-var BLOCK_CLOSE = VALS.charCodeAt(_val++);
-var GENERIC_OPEN = VALS.charCodeAt(_val++);
-var GENERIC_CLOSE = VALS.charCodeAt(_val++);
-var PAREN_OPEN = VALS.charCodeAt(_val++);
-var PAREN_CLOSE = VALS.charCodeAt(_val++);
-var EQUALS = VALS.charCodeAt(_val++);
-var SEMICOLON = VALS.charCodeAt(_val++);
-var AT = VALS.charCodeAt(_val++);
+var DOT = VALS.next();
+var COMMA = VALS.next();
+var BLOCK_OPEN = VALS.next();
+var BLOCK_CLOSE = VALS.next();
+var GENERIC_OPEN = VALS.next();
+var GENERIC_CLOSE = VALS.next();
+var PAREN_OPEN = VALS.next();
+var PAREN_CLOSE = VALS.next();
+var EQUALS = VALS.next();
+var SEMICOLON = VALS.next();
+var AT = VALS.next();
 
 var OTHER_TOKENS = [
     DOT,
@@ -38,7 +47,11 @@ var OTHER_TOKENS = [
     AT
 ];
 
-var MODIFIERS = ['public', 'private', 'final', 'static', 'final', 'abstract'];
+var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'];
+
+var COMMENT_NONE = 0;
+var COMMENT_LINE = 1;
+var COMMENT_BLOCK= 2;
 
 function isName(charCode) {
     for (i = 0; i < NAME_RANGES.length; i++) {
@@ -54,6 +67,87 @@ function isToken(charCode) {
         || OTHER_TOKENS.indexOf(charCode) >= 0; // TODO sort + binary search?
 }
 
+var Commentor = {
+    type: COMMENT_NONE,
+    start: -1,
+    value: '',
+    line: -1,
+
+    inComment: function() {
+        return this.type != COMMENT_NONE;
+    },
+
+    read: function(tok, off, token, nextToken) {
+
+        switch(token) {
+        case SLASH:
+            // oh no, comment?
+            if (this.inComment())
+                break; // already in one
+
+            if (nextToken == SLASH) {
+                // line comment
+                this._startComment(tok, COMMENT_LINE, off);
+                return 1;
+
+            } else if (nextToken == STAR) {
+                // BLOCK commment!!!
+                this._startComment(tok, COMMENT_BLOCK, off);
+                return 1;
+            }
+            break;
+
+        case STAR:
+            if (this.type == COMMENT_BLOCK && nextToken == SLASH) {
+                this._endComment(tok, off + 1);
+                return 1;
+            }
+            break;
+        case NL:
+            if (this.inComment())
+                this._endComment(tok, off + 1);
+            break;
+        case CR:
+            if (this.inComment() && nextToken == NL) {
+                this._endComment(tok, off + 2);
+            }
+            break;
+        }
+
+        return 0;
+    },
+
+    reset: function(tok) {
+        this.type = COMMENT_NONE;
+        this.begin = tok._fp.offset;
+        this.start = -1;
+        this.value = '';
+        this.line = -1;
+    },
+
+
+    _endComment: function(tok, off) {
+        this.type = COMMENT_NONE;
+
+        var start = this.start - this.begin;
+        var length = off - this.start;
+        var end = start + length;
+        var read = tok._fp.toString("UTF-8", start, end);
+        this.value += read;
+
+        console.log("Read comment ~", start, end, ":", read);
+    },
+
+    _startComment: function(tok, type, off) {
+        this.type = type;
+        this.start = off;
+        this.line = tok.getLine();
+
+        console.log("START comment @", this.line, ":", type, off);
+    }
+}
+
+
 function Tokenizer(buffer) {
     this._fp = buffer;
     this._lineno = 1;
@@ -68,24 +162,36 @@ Tokenizer.isModifier = function(token) {
 
 /** Skip non-tokens */
 Tokenizer.prototype._countBlank = function() {
-    while (this._fp.offset < this._fp.length) { 
-        var token = this._fp[this._fp.offset];
-        if (isToken(token)) {
+
+    this._lastComment = null;
+    Commentor.reset(this);
+    
+    var off = this._fp.offset;
+    while (off < this._fp.length) { 
+        var token = this._fp[off];
+        var nextToken = off < this._fp.length + 1
+            ? this._fp[off + 1]
+            : -1;
+
+        off += Commentor.read(this, off, token, nextToken);
+
+        if (!Commentor.inComment() && isToken(token)) {
+            // done!
+            this._fp.offset = off;
+            this._lastComment = Commentor.value;
             return true;
         }
 
         if (token == NL) {
             this._lineno++;
+
         } else if (token == CR ) {
-            try {
-                if (this._peek(1) != NL) // \r\n to end a line
-                    this._lineno++;      // just \r 
-            } catch (err) {
-                // doesn't matter; end of file
+            if (nextToken != NL) { // \r\n to end a line
+                this._lineno++;      // just \r 
             }
         }
 
-        this._fp.offset++;
+        off++;
     }
 
     return false;
@@ -133,6 +239,10 @@ Tokenizer.prototype._readToken = function(token) {
     }
 
     return false;
+}
+
+Tokenizer.prototype.getLastComment = function() {
+    return this._lastComment;
 }
 
 Tokenizer.prototype.getLine = function() {

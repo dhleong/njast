@@ -1,5 +1,6 @@
 
-var fs = require('fs')
+var util = require("util")
+    , fs = require('fs')
     , Tokenizer = require('./tokenizer');
 
 function indent(level) {
@@ -56,6 +57,31 @@ Ast.prototype.dump = function() {
     return this._root.dump();
 }
 
+
+/**
+ * Superclass for block-like things
+ */
+function BlockLike(path, tok) {
+    this._path = path;
+    this.tok = tok;
+    this.line = tok.getLine();
+    this.line_end = this.line; // for now
+}
+
+BlockLike.prototype.dumpLine = function() {
+    return "(@" + this.line + " ~ " + this.line_end + ")";
+}
+
+BlockLike.prototype.getPath = function() {
+    return this._path;
+}
+
+/** Call when done processing */
+BlockLike.prototype.end = function() {
+    this.line_end = this.tok.getLine();
+}
+
+
 /**
  * Root "Java File" obj; contains
  *  top-level classes, imports, and package
@@ -109,14 +135,14 @@ JavaFile.prototype.dump = function() {
  * A java class
  */
 function Class(path, tok, modifiers) {
+    BlockLike.call(this, path, tok);
 
-    this._path = path;
-    this.line = tok.getLine();
     this.modifiers = modifiers ? modifiers.slice() : [];
     this.superclass = null;
     this.interfaces = [];
 
     this.subclasses = [];
+    this.blocks = [];
     this.fields = [];
     this.methods = [];
 
@@ -165,11 +191,14 @@ function Class(path, tok, modifiers) {
 
         // check for static block
         if (token == 'static') {
-            _mods.push(tok.readName());
             if (tok.readBlockOpen()) {
                 _mods = [];
+
                 // yep, static block
-                throw "STATIC BLOCK"; // TODO static blocks
+                this.blocks.push(new Block(path, tok));
+            } else {
+
+                _mods.push(tok.readName());
             }
         }
 
@@ -202,7 +231,10 @@ function Class(path, tok, modifiers) {
         _mods = [];
         console.log('peek=', _mods.join(' '), token);
     }
+
+    this.end();
 }
+util.inherits(Class, BlockLike);
 
 Class.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
@@ -227,7 +259,7 @@ Class.prototype.dump = function(level) {
     var parentsLevel = nextLevel + 2;
     var buf = indent(level);
     buf += "[Class:" + this.modifiers.join(' ') 
-        + " ``" + this.name + "'' (@" + this.line + ")";
+        + " ``" + this.name + "'' " + this.dumpLine();
 
     if (this.superclass)
         buf += "\n" + indent(parentsLevel) + "extends [" + this.superclass + "]";
@@ -247,20 +279,46 @@ Class.prototype.dump = function(level) {
  * Method in a class
  */
 function Method(path, tok, modifiers, returnType, name) {
-    this._path = path;
-    this.line = tok.getLine();
+    BlockLike.call(this, path, tok);
+
     this.modifiers = modifiers;
     
     this.returnType = returnType;
     this.name = name;
+
+    this.args = new ArgumentsDef(path, tok);
+
+    // throws declaration?
+    if (tok.peekName() == "throws") {
+        tok.readName();
+
+        this.throws = [];
+        do {
+            this.throws.push(tok.readGeneric());
+        } while (tok.readComma());
+    }
+
+    if (!tok.readSemicolon()) {
+        // we have a body!
+        this.body = new Block(path, tok);
+    }
+
+    this.end();
 }
+util.inherits(Method, BlockLike);
 
 Method.prototype.dump = function(level) {
     var nextLevel = level + 2;
+    var type = this.body ? "Method" : "MethodDef";
     var buf = indent(level);
-    buf += "[Method:" + this.modifiers.join(' ')
-        + " ``" + this.name + "'' (@" + this.line + ")";
+    buf += "[" + type + ":" + this.modifiers.join(' ')
+        + " ``" + this.name + "'' " + this.dumpLine()
+        + "\n" + indent(nextLevel) + this.args.dump()
+        + (!this.throws ? '' : "\n" + indent(nextLevel) + "throws " + this.throws.join(','))
         + "\n" + indent(nextLevel) + " -> " + this.returnType;
+
+    if (this.body)
+        buf += this.body.dump(nextLevel);
 
     return buf + "\n" + indent(level) + "]";
 }
@@ -275,8 +333,21 @@ function VarDef(path, tok, type, name) {
     this._path = path;
     this.line = tok.getLine();
 
-    this.type = type;
-    this.name = name;
+    if (type) {
+        this.type = type;
+        this.name = name;
+    } else {
+        this.modifiers = [];
+
+        if (tok.isAnnotation())
+            this.modifiers.push(new Annotations(tok));
+
+        while (tok.isModifier())
+            this.modifiers.push(tok.readName());
+
+        this.type = tok.readGeneric();
+        this.name = tok.readName();
+    }
 
     this.initializer = null;
 
@@ -286,7 +357,7 @@ function VarDef(path, tok, type, name) {
         tok.expect(true, tok.readEquals);
 
     var value = tok.peekName();
-    console.log('vardef=', type, name, value);
+    //console.log('vardef=', type, name, value);
     
     if ('new' == value) {
         this._parseInstantiation(tok);
@@ -343,6 +414,33 @@ Arguments.prototype.dump = function(level) {
 
 
 /**
+ * Arguments list definition: ex `(@annot final int var, @special java.lang.Class klass)`
+ */
+function ArgumentsDef(path, tok) {
+    this.line = tok.getLine();
+    this.args = [];
+    
+    tok.expect(true, tok.readParenOpen);
+    while (!tok.peekParenClose()) {
+        this.args.push(new VarDef(path, tok));
+
+        tok.readComma();
+    }
+
+    tok.expect(true, tok.readParenClose);
+}
+
+ArgumentsDef.prototype.dump = function() {
+    if (this.args.length) {
+        return "[ARGD:@" + this.line + 
+            this.args.map(VarDef.prototype.dump).join(",") + "]";
+    } else {
+        return "[ARGD:@" + this.line + " (no-args)]";
+    }
+}
+
+
+/**
  * Using annotations
  */
 function Annotations(tok) {
@@ -382,5 +480,48 @@ function AnnotationArguments(tok) {
 
 }
 
+
+/**
+ * Code blocks!
+ */
+function Block(path, tok) {
+    BlockLike.call(this, path, tok);
+
+    this.statements = [];
+
+    tok.readBlockOpen();
+    console.log("Block=", tok.readName(), tok.getLastComment());
+    tok.readBlockClose();
+    /*
+    // read statements
+    while (!tok.readParenClose()) {
+        this.statements.push(Statement.read(path, tok));
+    }
+    */
+
+    this.end();
+}
+util.inherits(Block, BlockLike);
+
+Block.prototype.dump = function(level) {
+    var buf = '\n' + indent(level) + '{' + this.dumpLine() + '\n';
+
+    return buf + '\n' + indent(level) + '}';
+}
+
+
+/**
+ * An individual statement (within a Block)
+ */
+function Statement(path, tok) {
+    this._path = path;
+    this.line = tok.getLine();
+
+    // TODO
+}
+
+/** Factory; we might return VarDef, for example */
+Statement.read = function read(path, tok) {
+}
 
 module.exports = Ast;
