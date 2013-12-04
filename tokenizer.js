@@ -48,6 +48,8 @@ var OTHER_TOKENS = [
 ];
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'];
+var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
+                'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
 
 var COMMENT_NONE = 0;
 var COMMENT_LINE = 1;
@@ -253,6 +255,11 @@ Tokenizer.prototype.isAnnotation = function() {
     return this.peekAt();
 }
 
+Tokenizer.prototype.isControl = function() {
+    var name = this.peekName();
+    return CONTROLS.indexOf(name) >= 0; // binary search?
+}
+
 Tokenizer.prototype.isModifier = function() {
     var name = this.peekName();
     return Tokenizer.isModifier(name);
@@ -277,6 +284,8 @@ Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
 
 // just peek; return True if it matches
 var _doPeek = function(token) { return function(offset) { this._countBlank(); return this._peek(offset) == token; } };
+Tokenizer.prototype.peekBlockOpen  = _doPeek(BLOCK_OPEN);
+Tokenizer.prototype.peekBlockClose = _doPeek(BLOCK_CLOSE);
 Tokenizer.prototype.peekAt         = _doPeek(AT); // at symbol, for annotations
 Tokenizer.prototype.peekComma      = _doPeek(COMMA);
 Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);

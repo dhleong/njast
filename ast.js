@@ -401,8 +401,11 @@ function Arguments(tok) {
     tok.expect(true, tok.readParenOpen);
 
     do {
-        // FIXME: allow instantiations, maths, etc.
-        this.expressions.push(tok.readName());
+        var expr = Expression.read(tok);
+        if (!expr)
+            break;
+
+        this.expressions.push(expr);
     } while (tok.readComma());
 
     tok.expect(true, tok.readParenClose);
@@ -490,21 +493,28 @@ function Block(path, tok) {
     this.statements = [];
 
     tok.readBlockOpen();
-    console.log("Block=", tok.readName(), tok.getLastComment());
-    tok.readBlockClose();
-    /*
+    // console.log("Block=", tok.readName(), tok.getLastComment());
+    
     // read statements
     while (!tok.readParenClose()) {
-        this.statements.push(Statement.read(path, tok));
+
+        var statement = Statement.read(path, tok);
+        if (!statement)
+            break;
+
+        this.statements.push(statement);
     }
-    */
+    tok.readBlockClose();
 
     this.end();
 }
 util.inherits(Block, BlockLike);
 
 Block.prototype.dump = function(level) {
+    var nextLevel = level + 2;
     var buf = '\n' + indent(level) + '{' + this.dumpLine() + '\n';
+
+    buf += dumpArray("Statements", this.statements, nextLevel);
 
     return buf + '\n' + indent(level) + '}';
 }
@@ -513,15 +523,55 @@ Block.prototype.dump = function(level) {
 /**
  * An individual statement (within a Block)
  */
-function Statement(path, tok) {
+function Statement(path, tok, type) {
     this._path = path;
     this.line = tok.getLine();
 
-    // TODO
+    switch (type) {
+    // TODO parse statements
+    }
 }
 
 /** Factory; we might return VarDef, for example */
 Statement.read = function read(path, tok) {
+    if (tok.peekBlockOpen()) {
+
+        // it's a block
+        return new Block(path, tok);
+
+    } else if (tok.isControl()) {
+        var control = tok.readName();
+        return new Statement(path, tok, control);
+    } else {
+        // some sort of expression
+        return Expression.read(tok);
+    }
+}
+
+
+/**
+ * An expression (such as an initialization, or a var ref)
+ */
+function Expression(tok) {
+    // TODO
+    this.line = tok.getLine();
+
+    this.name = tok.readName();
+}
+
+Expression.read = function read(tok) {
+    // FIXME: allow instantiations, maths, etc.
+    if (tok.peekName())
+        return new Expression(tok);
+
+    console.log("Read expression", tok.getLine());
+    return null;
+}
+
+
+Expression.prototype.dump = function(level) {
+    // TODO
+    return indent(level) + "[EXPR:" + this.name + "]";
 }
 
 module.exports = Ast;
