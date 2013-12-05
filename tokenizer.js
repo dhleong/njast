@@ -101,7 +101,8 @@ var Commentor = {
 
         case STAR:
             if (this.type == COMMENT_BLOCK && nextToken == SLASH) {
-                this._endComment(tok, off + 1);
+                // END block comment!!!
+                this._endComment(tok, off + 2);
                 return 1;
             }
             break;

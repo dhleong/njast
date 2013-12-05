@@ -179,6 +179,7 @@ function Class(path, tok, modifiers) {
             throw "Expected ``{'' but was ``" + tok.readName() + "''";
     }
 
+    var _javadoc = null;
     var _mods = []; // workspace
 
     // read in the body
@@ -186,13 +187,21 @@ function Class(path, tok, modifiers) {
         if (tok.readBlockClose())
             break;
 
+        // save comments in hopes of javadoc
+        var nextJavadoc = tok.getLastComment();
+        if (nextJavadoc && !_javadoc)
+            _javadoc = nextJavadoc
+        else if (nextJavadoc)
+            _javadoc += nextJavadoc;
+
         // what've we got here?
         token = tok.peekName();
-
+    
         // check for static block
         if (token == 'static') {
             if (tok.readBlockOpen()) {
                 _mods = [];
+                _javadoc = null;
 
                 // yep, static block
                 this.blocks.push(new Block(path, tok));
@@ -226,9 +235,12 @@ function Class(path, tok, modifiers) {
                 this.fields.push(fom);
             else if ('Method' == fom.constructor.name)
                 this.methods.push(fom);
+
+            console.log("JAVADOC for", fom.constructor.name, fom.name, _javadoc);
         }
 
         _mods = [];
+        _javadoc = null;
         console.log('peek=', _mods.join(' '), token);
     }
 
