@@ -27,6 +27,18 @@ function dumpArray(label, array, level) {
 }
 
 /**
+ * Returns an array with the results of calling dump()
+ *  on each member of the array
+ */
+Array.prototype.dumpEach = function dumpEach() {
+    var ret = [];
+    this.forEach(function(el) {
+        this.push(el.dump());
+    }, ret);
+    return ret;
+}
+
+/**
  * Constructs Ast root
  * @param path FS path of the file to parse
  * @param buffer Optional; if provided, a String 
@@ -382,8 +394,7 @@ function VarDef(path, tok, type, name) {
 VarDef.prototype.dump = function(level) {
     var buf = indent(level);
     var mods = this.modifiers ? this.modifiers.join(' ') : "";
-    var init = this.initializer ? "\n" + indent(level+2) + this.initializer : "";
-    init += this.args ? this.args.dump() : "";
+    var init = this.creator ? "\n" + indent(level+2) + " = " + this.creator.dump() : "";
     return buf + "[VarDef:" + mods
         + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
         + init
@@ -392,15 +403,31 @@ VarDef.prototype.dump = function(level) {
 
 VarDef.prototype._parseInstantiation = function(path, tok) {
 
-    tok.expect("new", tok.readName);
-    var type = tok.readGeneric();
-    this.initializer = '= [new] ' + type; // TODO fancier
-    this.args = new Arguments(path, tok);
+    this.creator = new Creator(path, tok);
     
     tok.expect(true, tok.readSemicolon);
     //console.log("Instantiate!", type, this.args);
 }
 
+
+/**
+ * "Creator" (Oracle's term)
+ */
+function Creator(path, tok) {
+
+    tok.expect("new", tok.readName);
+    var type = tok.readGeneric();
+    this.initializer = '[new] ' + type; // TODO fancier
+    this.args = new Arguments(path, tok);
+}
+
+Creator.prototype.dump = function() {
+
+    var buf = this.initializer ? this.initializer : "";
+    buf += this.args ? this.args.dump() : "";
+
+    return buf;
+}
 
 /**
  * Arguments list, ex: `(var1, 2, 3)`
@@ -424,7 +451,7 @@ function Arguments(path, tok) {
 }
 
 Arguments.prototype.dump = function(level) {
-    return "[ARGS:@" + this.line + " [" + this.expressions.join("] , [") + "]]";
+    return "[ARGS:@" + this.line + " (" + this.expressions.dumpEach().join(" , ") + ")]";
 }
 
 
@@ -448,7 +475,7 @@ function ArgumentsDef(path, tok) {
 ArgumentsDef.prototype.dump = function() {
     if (this.args.length) {
         return "[ARGD:@" + this.line + 
-            this.args.map(VarDef.prototype.dump).join(",") + "]";
+            this.args.dumpEach().join(",") + "]";
     } else {
         return "[ARGD:@" + this.line + " (no-args)]";
     }
@@ -554,6 +581,10 @@ Statement.read = function read(path, tok) {
     } else if (tok.isControl()) {
         var control = tok.readName();
         return new Statement(path, tok, control);
+    } else if (tok.isModifier()) {
+        // definitely a vardef, I think
+        return new VarDef(path, tok);
+
     } else {
         // some sort of expression
         return Expression.read(path, tok);
@@ -573,17 +604,19 @@ function Expression(tok) {
 
 Expression.read = function read(path, tok) {
 
-    if (tok.isModifier()) {
-        // definitely a vardef, I think
-        return new VarDef(path, tok);
+    var name = tok.peekName();
+    if (!name) {
+        console.log("Read expression", tok.getLine());
+        return null;
     }
 
-    // FIXME: allow instantiations, maths, etc.
-    if (tok.peekName())
-        return new Expression(tok);
+    if (name == 'new') {
+        return new Creator(path, tok);
+    } else {
 
-    console.log("Read expression", tok.getLine());
-    return null;
+        // FIXME: allow maths, etc.
+        return new Expression(tok);
+    }
 }
 
 
