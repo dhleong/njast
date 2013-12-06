@@ -3,6 +3,8 @@ var util = require("util")
     , fs = require('fs')
     , Tokenizer = require('./tokenizer');
 
+INDENT_LEVEL = 2;
+
 function indent(level) {
     var buf = "";
     var level = level ? level : 0;
@@ -153,11 +155,6 @@ function Class(path, tok, modifiers) {
     this.superclass = null;
     this.interfaces = [];
 
-    this.subclasses = [];
-    this.blocks = [];
-    this.fields = [];
-    this.methods = [];
-
     if (!modifiers) {
         // only look if they weren't provided
         while (tok.isModifier())
@@ -170,7 +167,7 @@ function Class(path, tok, modifiers) {
     tok.readName(); // read "class"
     this.name = tok.readGeneric(); // class name (of course)
 
-    if (!tok.readBlockOpen()) { // opening block
+    if (!tok.peekBlockOpen()) { // opening block
 
         if ("extends" == tok.peekName()) {
             tok.readName();
@@ -187,10 +184,47 @@ function Class(path, tok, modifiers) {
         }
 
         // we should be opening the class now
-        if (!tok.readBlockOpen())
+        if (!tok.peekBlockOpen())
             throw "Expected ``{'' but was ``" + tok.readName() + "''";
     }
 
+    this.body = new ClassBody(path, tok);
+
+    this.end();
+}
+util.inherits(Class, BlockLike);
+
+Class.prototype.dump = function(level) {
+    var nextLevel = level + INDENT_LEVEL;
+    var parentsLevel = nextLevel + INDENT_LEVEL;
+    var buf = indent(level);
+    buf += "[Class:" + this.modifiers.join(' ') 
+        + " ``" + this.name + "'' " + this.dumpLine();
+
+    if (this.superclass)
+        buf += "\n" + indent(parentsLevel) + "extends [" + this.superclass + "]";
+
+    if (this.interfaces.length > 0)         
+        buf += "\n" + indent(parentsLevel) + "implements [" + this.interfaces.join(", ") + "]";
+
+    buf += this.body.dump(nextLevel);
+
+    return buf + "\n" + indent(level) + "]";
+}
+
+
+/**
+ * The body of a class (extracted for anonymous classes!)
+ */
+function ClassBody(path, tok) {
+    BlockLike.call(this, path, tok);
+
+    this.subclasses = [];
+    this.blocks = [];
+    this.fields = [];
+    this.methods = [];
+
+    tok.expect(true, tok.readBlockOpen);
     var _javadoc = null;
     var _mods = []; // workspace
 
@@ -258,9 +292,9 @@ function Class(path, tok, modifiers) {
 
     this.end();
 }
-util.inherits(Class, BlockLike);
+util.inherits(ClassBody, BlockLike);
 
-Class.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
+ClassBody.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
     var type = tok.readGeneric();
     var name = tok.readName();
@@ -278,26 +312,14 @@ Class.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
     }
 };
 
-Class.prototype.dump = function(level) {
-    var nextLevel = level + 2;
-    var parentsLevel = nextLevel + 2;
-    var buf = indent(level);
-    buf += "[Class:" + this.modifiers.join(' ') 
-        + " ``" + this.name + "'' " + this.dumpLine();
-
-    if (this.superclass)
-        buf += "\n" + indent(parentsLevel) + "extends [" + this.superclass + "]";
-
-    if (this.interfaces.length > 0)         
-        buf += "\n" + indent(parentsLevel) + "implements [" + this.interfaces.join(", ") + "]";
-
+ClassBody.prototype.dump = function(level) {
+    var nextLevel = level + INDENT_LEVEL;
+    buf = indent(level) + " {" + this.dumpLine();
     buf += dumpArray("Subclasses", this.subclasses, nextLevel);
     buf += dumpArray("Fields", this.fields, nextLevel);
     buf += dumpArray("Methods", this.methods, nextLevel);
-
-    return buf + "\n" + indent(level) + "]";
+    return buf + "\n" + indent(level) + "}";
 }
-
 
 /**
  * Method in a class
@@ -332,7 +354,7 @@ function Method(path, tok, modifiers, returnType, name) {
 util.inherits(Method, BlockLike);
 
 Method.prototype.dump = function(level) {
-    var nextLevel = level + 2;
+    var nextLevel = level + INDENT_LEVEL;
     var type = this.body ? "Method" : "MethodDef";
     var buf = indent(level);
     buf += "[" + type + ":" + this.modifiers.join(' ')
@@ -375,7 +397,7 @@ function VarDef(path, tok, type, name) {
 
     this.initializer = null;
 
-    if (tok.readSemicolon() || tok.peekComma() || tok.peekParenClose())
+    if (tok.peekExpressionEnd())
         return; // just defined; not initialized
     else if (!tok.readEquals())
         tok.expect(true, tok.readEquals);
@@ -394,7 +416,7 @@ function VarDef(path, tok, type, name) {
 VarDef.prototype.dump = function(level) {
     var buf = indent(level);
     var mods = this.modifiers ? this.modifiers.join(' ') : "";
-    var init = this.creator ? "\n" + indent(level+2) + " = " + this.creator.dump() : "";
+    var init = this.creator ? "\n" + indent(level+INDENT_LEVEL) + " = " + this.creator.dump() : "";
     return buf + "[VarDef:" + mods
         + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
         + init
@@ -419,12 +441,18 @@ function Creator(path, tok) {
     var type = tok.readGeneric();
     this.initializer = '[new] ' + type; // TODO fancier
     this.args = new Arguments(path, tok);
+
+    if (tok.peekBlockOpen()) {
+        this.body = new ClassBody(path, tok);
+    }
 }
 
-Creator.prototype.dump = function() {
+Creator.prototype.dump = function(level) {
 
     var buf = this.initializer ? this.initializer : "";
     buf += this.args ? this.args.dump() : "";
+    if (this.body)
+        buf += this.body.dump(level + INDENT_LEVEL);
 
     return buf;
 }
@@ -447,6 +475,7 @@ function Arguments(path, tok) {
         this.expressions.push(expr);
     } while (tok.readComma());
 
+    console.log(this.dump());
     tok.expect(true, tok.readParenClose);
 }
 
@@ -550,7 +579,7 @@ function Block(path, tok) {
 util.inherits(Block, BlockLike);
 
 Block.prototype.dump = function(level) {
-    var nextLevel = level + 2;
+    var nextLevel = level + INDENT_LEVEL;
     var buf = '\n' + indent(level) + '{' + this.dumpLine() + '\n';
 
     buf += dumpArray("Statements", this.statements, nextLevel);
@@ -565,10 +594,15 @@ Block.prototype.dump = function(level) {
 function Statement(path, tok, type) {
     this._path = path;
     this.line = tok.getLine();
+    this.type = type;
 
     switch (type) {
     // TODO parse statements
     }
+}
+
+Statement.prototype.dump = function(level) {
+    return indent(level) + '[STMT@' + this.line + ": " + this.type + "]";
 }
 
 /** Factory; we might return VarDef, for example */
@@ -584,7 +618,11 @@ Statement.read = function read(path, tok) {
     } else if (tok.isModifier()) {
         // definitely a vardef, I think
         return new VarDef(path, tok);
-
+    } else if ((type = tok.peekGeneric())
+            && (name = tok.peekName(type.length))) {
+        
+        console.log("Var def statement!", type, name);
+        return new VarDef(path, tok, type, name);
     } else {
         // some sort of expression
         return Expression.read(path, tok);
@@ -593,13 +631,34 @@ Statement.read = function read(path, tok) {
 
 
 /**
- * An expression (such as an initialization, or a var ref)
+ * An expression 
  */
-function Expression(tok) {
+function Expression(path, tok) {
     // TODO
     this.line = tok.getLine();
 
     this.name = tok.readName();
+    this.value = this.name;
+
+    while (!tok.peekExpressionEnd()) {
+        var read = tok.peekGeneric();
+        if (read) {
+            if (read == 'new')
+                this.right = new Creator(path, tok);
+            else
+                this.value += tok.readGeneric();
+
+            console.log(this.value);
+        } else if (tok.readEquals()) {
+            // assignment
+            this.value += ' [=] ';
+            console.log(this.value);
+        } else {
+            // FIXME what?
+            console.log("WHAT?", tok._peek());
+            break;
+        }
+    }
 }
 
 Expression.read = function read(path, tok) {
@@ -615,14 +674,20 @@ Expression.read = function read(path, tok) {
     } else {
 
         // FIXME: allow maths, etc.
-        return new Expression(tok);
+        return new Expression(path, tok);
     }
 }
 
 
 Expression.prototype.dump = function(level) {
     // TODO
-    return indent(level) + "[EXPR:" + this.name + "]";
+    var buf = indent(level) + "[EXPR:@" + this.line + " " + this.value;
+
+    if (this.right) {
+        buf += this.right.dump(level);
+    }
+    
+    return buf + "]";
 }
 
 module.exports = Ast;
