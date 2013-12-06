@@ -169,6 +169,7 @@ Tokenizer.prototype._countBlank = function() {
     this._lastComment = null;
     Commentor.reset(this);
     
+    var startLine = this._lineno;
     var off = this._fp.offset;
     while (off < this._fp.length) { 
         var token = this._fp[off];
@@ -184,15 +185,21 @@ Tokenizer.prototype._countBlank = function() {
             this._fp.offset = off;
             this._lastComment = Commentor.value;
             this._lastSkipped = skipped; // save bytes skipped
+            this._lastLine = startLine; // save last line (in case we rewind)
             return skipped; // also return bytes skipped
         }
 
         if (token == NL) {
             this._lineno++;
 
+                console.log("n!");
         } else if (token == CR ) {
             if (nextToken != NL) { // \r\n to end a line
                 this._lineno++;      // just \r 
+                console.log("r!");
+            } else {
+                off++; // \r\n... skip next
+                console.log("r / n!");
             }
         }
 
@@ -204,6 +211,8 @@ Tokenizer.prototype._countBlank = function() {
 
 Tokenizer.prototype._rewindLastSkip = function() {
     this._fp.offset -= this._lastSkipped;
+    this._lineno = this._lastLine;
+
     this._lastSkipped = 0;
 }
 
