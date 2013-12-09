@@ -138,7 +138,7 @@ var Commentor = {
         var read = tok._fp.toString("UTF-8", start, end);
         this.value += read;
 
-        console.log("Read comment ~", start, end, ":", read);
+        //console.log("Read comment ~", start, end, ":", read);
     },
 
     _startComment: function(tok, type, off) {
@@ -146,7 +146,7 @@ var Commentor = {
         this.start = off;
         this.line = tok.getLine();
 
-        console.log("START comment @", this.line, ":", type, off);
+        //console.log("START comment @", this.line, ":", type, off);
     }
 }
 
@@ -192,14 +192,11 @@ Tokenizer.prototype._countBlank = function() {
         if (token == NL) {
             this._lineno++;
 
-                console.log("n!");
         } else if (token == CR ) {
             if (nextToken != NL) { // \r\n to end a line
                 this._lineno++;      // just \r 
-                console.log("r!");
             } else {
                 off++; // \r\n... skip next
-                console.log("r / n!");
             }
         }
 

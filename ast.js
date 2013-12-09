@@ -596,13 +596,27 @@ function Statement(path, tok, type) {
     this.line = tok.getLine();
     this.type = type;
 
+    this.kids = [];
+
     switch (type) {
-    // TODO parse statements
+    case "if":
+        this.parens = Statement.read(path, tok);
+        this.kids.push(Statement.read(path, tok));
+        if (tok.peekName() == 'else') {
+            tok.expect("else", tok.readName);
+            this.kids.push(Statement.read(path, tok));
+        }
+        break;
     }
 }
 
 Statement.prototype.dump = function(level) {
-    return indent(level) + '[STMT@' + this.line + ": " + this.type + "]";
+    var buf = indent(level) + '[STMT@' + this.line + ": " + this.type;
+    if (this.kids.length) {
+        buf += indent(level + INDENT_LEVEL) + this.kids.dumpEach().join("\n");
+    }
+
+    return buf  + "]";
 }
 
 /** Factory; we might return VarDef, for example */
@@ -612,6 +626,13 @@ Statement.read = function read(path, tok) {
         // it's a block
         return new Block(path, tok);
 
+    } else if (tok.readParenOpen()) {
+
+        // should we wrap this so we know?
+        var expr = Expression.read(path, tok);
+        console.log("ParExpression", expr);
+        tok.expect(true, tok.readParenClose);
+        return expr;
     } else if (tok.isControl()) {
         var control = tok.readName();
         return new Statement(path, tok, control);
@@ -637,8 +658,14 @@ function Expression(path, tok) {
     // TODO
     this.line = tok.getLine();
 
-    this.name = tok.readName();
+    this.name = tok.readQualified();
     this.value = this.name;
+
+    if (tok.peekParenOpen()) {
+        console.log("METHOD CALL:", this.name);
+        this.right = new Arguments(path, tok);
+        return;
+    }
 
     while (!tok.peekExpressionEnd()) {
         var read = tok.peekGeneric();
