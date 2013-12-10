@@ -32,10 +32,13 @@ function dumpArray(label, array, level) {
  * Returns an array with the results of calling dump()
  *  on each member of the array
  */
-Array.prototype.dumpEach = function dumpEach() {
+Array.prototype.dumpEach = function dumpEach(level) {
     var ret = [];
     this.forEach(function(el) {
-        this.push(el.dump());
+        if (typeof(el) == "string")
+            this.push(el);
+        else
+            this.push(el.dump(level));
     }, ret);
     return ret;
 }
@@ -607,14 +610,36 @@ function Statement(path, tok, type) {
             this.kids.push(Statement.read(path, tok));
         }
         break;
+
+    case "try":
+        console.log("*** TRY!");
+        this.kids.push(new Block(path, tok));
+        console.log("Next=", tok.peekName());
+        while ("catch" == tok.peekName()) {
+            console.log("*** CATCH!");
+            tok.expect("catch", tok.readName);
+            this.kids.push("catch");
+            this.kids.push(Statement.read(path, tok));
+            this.kids.push(new Block(path, tok));
+        }
+
+        if ("finally" == tok.peekName()) {
+            console.log("*** FINALLY!");
+            tok.expect("finally", tok.readName);
+            this.kids.push("finally");
+            this.kids.push(Statement.read(path, tok));
+            this.kids.push(new Block(path, tok));
+        }
     }
+
+    this.end();
 }
 util.inherits(Statement, BlockLike);
 
 Statement.prototype.dump = function(level) {
     var buf = indent(level) + '[STMT' + this.dumpLine() + ": " + this.type;
     if (this.kids.length) {
-        buf += indent(level + INDENT_LEVEL) + this.kids.dumpEach().join("\n");
+        buf += '\n' + indent(level + INDENT_LEVEL) + this.kids.dumpEach(level).join("\n");
     }
 
     return buf  + "]";
