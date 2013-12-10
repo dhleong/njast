@@ -592,8 +592,8 @@ Block.prototype.dump = function(level) {
  * An individual statement (within a Block)
  */
 function Statement(path, tok, type) {
-    this._path = path;
-    this.line = tok.getLine();
+    BlockLike.call(this, path, tok);
+
     this.type = type;
 
     this.kids = [];
@@ -609,9 +609,10 @@ function Statement(path, tok, type) {
         break;
     }
 }
+util.inherits(Statement, BlockLike);
 
 Statement.prototype.dump = function(level) {
-    var buf = indent(level) + '[STMT@' + this.line + ": " + this.type;
+    var buf = indent(level) + '[STMT' + this.dumpLine() + ": " + this.type;
     if (this.kids.length) {
         buf += indent(level + INDENT_LEVEL) + this.kids.dumpEach().join("\n");
     }
@@ -672,6 +673,9 @@ function Expression(path, tok) {
         if (read) {
             if (read == 'new')
                 this.right = new Creator(path, tok);
+            else if (tok.peekParenOpen(read.length))
+                // method call!
+                this.right = new Expression(path, tok);
             else
                 this.value += tok.readGeneric();
 
