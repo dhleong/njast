@@ -636,11 +636,11 @@ function Statement(path, tok, type) {
         break;
 
     case "try":
-        console.log("*** TRY!");
+        //console.log("*** TRY!");
         this.kids.push(new Block(path, tok));
         console.log("Next=", tok.peekName());
         while ("catch" == tok.peekName()) {
-            console.log("*** CATCH!");
+            //console.log("*** CATCH!");
             tok.expect("catch", tok.readName);
             this.kids.push("catch");
 
@@ -652,10 +652,9 @@ function Statement(path, tok, type) {
         }
 
         if ("finally" == tok.peekName()) {
-            console.log("*** FINALLY!");
+            //console.log("*** FINALLY!");
             tok.expect("finally", tok.readName);
             this.kids.push("finally");
-            this.kids.push(Statement.read(path, tok));
             this.kids.push(new Block(path, tok));
         }
     }
