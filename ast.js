@@ -199,6 +199,7 @@ function Class(path, tok, modifiers) {
     this.body = new ClassBody(path, tok);
 
     this.end();
+    console.log("End ClassBody", this.dumpLine());
 }
 util.inherits(Class, BlockLike);
 
@@ -478,7 +479,8 @@ function VarDef(path, tok, type, name) {
     else if (tok.peekEquals())
         tok.expect(true, tok.readEquals);
     else {
-        console.log("!!! Unexpected end of VarDef (?) @", tok.getLine());
+        //console.log("!!! Unexpected end of VarDef (?) @", tok.getLine());
+        throw new Error("Unexpected end of VarDef (?) @" + tok.getLine());        
         return; //
     }
 
@@ -662,6 +664,7 @@ function Block(path, tok) {
     tok.readBlockClose();
 
     this.end();
+    console.log("\n\n!!!!End Block", this.dumpLine(), this.statements.dump(2));
 }
 util.inherits(Block, BlockLike);
 
@@ -682,13 +685,17 @@ function BlockStatements(path, tok) {
     
     this.statements = [];
 
-    while (!tok.readParenClose()) {
+    while (!tok.peekBlockClose()) {
 
         var statement = Statement.read(path, tok);
         if (!statement)
             break;
 
         this.statements.push(statement);
+
+        var next = tok.peekName();
+        if (next == 'case' || next == 'default')
+            break;
     }
 
     this.end();
@@ -696,7 +703,7 @@ function BlockStatements(path, tok) {
 util.inherits(BlockStatements, BlockLike);
 
 BlockStatements.prototype.dump = function(level) {
-    return dumpArray("Statements", this.statements, nextLevel);
+    return dumpArray("Statements", this.statements, level);
 }
 
 
@@ -712,8 +719,10 @@ function Statement(path, tok, type) {
 
     switch (type) {
     case "if":
+        console.log("IF! @", tok.getLine());
         this.parens = Statement.read(path, tok);
         this.kids.push(Statement.read(path, tok));
+        //console.log(this.kids.dumpEach());
         if (tok.peekName() == 'else') {
             tok.expect("else", tok.readName);
             this.kids.push(Statement.read(path, tok));
@@ -723,6 +732,7 @@ function Statement(path, tok, type) {
     case "switch":
         // this is like switch-ception... parsing 
         //  "switch" inside a switch
+        console.log("SWITCH! @", tok.getLine());
         this.parens = Statement.read(path, tok);
         tok.expect(true, tok.readBlockOpen);
         while (!tok.peekBlockClose()) {
@@ -850,7 +860,7 @@ function Expression(path, tok) {
             else
                 this.value += tok.readGeneric();
 
-            console.log(this.value);
+            console.log('Expression Value=', this.value);
         } else if (tok.readEquals()) {
             // assignment
             this.value += ' [=] ';
@@ -874,7 +884,7 @@ Expression.read = function(path, tok) {
 
     var name = tok.peekName();
     if (!name) {
-        console.log("Read expression", tok.getLine());
+        console.log("Read expression missing name @", tok.getLine());
         return null;
     }
 
