@@ -21,7 +21,10 @@ function dumpArray(label, array, level) {
         buf += "\n" + indent(level);
         buf += label + ":\n";
         array.forEach(function(cl) {
-            buf += cl.dump(level);
+            if (typeof(cl) == 'string')
+                buf += cl;
+            else
+                buf += cl.dump(level);
         });
     }
 
@@ -360,7 +363,7 @@ Method.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
     var type = this.body ? "Method" : "MethodDef";
     var buf = indent(level);
-    buf += "[" + type + ":" + this.modifiers.join(' ')
+    buf += "[" + type + ":" + this.modifiers.dumpEach().join(' ')
         + " ``" + this.name + "'' " + this.dumpLine()
         + "\n" + indent(nextLevel) + this.args.dump()
         + (!this.throws ? '' : "\n" + indent(nextLevel) + "throws " + this.throws.join(','))
@@ -402,7 +405,7 @@ function VarDef(path, tok, type, name) {
 
     if (tok.peekExpressionEnd())
         return; // just defined; not initialized
-    else if (!tok.readEquals())
+    else if (tok.peekEquals())
         tok.expect(true, tok.readEquals);
 
     var value = tok.peekName();
@@ -527,6 +530,12 @@ function Annotations(tok) {
     }
 }
 
+Annotations.prototype.dump = function() {
+    return "[ANNOT:@" + this.line + " [" +
+        this.annotations.dumpEach().join("  ") + "]]";
+}
+
+
 function Annotation(tok) {
     this.line = tok.getLine();
 
@@ -534,6 +543,12 @@ function Annotation(tok) {
     this.name = '@' + tok.readQualified();
     this.args = new AnnotationArguments(tok);
 }
+
+Annotation.prototype.dump = function() {
+    return this.name + this.args.dump();
+}
+
+
 
 function AnnotationArguments(tok) {
     this.line = tok.getLine();
@@ -552,6 +567,14 @@ function AnnotationArguments(tok) {
 
     tok.expect(true, tok.readParenClose);
 
+}
+
+AnnotationArguments.prototype.dump = function() {
+    if (this.expressions.length) {
+        return '(' + this.expressions.join(",") + ')';
+    }
+
+    return '';
 }
 
 
@@ -619,7 +642,11 @@ function Statement(path, tok, type) {
             console.log("*** CATCH!");
             tok.expect("catch", tok.readName);
             this.kids.push("catch");
-            this.kids.push(Statement.read(path, tok));
+
+            tok.expect(true, tok.readParenOpen);
+            this.kids.push(new VarDef(path, tok));
+            tok.expect(true, tok.readParenClose);
+
             this.kids.push(new Block(path, tok));
         }
 
@@ -638,8 +665,11 @@ util.inherits(Statement, BlockLike);
 
 Statement.prototype.dump = function(level) {
     var buf = indent(level) + '[STMT' + this.dumpLine() + ": " + this.type;
+    if (this.parens)
+        buf += this.parens.dump();
+
     if (this.kids.length) {
-        buf += '\n' + indent(level + INDENT_LEVEL) + this.kids.dumpEach(level).join("\n");
+        buf += dumpArray('Contents', this.kids, level + INDENT_LEVEL);
     }
 
     return buf  + "]";
@@ -672,7 +702,9 @@ Statement.read = function read(path, tok) {
         return new VarDef(path, tok, type, name);
     } else {
         // some sort of expression
-        return Expression.read(path, tok);
+        var expr = Expression.read(path, tok);
+        tok.readSemicolon(); // may or may not be, here
+        return expr;
     }
 }
 
