@@ -139,9 +139,12 @@ function JavaFile(path, tok) {
 
 JavaFile.prototype.dump = function() {
     var buf = "[JavaFile:package " + this.package + ";\n";
+
+    /* TODO restore; hidden for testing convenience
     this.imports.forEach(function(i) {
         buf += 'import ' + i + ";\n";
     });
+    */
 
     buf += "\nClasses:\n";
     this.classes.forEach(function(cl) {
@@ -216,7 +219,7 @@ Class.prototype.dump = function(level) {
 
     buf += this.body.dump(nextLevel);
 
-    return buf + "\n" + indent(level) + "] // END " + this.name;
+    return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
 }
 
 
@@ -239,6 +242,7 @@ function ClassBody(path, tok) {
     for (;;) {
         if (tok.readBlockClose())
             break;
+
 
         // save comments in hopes of javadoc
         var nextJavadoc = tok.getLastComment();
@@ -275,6 +279,12 @@ function ClassBody(path, tok) {
                 continue;
             } 
 
+            if (tok.readSemicolon())
+                continue; // ; can be a ClassBodyStatement
+
+            console.log("!!! WHAT! nextClose=", tok.peekBlockClose(), 
+                'nextSemi=', tok.peekSemicolon(),
+                tok.getLine());
             break; // TODO ?
 
         } else if ("class" == token) {
@@ -373,7 +383,7 @@ Method.prototype.dump = function(level) {
     if (this.body)
         buf += this.body.dump(nextLevel);
 
-    return buf + "\n" + indent(level) + "] // END " + this.name;
+    return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
 }
 
 
