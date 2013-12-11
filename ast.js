@@ -172,9 +172,8 @@ function Class(path, tok, modifiers) {
     }
 
     // should be a class!
-    tok.expect("class", tok.peekName);
+    tok.expect("class", tok.readName);
 
-    tok.readName(); // read "class"
     this.name = tok.readGeneric(); // class name (of course)
 
     if (!tok.peekBlockOpen()) { // opening block
@@ -194,8 +193,7 @@ function Class(path, tok, modifiers) {
         }
 
         // we should be opening the class now
-        if (!tok.peekBlockOpen())
-            throw "Expected ``{'' but was ``" + tok.readName() + "''";
+        tok.expect(true, tok.peekBlockOpen);
     }
 
     this.body = new ClassBody(path, tok);
@@ -224,6 +222,62 @@ Class.prototype.dump = function(level) {
 
 
 /**
+ * A java interface
+ */
+function Interface(path, tok, modifiers) {
+    BlockLike.call(this, path, tok);
+
+    this.modifiers = modifiers ? modifiers.slice() : [];
+    this.interfaces = [];
+
+    if (!modifiers) {
+        // only look if they weren't provided
+        while (tok.isModifier())
+            this.modifiers.push(tok.readName());
+    }
+
+    // should be an interface!
+    tok.expect("interface", tok.readName);
+
+    this.name = tok.readGeneric(); // interface name (of course)
+
+    if (!tok.peekBlockOpen()) { // opening block
+
+        if ("extends" == tok.peekName()) {
+            tok.readName();
+
+            do {
+                this.interfaces.push(tok.readGeneric());
+            } while (tok.readComma());
+        }
+
+        // we should be opening the class now
+        tok.expect(true, tok.peekBlockOpen);
+    }
+
+    this.body = new ClassBody(path, tok); // lazy
+
+    this.end();
+}
+util.inherits(Interface, BlockLike);
+
+Interface.prototype.dump = function(level) {
+    var nextLevel = level + INDENT_LEVEL;
+    var parentsLevel = nextLevel + INDENT_LEVEL;
+    var buf = indent(level);
+    buf += "[Interface:" + this.modifiers.join(' ') 
+        + " ``" + this.name + "'' " + this.dumpLine();
+
+    if (this.interfaces.length > 0)         
+        buf += "\n" + indent(parentsLevel) + "extends [" + this.interfaces.join(", ") + "]";
+
+    buf += this.body.dump(nextLevel);
+
+    return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
+}
+
+
+/**
  * The body of a class (extracted for anonymous classes!)
  */
 function ClassBody(path, tok) {
@@ -240,9 +294,10 @@ function ClassBody(path, tok) {
 
     // read in the body
     for (;;) {
-        if (tok.readBlockClose())
+        if (tok.readBlockClose()) {
+            console.log("!! Close ClassBody block @", tok.getLine());
             break;
-
+        }
 
         // save comments in hopes of javadoc
         var nextJavadoc = tok.getLastComment();
@@ -253,6 +308,7 @@ function ClassBody(path, tok) {
 
         // what've we got here?
         token = tok.peekName();
+        console.log("In ClassBody block @", tok.getLine(), "peek=", token);
     
         // check for static block
         if (token == 'static') {
@@ -290,8 +346,7 @@ function ClassBody(path, tok) {
         } else if ("class" == token) {
             this.subclasses.push(new Class(path, tok, _mods));
         } else if ("interface" == token) {
-            // FIXME support interfaces
-            break; 
+            this.subclasses.push(new Interface(path, tok, _mods));
         } else {
             var fom = this._parseFieldOrMethod(path, tok, _mods);
             if (!fom)
