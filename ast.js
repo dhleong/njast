@@ -483,6 +483,7 @@ function Arguments(path, tok) {
 
     tok.expect(true, tok.readParenOpen);
 
+    console.log("Reading Arguments expressions @", tok.getLine());
     do {
         var expr = Expression.read(path, tok);
         if (!expr)
@@ -762,6 +763,10 @@ function Expression(path, tok) {
 
 Expression.read = function read(path, tok) {
 
+    if (tok.peekParenOpen()) {
+        return new CastExpression(path, tok);
+    }
+
     var name = tok.peekName();
     if (!name) {
         console.log("Read expression", tok.getLine());
@@ -787,6 +792,24 @@ Expression.prototype.dump = function(level) {
     }
     
     return buf + "]";
+}
+
+
+/** Ex: (Bar) ((Foo) baz.getFoo()).getBar() */
+function CastExpression(path, tok) {
+    BlockLike.call(this, path, tok);
+
+    //console.log("CAST EXPRESSION!!!!");
+    tok.expect(true, tok.readParenOpen);
+    this.cast = Expression.read(path, tok);
+    tok.expect(true, tok.readParenClose);
+
+    this.right = Expression.read(path, tok);
+}
+util.inherits(CastExpression, BlockLike);
+
+CastExpression.prototype.dump = function() {
+    return "(" + this.cast.dump() + ") " + this.right.dump();
 }
 
 module.exports = Ast;
