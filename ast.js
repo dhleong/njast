@@ -811,7 +811,7 @@ Statement.prototype.dump = function(level) {
 }
 
 /** Factory; we might return VarDef, for example */
-Statement.read = function read(path, tok) {
+Statement.read = function(path, tok) {
     if (tok.peekBlockOpen()) {
 
         // it's a block
