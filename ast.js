@@ -433,7 +433,7 @@ function VarDef(path, tok, type, name) {
         // TODO constant value
         console.log("Read creator");
         this.creator = Expression.read(path, tok);
-        tok.expect(true, tok.readSemicolon);
+        tok.readSemicolon(); // the expression might've already read it
     }
 }
 
