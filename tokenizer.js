@@ -1,7 +1,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()=;:@\"\\",
+    _val: "\r\n/*09azAZ_$.,{}<>()=;:@\"\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -34,7 +34,9 @@ var SEMICOLON = VALS.next();
 var COLON = VALS.next();
 var AT = VALS.next();
 var QUOTE = VALS.next();
+
 var ESCAPE = VALS.next();
+var SPACE = VALS.next();
 
 var OTHER_TOKENS = [
     DOT,
@@ -49,7 +51,7 @@ var OTHER_TOKENS = [
     SEMICOLON,
     COLON,
     AT,
-    QUOTE
+    QUOTE,
 ];
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'];
@@ -367,6 +369,7 @@ Tokenizer.prototype.readQualified = function() {
 Tokenizer.prototype.readGeneric = function() {
     name = this.readQualified();
     var genericLen = 0;
+    var valid = [COMMA, DOT];
     if (this._readToken(GENERIC_OPEN)) {
         // read through generic stuff
         var generics = 1;
@@ -387,11 +390,15 @@ Tokenizer.prototype.readGeneric = function() {
                 
             default:
                 this._countBlank();
+                tok = this._peek();
 
-                if (tok == COMMA || isName(tok)) {
+                if (valid.indexOf(tok) > -1 || isName(tok)) {
                     name += this._read();
                 } else
-                    throw new Error("Unexpected token ``" + tok + "'' in generic name ``" + name + "''");
+                    throw new Error("Unexpected token ``" + tok + "'' (" + 
+                        + String.fromCharCode(tok)
+                        + ") in generic name ``" 
+                        + name + this._read() + "''; valid=" + valid);
             } 
         }
     } else {
