@@ -719,7 +719,7 @@ function Statement(path, tok, type) {
 
     switch (type) {
     case "if":
-        console.log("IF! @", tok.getLine());
+        console.log(">> IF! @", tok.getLine());
         this.parens = Statement.read(path, tok);
         this.kids.push(Statement.read(path, tok));
         //console.log(this.kids.dumpEach());
@@ -727,6 +727,7 @@ function Statement(path, tok, type) {
             tok.expect("else", tok.readName);
             this.kids.push(Statement.read(path, tok));
         }
+        console.log("<< IF! @", tok.getLine(), this.kids.dumpEach());
         break;
 
     case "switch":
@@ -748,9 +749,13 @@ function Statement(path, tok, type) {
             } else 
                 throw new Error("Unexpected statement within switch@", tok.getLine(), ":", type);
 
-            if (tok.peekBlockOpen())
+            if (tok.peekBlockOpen()) {
                 this.kids.push(new Block(path, tok));
-            else
+                continue;
+            }
+
+            var next = tok.peekName();
+            if (!(next == 'case' || next == 'default'))
                 this.kids.push(new BlockStatements(path, tok));
         }
         tok.expect(true, tok.readBlockClose);
@@ -779,6 +784,14 @@ function Statement(path, tok, type) {
             this.kids.push(new Block(path, tok));
         }
 
+    case "return":
+    case "continue":
+    case "break":
+        if (!tok.peekSemicolon())
+            this.parens = Expression.read(path, tok);
+
+        tok.readSemicolon();
+        break;
     }
 
     this.end();
@@ -826,6 +839,7 @@ Statement.read = function read(path, tok) {
         // some sort of expression
         var expr = Expression.read(path, tok);
         tok.readSemicolon(); // may or may not be, here
+        console.log("Statement->expr", expr);
         return expr;
     }
 }
