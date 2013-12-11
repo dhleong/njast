@@ -21,6 +21,7 @@ function dumpArray(label, array, level) {
         buf += "\n" + indent(level);
         buf += label + ":\n";
         array.forEach(function(cl) {
+            buf += "\n" ;
             if (typeof(cl) == 'string')
                 buf += cl;
             else
