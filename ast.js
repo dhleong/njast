@@ -289,6 +289,9 @@ function ClassBody(path, tok) {
 
         } else if ("class" == token) {
             this.subclasses.push(new Class(path, tok, _mods));
+        } else if ("interface" == token) {
+            // FIXME support interfaces
+            break; 
         } else {
             var fom = this._parseFieldOrMethod(path, tok, _mods);
             if (!fom)
