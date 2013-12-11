@@ -321,6 +321,7 @@ function ClassBody(path, tok) {
             } else {
 
                 _mods.push(tok.readName());
+                token = tok.peekName();
             }
         }
 
@@ -653,12 +654,34 @@ AnnotationArguments.prototype.dump = function() {
 function Block(path, tok) {
     BlockLike.call(this, path, tok);
 
-    this.statements = [];
-
     tok.readBlockOpen();
     // console.log("Block=", tok.readName(), tok.getLastComment());
     
     // read statements
+    this.statements = new BlockStatements(path, tok);
+    tok.readBlockClose();
+
+    this.end();
+}
+util.inherits(Block, BlockLike);
+
+Block.prototype.dump = function(level) {
+    var buf = '\n' + indent(level) + '{' + this.dumpLine() + '\n';
+
+    buf += this.statements.dump(level + INDENT_LEVEL);
+
+    return buf + '\n' + indent(level) + '}';
+}
+
+
+/**
+ * Body of a block
+ */
+function BlockStatements(path, tok) {
+    BlockLike.call(this, path, tok);
+    
+    this.statements = [];
+
     while (!tok.readParenClose()) {
 
         var statement = Statement.read(path, tok);
@@ -667,19 +690,13 @@ function Block(path, tok) {
 
         this.statements.push(statement);
     }
-    tok.readBlockClose();
 
     this.end();
 }
-util.inherits(Block, BlockLike);
+util.inherits(BlockStatements, BlockLike);
 
-Block.prototype.dump = function(level) {
-    var nextLevel = level + INDENT_LEVEL;
-    var buf = '\n' + indent(level) + '{' + this.dumpLine() + '\n';
-
-    buf += dumpArray("Statements", this.statements, nextLevel);
-
-    return buf + '\n' + indent(level) + '}';
+BlockStatements.prototype.dump = function(level) {
+    return dumpArray("Statements", this.statements, nextLevel);
 }
 
 
@@ -701,6 +718,32 @@ function Statement(path, tok, type) {
             tok.expect("else", tok.readName);
             this.kids.push(Statement.read(path, tok));
         }
+        break;
+
+    case "switch":
+        // this is like switch-ception... parsing 
+        //  "switch" inside a switch
+        this.parens = Statement.read(path, tok);
+        tok.expect(true, tok.readBlockOpen);
+        while (!tok.peekBlockClose()) {
+            var type = tok.readName();
+            if ('case' == type) {
+                var expr = Expression.read(path, tok);
+                tok.expect(true, tok.readColon);
+                this.kids.push('case'); // TODO actually implement this type
+                this.kids.push(expr);
+            } else if ('default' == type) {
+                tok.expect(true, tok.readColon);
+                this.kids.push('default');
+            } else 
+                throw new Error("Unexpected statement within switch@", tok.getLine(), ":", type);
+
+            if (tok.peekBlockOpen())
+                this.kids.push(new Block(path, tok));
+            else
+                this.kids.push(new BlockStatements(path, tok));
+        }
+        tok.expect(true, tok.readBlockClose);
         break;
 
     case "try":
@@ -725,6 +768,7 @@ function Statement(path, tok, type) {
             this.kids.push("finally");
             this.kids.push(new Block(path, tok));
         }
+
     }
 
     this.end();
@@ -819,10 +863,13 @@ function Expression(path, tok) {
     }
 }
 
-Expression.read = function read(path, tok) {
+Expression.read = function(path, tok) {
 
     if (tok.peekParenOpen()) {
         return new CastExpression(path, tok);
+    } else if (tok.peekQuote()) {
+        console.log("Read string literal @", tok.getLine());
+        return tok.readString();
     }
 
     var name = tok.peekName();

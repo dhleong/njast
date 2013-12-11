@@ -1,7 +1,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()=;@",
+    _val: "\r\n/*09azAZ_$.,{}<>()=;:@\"\\",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -31,7 +31,10 @@ var PAREN_OPEN = VALS.next();
 var PAREN_CLOSE = VALS.next();
 var EQUALS = VALS.next();
 var SEMICOLON = VALS.next();
+var COLON = VALS.next();
 var AT = VALS.next();
+var QUOTE = VALS.next();
+var ESCAPE = VALS.next();
 
 var OTHER_TOKENS = [
     DOT,
@@ -44,7 +47,9 @@ var OTHER_TOKENS = [
     PAREN_CLOSE,
     EQUALS,
     SEMICOLON,
-    AT
+    COLON,
+    AT,
+    QUOTE
 ];
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'];
@@ -286,10 +291,12 @@ Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);
 Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
 Tokenizer.prototype.readAt         = _doRead(AT); // at symbol, for annotations
 Tokenizer.prototype.readComma      = _doRead(COMMA);
+Tokenizer.prototype.readColon      = _doRead(COLON);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
 Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
+Tokenizer.prototype.readQuote      = _doRead(QUOTE);
 
 // just peek; return True if it matches
 var _doPeek = function(token) { 
@@ -310,10 +317,29 @@ Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);
 Tokenizer.prototype.peekSemicolon  = _doPeek(SEMICOLON);
 Tokenizer.prototype.peekParenOpen  = _doPeek(PAREN_OPEN);
 Tokenizer.prototype.peekParenClose = _doPeek(PAREN_CLOSE);
+Tokenizer.prototype.peekQuote      = _doPeek(QUOTE);
 
 /** Convenience */
 Tokenizer.prototype.peekExpressionEnd = function(offset) {
     return this.readSemicolon(offset) || this.peekComma(offset) || this.peekParenClose(offset);
+}
+
+/** Read a string literal */
+Tokenizer.prototype.readString = function() {
+    this._countBlank();
+    var length = 0;
+    this.expect(true, this.readQuote);
+
+    var prev = false;
+    while (!(this._peek(length) == QUOTE && prev != ESCAPE)) {
+        prev = this._peek(length);
+        length++;
+    }
+
+    length++; // include the end quote
+    var val = '"' + this._fp.toString("UTF-8", 0, length); 
+    this._fp.offset += length;
+    return val;
 }
 
 Tokenizer.prototype.readName = function() {
