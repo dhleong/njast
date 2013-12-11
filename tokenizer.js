@@ -292,6 +292,7 @@ var _doRead = function(token) { return function() { return this._readToken(token
 Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);
 Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
 Tokenizer.prototype.readAt         = _doRead(AT); // at symbol, for annotations
+Tokenizer.prototype.readDot        = _doRead(DOT);
 Tokenizer.prototype.readComma      = _doRead(COMMA);
 Tokenizer.prototype.readColon      = _doRead(COLON);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);

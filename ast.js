@@ -848,15 +848,13 @@ Statement.read = function read(path, tok) {
 /**
  * An expression 
  */
-function Expression(path, tok) {
-    // TODO
+function Expression(path, tok, value) {
     this.line = tok.getLine();
 
-    this.name = tok.readQualified();
-    this.value = this.name;
+    this.value = tok.readQualified();
 
     if (tok.peekParenOpen()) {
-        console.log("METHOD CALL:", this.name);
+        console.log("METHOD CALL:", this.value);
         this.right = new Arguments(path, tok);
         return;
     }
@@ -907,7 +905,17 @@ Expression.read = function(path, tok) {
     } else {
 
         // FIXME: allow maths, etc.
-        return new Expression(path, tok);
+        var expr = new Expression(path, tok);
+
+        if (tok.readDot()) {
+            // support chained method calls, eg: Foo.get().calculate().stuff();
+            //console.log(">> CHAINED FROM", expr.dump());
+            var chain = new ChainExpression(path, tok, expr);
+            //console.log("<< CHAINED INTO", chain.dump());
+            return chain;
+        }
+
+        return expr
     }
 }
 
@@ -939,6 +947,22 @@ util.inherits(CastExpression, BlockLike);
 
 CastExpression.prototype.dump = function() {
     return "(" + this.cast.dump() + ") " + this.right.dump();
+}
+
+
+
+/** Ex: Foo.getBar().getBaz() */
+function ChainExpression(path, tok, left) {
+    BlockLike.call(this, path, tok);
+
+    //console.log("CAST EXPRESSION!!!!");
+    this.left = left;
+    this.right = Expression.read(path, tok);
+}
+util.inherits(ChainExpression, BlockLike);
+
+ChainExpression.prototype.dump = function() {
+    return this.left.dump() + " [.] " + this.right.dump();
 }
 
 module.exports = Ast;
