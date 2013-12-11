@@ -148,7 +148,7 @@ JavaFile.prototype.dump = function() {
         buf += cl.dump(2) + "\n";
     });
 
-    return buf + "]";
+    return buf + "] // END " + this._path;
 }
 
 
@@ -216,7 +216,7 @@ Class.prototype.dump = function(level) {
 
     buf += this.body.dump(nextLevel);
 
-    return buf + "\n" + indent(level) + "]";
+    return buf + "\n" + indent(level) + "] // END " + this.name;
 }
 
 
@@ -373,7 +373,7 @@ Method.prototype.dump = function(level) {
     if (this.body)
         buf += this.body.dump(nextLevel);
 
-    return buf + "\n" + indent(level) + "]";
+    return buf + "\n" + indent(level) + "] // END " + this.name;
 }
 
 
