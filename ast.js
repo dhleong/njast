@@ -904,14 +904,21 @@ Expression.read = function(path, tok) {
         return new Creator(path, tok);
     } else {
 
-        // FIXME: allow maths, etc.
         var expr = new Expression(path, tok);
 
         if (tok.readDot()) {
             // support chained method calls, eg: Foo.get().calculate().stuff();
             //console.log(">> CHAINED FROM", expr.dump());
-            var chain = new ChainExpression(path, tok, expr);
+            var chain = new ChainExpression(path, tok, expr, '.');
             //console.log("<< CHAINED INTO", chain.dump());
+            return chain;
+        }
+
+        // FIXME: allow maths, etc.
+        var math = tok.readMath();
+        console.log("MATH!?", math);
+        if (math) {
+            var chain = new ChainExpression(path, tok, expr, math);
             return chain;
         }
 
@@ -951,18 +958,18 @@ CastExpression.prototype.dump = function() {
 
 
 
-/** Ex: Foo.getBar().getBaz() */
-function ChainExpression(path, tok, left) {
+/** Ex: Foo.getBar().getBaz(), or even a + b */
+function ChainExpression(path, tok, left, link) {
     BlockLike.call(this, path, tok);
 
-    //console.log("CAST EXPRESSION!!!!");
     this.left = left;
+    this.link = link;
     this.right = Expression.read(path, tok);
 }
 util.inherits(ChainExpression, BlockLike);
 
 ChainExpression.prototype.dump = function() {
-    return this.left.dump() + " [.] " + this.right.dump();
+    return this.left.dump() + " [" + this.link + "] " + this.right.dump();
 }
 
 module.exports = Ast;

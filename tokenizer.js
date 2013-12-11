@@ -1,7 +1,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()=;:@\"\\ ",
+    _val: "\r\n/*09azAZ_$.,{}<>()=+-|&;:@\"\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -30,6 +30,10 @@ var GENERIC_CLOSE = VALS.next();
 var PAREN_OPEN = VALS.next();
 var PAREN_CLOSE = VALS.next();
 var EQUALS = VALS.next();
+var PLUS = VALS.next();
+var MINUS = VALS.next();
+var OR = VALS.next();
+var AND = VALS.next();
 var SEMICOLON = VALS.next();
 var COLON = VALS.next();
 var AT = VALS.next();
@@ -37,6 +41,7 @@ var QUOTE = VALS.next();
 
 var ESCAPE = VALS.next();
 var SPACE = VALS.next();
+
 
 var OTHER_TOKENS = [
     DOT,
@@ -53,6 +58,13 @@ var OTHER_TOKENS = [
     AT,
     QUOTE,
 ];
+
+var MATH = [
+    PLUS, MINUS, STAR, SLASH,
+    EQUALS,
+    OR, AND,
+    GENERIC_OPEN, GENERIC_CLOSE
+]
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'];
 var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
@@ -71,8 +83,14 @@ function isName(charCode) {
     return OTHER_NAME_CHARS.indexOf(charCode) >= 0;
 }
 
+function isMath(charCode) {
+    //console.log(String.fromCharCode(charCode));
+    return MATH.indexOf(charCode) >= 0;
+}
+
 function isToken(charCode) {
     return isName(charCode)
+        || isMath(charCode)
         || OTHER_TOKENS.indexOf(charCode) >= 0; // TODO sort + binary search?
 }
 
@@ -325,6 +343,30 @@ Tokenizer.prototype.peekQuote      = _doPeek(QUOTE);
 /** Convenience */
 Tokenizer.prototype.peekExpressionEnd = function(offset) {
     return this.readSemicolon(offset) || this.peekComma(offset) || this.peekParenClose(offset);
+}
+
+/** Read math operation */
+Tokenizer.prototype.readMath = function() {
+    this._countBlank();
+
+    var length = 0;
+    if (isMath(this._peek())) {
+        length++;
+
+        if (isMath(this._peek(1))) {
+            length++;
+
+            if (isMath(this._peek(2)))
+                length++; // eg: >>=
+        }
+    }
+
+    if (length == 0)
+        return null;
+
+    var val = this._fp.toString("UTF-8", 0, length); 
+    this._fp.offset += length;
+    return val;
 }
 
 /** Read a string literal */
