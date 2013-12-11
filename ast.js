@@ -418,15 +418,22 @@ function VarDef(path, tok, type, name) {
         return; // just defined; not initialized
     else if (tok.peekEquals())
         tok.expect(true, tok.readEquals);
+    else {
+        console.log("!!! Unexpected end of VarDef (?) @", tok.getLine());
+        return; //
+    }
 
     var value = tok.peekName();
     //console.log('vardef=', type, name, value);
     
     if ('new' == value) {
-        this._parseInstantiation(path, tok);
+        this.creator = new Creator(path, tok);
+        tok.expect(true, tok.readSemicolon);
     } else {
         // TODO constant value
-        this.initializer = tok.readName(); // FIXME
+        console.log("Read creator");
+        this.creator = Expression.read(path, tok);
+        tok.expect(true, tok.readSemicolon);
     }
 }
 
@@ -438,14 +445,6 @@ VarDef.prototype.dump = function(level) {
         + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
         + init
         + "\n";
-}
-
-VarDef.prototype._parseInstantiation = function(path, tok) {
-
-    this.creator = new Creator(path, tok);
-    
-    tok.expect(true, tok.readSemicolon);
-    //console.log("Instantiate!", type, this.args);
 }
 
 
@@ -738,9 +737,11 @@ function Expression(path, tok) {
     while (!tok.peekExpressionEnd()) {
         var read = tok.peekGeneric();
         if (read) {
-            if (read == 'new')
+            console.log("@", tok.getLine(), "value=", this.value, "read=", read);
+            if (read == 'new') {
                 this.right = new Creator(path, tok);
-            else if (tok.peekParenOpen(read.length))
+                break;
+            } else if (tok.peekParenOpen(read.length))
                 // method call!
                 this.right = new Expression(path, tok);
             else
