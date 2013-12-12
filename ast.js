@@ -194,6 +194,10 @@ function Class(prev, tok, modifiers) {
     this.interfaces = [];
 
     if (!modifiers) {
+
+        if (tok.isAnnotation())
+            this.modifiers.push(new Annotations(prev, tok));
+
         // only look if they weren't provided
         while (tok.isModifier())
             this.modifiers.push(tok.readName());
