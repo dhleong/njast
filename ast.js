@@ -909,7 +909,14 @@ function Expression(path, tok, value) {
 Expression.read = function(path, tok) {
 
     if (tok.peekParenOpen()) {
-        return new CastExpression(path, tok);
+        var paren = new ParenExpression(path, tok);
+        if (tok.peekExpressionEnd())
+            return paren;
+
+        if (tok.readDot())
+            return new ChainExpression(path, tok, paren, '.');
+        else
+            return new ChainExpression(path, tok, paren, ' ');
     } else if (tok.peekQuote()) {
         console.log("Read string literal @", tok.getLine());
         return new LiteralExpression(tok, tok.readString());
@@ -970,20 +977,27 @@ LiteralExpression.prototype.dump = function() {
 }
 
 /** Ex: (Bar) ((Foo) baz.getFoo()).getBar() */
-function CastExpression(path, tok) {
+function ParenExpression(path, tok, left) {
     BlockLike.call(this, path, tok);
 
     //console.log("CAST EXPRESSION!!!!");
     tok.expect(true, tok.readParenOpen);
-    this.cast = Expression.read(path, tok);
+
+    this.left = left
+        ? left
+        : Expression.read(path, tok);
+
+    if (!tok.peekParenClose())
+        console.log(">>> Left=", this.left.dump());
     tok.expect(true, tok.readParenClose);
 
-    this.right = Expression.read(path, tok);
+    //if (!tok.peekExpressionEnd())
+    //    this.right = Expression.read(path, tok);
 }
-util.inherits(CastExpression, BlockLike);
+util.inherits(ParenExpression, BlockLike);
 
-CastExpression.prototype.dump = function() {
-    return "(" + this.cast.dump() + ") " + this.right.dump();
+ParenExpression.prototype.dump = function() {
+    return "(" + this.left.dump() + ")" + (this.right ? this.right.dump() : "");
 }
 
 
@@ -999,7 +1013,7 @@ function ChainExpression(path, tok, left, link) {
 util.inherits(ChainExpression, BlockLike);
 
 ChainExpression.prototype.dump = function(level) {
-    return indent(level) + this.left.dump() + " [" + this.link + "] " + this.right.dump();
+    return indent(level) + this.left.dump() + " [" + this.link + "] " + (this.right ? this.right.dump() : "<NULL>");
 }
 
 module.exports = Ast;
