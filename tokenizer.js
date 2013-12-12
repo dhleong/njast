@@ -404,12 +404,12 @@ Tokenizer.prototype.readName = function() {
     while (isName(this._peek(length)))
         length++;
 
-    if (!length)
+    if (!length) {
         this._rewindLastSkip();
+        return "";
+    }
 
-    var val = this._fp.toString("UTF-8", 0, length);
-    this._fp.offset += length;
-    return val;
+    return this._read(length);
 }
 
 /** Read qualified name, eg: com.package.Class */
@@ -474,7 +474,8 @@ Tokenizer.prototype.expect = function(expected, methodOrValue) {
 
     if (expected != result) {
         throw new Error("At line #" + this.getLine() 
-            + "\nExpected ``" + expected + "'' but was ``" + result + "''");
+            + "\nExpected ``" + expected + "'' but was ``" + result + "''"
+            + "\nPreview: " + this._read(15));
     }
 }
 

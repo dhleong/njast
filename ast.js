@@ -485,7 +485,12 @@ function VarDef(path, tok, type, name) {
         tok.expect(true, tok.readEquals);
     else {
         //console.log("!!! Unexpected end of VarDef (?) @", tok.getLine());
-        throw new Error("Unexpected end of VarDef (?) @" + tok.getLine());        
+        throw new Error("Unexpected end of VarDef (?) @" + tok.getLine() 
+                + "; mods=" + this.modifiers 
+                + "; type=" + this.type 
+                + "; name=" + this.name
+                + "; next=" + tok._read(10)
+                );
         return; //
     }
 
@@ -854,6 +859,8 @@ Statement.read = function(path, tok) {
     } else if ((type = tok.peekGeneric())
             && (name = tok.peekName(type.length))) {
         
+        tok.readGeneric();
+        tok.readName();
         console.log("Var def statement!", type, name);
         return new VarDef(path, tok, type, name);
     } else {
