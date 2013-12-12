@@ -132,11 +132,11 @@ var Commentor = {
             }
             break;
         case NL:
-            if (this.inComment())
+            if (this.type == COMMENT_LINE)
                 this._endComment(tok, off + 1);
             break;
         case CR:
-            if (this.inComment() && nextToken == NL) {
+            if (this.type == COMMENT_LINE && nextToken == NL) {
                 this._endComment(tok, off + 2);
             }
             break;
@@ -163,7 +163,7 @@ var Commentor = {
         var read = tok._fp.toString("UTF-8", start, end);
         this.value += read;
 
-        //console.log("Read comment ~", start, end, ":", read);
+        console.log("Read comment ~", start, end, ":", read);
     },
 
     _startComment: function(tok, type, off) {
@@ -171,7 +171,7 @@ var Commentor = {
         this.start = off;
         this.line = tok.getLine();
 
-        //console.log("START comment @", this.line, ":", type, off);
+        console.log("START comment @", this.line, ":", type, off);
     }
 }
 
@@ -193,6 +193,8 @@ Tokenizer.prototype._countBlank = function() {
 
     this._lastComment = null;
     Commentor.reset(this);
+
+    console.log("Count Blank @", this._lineno);
     
     var startLine = this._lineno;
     var off = this._fp.offset;
@@ -211,6 +213,7 @@ Tokenizer.prototype._countBlank = function() {
             this._lastComment = Commentor.value;
             this._lastSkipped = skipped; // save bytes skipped
             this._lastLine = startLine; // save last line (in case we rewind)
+            console.log("! Counted Blank @", this._lineno, "skipped=", skipped);
             return skipped; // also return bytes skipped
         }
 
@@ -365,8 +368,10 @@ Tokenizer.prototype.readMath = function() {
         }
     }
 
-    if (length == 0)
+    if (length == 0) {
+        this._rewindLastSkip();
         return null;
+    }
 
     var val = this._fp.toString("UTF-8", 0, length); 
     this._fp.offset += length;
@@ -397,6 +402,9 @@ Tokenizer.prototype.readName = function() {
     while (isName(this._peek(length)))
         length++;
 
+    if (!length)
+        this._rewindLastSkip();
+
     var val = this._fp.toString("UTF-8", 0, length);
     this._fp.offset += length;
     return val;
@@ -408,7 +416,9 @@ Tokenizer.prototype.readQualified = function() {
     while (this._readToken(DOT)) {
         name += '.' + this.readName();
     }
-    this._rewindLastSkip();
+
+    if (!name)
+        this._rewindLastSkip();
 
     return name;
 }

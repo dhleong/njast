@@ -340,8 +340,11 @@ function ClassBody(path, tok) {
             if (tok.readSemicolon())
                 continue; // ; can be a ClassBodyStatement
 
-            console.log("!!! WHAT! nextClose=", tok.peekBlockClose(), 
+            console.log("!!! WHAT! " +
+                'token=', token,
+                'nextClose=', tok.peekBlockClose(), 
                 'nextSemi=', tok.peekSemicolon(),
+                'crazy=', tok._read(10),
                 tok.getLine());
             break; // TODO ?
 
