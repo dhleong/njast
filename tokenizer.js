@@ -66,7 +66,8 @@ var MATH = [
     GENERIC_OPEN, GENERIC_CLOSE
 ]
 
-var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'];
+var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
+                 'volatile', 'transient', 'native', 'strictfp'];
 var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
                 'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
 
