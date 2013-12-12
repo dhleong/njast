@@ -922,6 +922,12 @@ Expression.read = function(path, tok) {
         return new LiteralExpression(tok, tok.readString());
     }
 
+    var math = tok.readMath();
+    if (math) {
+        // lazy way to do an prefix expression
+        return new ChainExpression(path, tok, new LiteralExpression(tok, math));
+    }
+
     var name = tok.peekName();
     if (!name) {
         console.log("Read expression missing name @", tok.getLine());
@@ -1013,7 +1019,10 @@ function ChainExpression(path, tok, left, link) {
 util.inherits(ChainExpression, BlockLike);
 
 ChainExpression.prototype.dump = function(level) {
-    return indent(level) + this.left.dump() + " [" + this.link + "] " + (this.right ? this.right.dump() : "<NULL>");
+    var link = this.link
+        ? " [" + this.link + "] "
+        : '';
+    return indent(level) + this.left.dump() + link + (this.right ? this.right.dump() : "<NULL>");
 }
 
 module.exports = Ast;
