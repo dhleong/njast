@@ -818,7 +818,6 @@ Statement.prototype.dump = function(level) {
         buf += this.parens.dump();
 
     if (this.kids.length) {
-        buf += level + INDENT_LEVEL;
         buf += dumpArray('Contents', this.kids, level + INDENT_LEVEL);
     }
 
@@ -992,8 +991,8 @@ function ChainExpression(path, tok, left, link) {
 }
 util.inherits(ChainExpression, BlockLike);
 
-ChainExpression.prototype.dump = function() {
-    return this.left.dump() + " [" + this.link + "] " + this.right.dump();
+ChainExpression.prototype.dump = function(level) {
+    return indent(level) + this.left.dump() + " [" + this.link + "] " + this.right.dump();
 }
 
 module.exports = Ast;
