@@ -334,6 +334,7 @@ Tokenizer.prototype.peekBlockOpen  = _doPeek(BLOCK_OPEN);
 Tokenizer.prototype.peekBlockClose = _doPeek(BLOCK_CLOSE);
 Tokenizer.prototype.peekAt         = _doPeek(AT); // at symbol, for annotations
 Tokenizer.prototype.peekComma      = _doPeek(COMMA);
+Tokenizer.prototype.peekColon      = _doPeek(COLON);
 Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);
 Tokenizer.prototype.peekSemicolon  = _doPeek(SEMICOLON);
 Tokenizer.prototype.peekParenOpen  = _doPeek(PAREN_OPEN);
@@ -342,7 +343,10 @@ Tokenizer.prototype.peekQuote      = _doPeek(QUOTE);
 
 /** Convenience */
 Tokenizer.prototype.peekExpressionEnd = function(offset) {
-    return this.readSemicolon(offset) || this.peekComma(offset) || this.peekParenClose(offset);
+    return this.readSemicolon(offset) 
+        || this.peekComma(offset) 
+        || this.peekParenClose(offset) 
+        || this.peekColon(offset);
 }
 
 /** Read math operation */

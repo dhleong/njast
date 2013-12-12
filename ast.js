@@ -783,6 +783,20 @@ function Statement(path, tok, type) {
             this.kids.push("finally");
             this.kids.push(new Block(path, tok));
         }
+        break;
+
+    case "for":
+        tok.expect(true, tok.readParenOpen);
+        var varDef = new VarDef(path, tok);
+
+        if (tok.readColon()) {
+            this.parens = new ChainExpression(path, tok, varDef, ":");
+            tok.expect(true, tok.readParenClose);
+            this.kids.push(Statement.read(path, tok));
+        } else if (tok.readSemicolon()) {
+            throw new Error("Normal for(;;) not supported yet");
+        }
+        break;
 
     case "return":
     case "continue":
@@ -804,6 +818,7 @@ Statement.prototype.dump = function(level) {
         buf += this.parens.dump();
 
     if (this.kids.length) {
+        buf += level + INDENT_LEVEL;
         buf += dumpArray('Contents', this.kids, level + INDENT_LEVEL);
     }
 
@@ -891,7 +906,7 @@ Expression.read = function(path, tok) {
         return new CastExpression(path, tok);
     } else if (tok.peekQuote()) {
         console.log("Read string literal @", tok.getLine());
-        return tok.readString();
+        return new LiteralExpression(tok, tok.readString());
     }
 
     var name = tok.peekName();
@@ -928,7 +943,6 @@ Expression.read = function(path, tok) {
 
 
 Expression.prototype.dump = function(level) {
-    // TODO
     var buf = indent(level) + "[EXPR:@" + this.line + " " + this.value;
 
     if (this.right) {
@@ -938,6 +952,16 @@ Expression.prototype.dump = function(level) {
     return buf + "]";
 }
 
+
+/** Literal value, like a String */
+function LiteralExpression(tok, value) {
+    this.line = tok.getLine();
+    this.value = value;
+}
+
+LiteralExpression.prototype.dump = function() {
+    return this.value;
+}
 
 /** Ex: (Bar) ((Foo) baz.getFoo()).getBar() */
 function CastExpression(path, tok) {
