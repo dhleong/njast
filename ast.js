@@ -333,19 +333,21 @@ function ClassBody(path, tok) {
 
         if ("" == token) {
             if (tok.isAnnotation()) {
-                _mods.push(new Annotations(tok));
+                _mods.push(new Annotations(path, tok));
                 continue;
             } 
 
             if (tok.readSemicolon())
                 continue; // ; can be a ClassBodyStatement
 
-            console.log("!!! WHAT! " +
+            console.log("!!! WHAT! @", tok.getLine(),
                 'token=', token,
                 'nextClose=', tok.peekBlockClose(), 
-                'nextSemi=', tok.peekSemicolon(),
-                'crazy=', tok._read(10),
-                tok.getLine());
+                'nextSemi=', tok.peekSemicolon());
+
+            tok._countBlank();
+            console.log('crazy=', tok._read(10));
+            tok._rewindLastSkip();
             break; // TODO ?
 
         } else if ("class" == token) {
@@ -466,7 +468,7 @@ function VarDef(path, tok, type, name) {
         this.modifiers = [];
 
         if (tok.isAnnotation())
-            this.modifiers.push(new Annotations(tok));
+            this.modifiers.push(new Annotations(path, tok));
 
         while (tok.isModifier())
             this.modifiers.push(tok.readName());
@@ -595,13 +597,15 @@ ArgumentsDef.prototype.dump = function() {
 /**
  * Using annotations
  */
-function Annotations(tok) {
+function Annotations(path, tok) {
+
+    this.path = path;
     this.line = tok.getLine();
 
     this.annotations = [];
 
     while (tok.isAnnotation()) {
-        this.annotations.push(new Annotation(tok));
+        this.annotations.push(new Annotation(path, tok));
     }
 }
 
@@ -611,12 +615,12 @@ Annotations.prototype.dump = function() {
 }
 
 
-function Annotation(tok) {
+function Annotation(path, tok) {
     this.line = tok.getLine();
 
     tok.expect(true, tok.readAt);
     this.name = '@' + tok.readQualified();
-    this.args = new AnnotationArguments(tok);
+    this.args = new AnnotationArguments(path, tok);
 }
 
 Annotation.prototype.dump = function() {
@@ -625,7 +629,7 @@ Annotation.prototype.dump = function() {
 
 
 
-function AnnotationArguments(tok) {
+function AnnotationArguments(path, tok) {
     this.line = tok.getLine();
 
     this.expressions = [];
@@ -637,7 +641,7 @@ function AnnotationArguments(tok) {
 
     do {
         // FIXME: allow var=val
-        this.expressions.push(tok.readName());
+        this.expressions.push(Expression.read(path, tok));
     } while (tok.readComma());
 
     tok.expect(true, tok.readParenClose);
@@ -646,7 +650,7 @@ function AnnotationArguments(tok) {
 
 AnnotationArguments.prototype.dump = function() {
     if (this.expressions.length) {
-        return '(' + this.expressions.join(",") + ')';
+        return '(' + this.expressions.dumpEach().join(",") + ')';
     }
 
     return '';

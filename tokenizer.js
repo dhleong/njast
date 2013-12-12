@@ -163,7 +163,7 @@ var Commentor = {
         var read = tok._fp.toString("UTF-8", start, end);
         this.value += read;
 
-        console.log("Read comment ~", start, end, ":", read);
+        //console.log("Read comment ~", start, end, ":", read);
     },
 
     _startComment: function(tok, type, off) {
@@ -171,7 +171,7 @@ var Commentor = {
         this.start = off;
         this.line = tok.getLine();
 
-        console.log("START comment @", this.line, ":", type, off);
+        //console.log("START comment @", this.line, ":", type, off);
     }
 }
 
@@ -194,7 +194,7 @@ Tokenizer.prototype._countBlank = function() {
     this._lastComment = null;
     Commentor.reset(this);
 
-    console.log("Count Blank @", this._lineno);
+    //console.log("Count Blank @", this._lineno);
     
     var startLine = this._lineno;
     var off = this._fp.offset;
@@ -204,16 +204,18 @@ Tokenizer.prototype._countBlank = function() {
             ? this._fp[off + 1]
             : -1;
 
-        off += Commentor.read(this, off, token, nextToken);
+        var skip = Commentor.read(this, off, token, nextToken);
+        off += skip;
 
-        if (!Commentor.inComment() && isToken(token)) {
+        // if we had a skip from Commentor, don't process this
+        if (!skip && !Commentor.inComment() && isToken(token)) {
             // done!
             var skipped = off - this._fp.offset;
             this._fp.offset = off;
             this._lastComment = Commentor.value;
             this._lastSkipped = skipped; // save bytes skipped
             this._lastLine = startLine; // save last line (in case we rewind)
-            console.log("! Counted Blank @", this._lineno, "skipped=", skipped);
+            //console.log("! Counted Blank @", this._lineno, "skipped=", skipped, "token=", String.fromCharCode(token));
             return skipped; // also return bytes skipped
         }
 
