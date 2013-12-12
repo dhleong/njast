@@ -67,7 +67,7 @@ function Ast(path, buffer) {
         : fs.readFileSync(buffer);
     this.tok = new Tokenizer(this._fp);
     
-    this._root = new JavaFile(this._path, this.tok);
+    this._root = new JavaFile(this, this.tok);
 }
 
 /**
@@ -86,21 +86,40 @@ Ast.prototype.dump = function() {
 
 
 /**
- * Superclass for block-like things
+ * Superclass for simple things
  */
-function BlockLike(path, tok) {
-    this._path = path;
+function SimpleNode(prev, tok) {
+    this._prev = prev;
+    this._root = prev._root;
     this.tok = tok;
     this.line = tok.getLine();
+}
+
+SimpleNode.prototype.getParent = function() {
+    return this._prev;
+}
+
+SimpleNode.prototype.getPath = function() {
+    return this._root.getPath();
+}
+
+SimpleNode.prototype.getRoot = function() {
+    return this._root;
+}
+
+
+/**
+ * Superclass for block-like things
+ */
+function BlockLike(prev, tok) {
+    SimpleNode.call(this, prev, tok);
+
     this.line_end = this.line; // for now
 }
+util.inherits(BlockLike, SimpleNode);
 
 BlockLike.prototype.dumpLine = function() {
     return "(@" + this.line + " ~ " + this.line_end + ")";
-}
-
-BlockLike.prototype.getPath = function() {
-    return this._path;
 }
 
 /** Call when done processing */
@@ -113,9 +132,9 @@ BlockLike.prototype.end = function() {
  * Root "Java File" obj; contains
  *  top-level classes, imports, and package
  */
-function JavaFile(path, tok) {
-    this._path = path;
-    this.tok = tok;
+function JavaFile(root, tok) {
+    SimpleNode.call(this, root, tok);
+    this._root = root;
 
     this.package = '<default>';
     this.imports = [];
@@ -134,7 +153,7 @@ function JavaFile(path, tok) {
             this.imports.push(tok.readQualified());
             tok.readSemicolon();
         } else {
-            klass = new Class(path, tok);
+            klass = new Class(root, tok);
             this.classes.push(klass);
 
             // TODO save refs to all "tags" 
@@ -142,6 +161,7 @@ function JavaFile(path, tok) {
         }
     }
 }
+util.inherits(JavaFile, SimpleNode);
 
 JavaFile.prototype.dump = function() {
     var buf = "[JavaFile:package " + this.package + ";\n";
@@ -157,15 +177,17 @@ JavaFile.prototype.dump = function() {
         buf += cl.dump(2) + "\n";
     });
 
-    return buf + "] // END " + this._path;
+    return buf + "] // END " + this.getPath();
 }
 
 
 /**
  * A java class
+ * @param prev The previous (parent) node in the AST
+ * @param tok A Tokenizer
  */
-function Class(path, tok, modifiers) {
-    BlockLike.call(this, path, tok);
+function Class(prev, tok, modifiers) {
+    BlockLike.call(this, prev, tok);
 
     this.modifiers = modifiers ? modifiers.slice() : [];
     this.superclass = null;
@@ -202,7 +224,7 @@ function Class(path, tok, modifiers) {
         tok.expect(true, tok.peekBlockOpen);
     }
 
-    this.body = new ClassBody(path, tok);
+    this.body = new ClassBody(prev, tok);
 
     this.end();
     _log("End ClassBody", this.dumpLine());
@@ -231,8 +253,8 @@ Class.prototype.dump = function(level) {
 /**
  * A java interface
  */
-function Interface(path, tok, modifiers) {
-    BlockLike.call(this, path, tok);
+function Interface(prev, tok, modifiers) {
+    BlockLike.call(this, prev, tok);
 
     this.modifiers = modifiers ? modifiers.slice() : [];
     this.interfaces = [];
@@ -262,7 +284,7 @@ function Interface(path, tok, modifiers) {
         tok.expect(true, tok.peekBlockOpen);
     }
 
-    this.body = new ClassBody(path, tok); // lazy
+    this.body = new ClassBody(prev, tok); // lazy
 
     this.end();
 }
@@ -287,8 +309,8 @@ Interface.prototype.dump = function(level) {
 /**
  * The body of a class (extracted for anonymous classes!)
  */
-function ClassBody(path, tok) {
-    BlockLike.call(this, path, tok);
+function ClassBody(prev, tok) {
+    BlockLike.call(this, prev, tok);
 
     this.subclasses = [];
     this.blocks = [];
@@ -324,7 +346,7 @@ function ClassBody(path, tok) {
                 _javadoc = null;
 
                 // yep, static block
-                this.blocks.push(new Block(path, tok));
+                this.blocks.push(new Block(this, tok));
             } else {
 
                 _mods.push(tok.readName());
@@ -339,7 +361,7 @@ function ClassBody(path, tok) {
 
         if ("" == token) {
             if (tok.isAnnotation()) {
-                _mods.push(new Annotations(path, tok));
+                _mods.push(new Annotations(this, tok));
                 continue;
             } 
 
@@ -357,11 +379,11 @@ function ClassBody(path, tok) {
             break; // TODO ?
 
         } else if ("class" == token) {
-            this.subclasses.push(new Class(path, tok, _mods));
+            this.subclasses.push(new Class(this, tok, _mods));
         } else if ("interface" == token) {
-            this.subclasses.push(new Interface(path, tok, _mods));
+            this.subclasses.push(new Interface(this, tok, _mods));
         } else {
-            var fom = this._parseFieldOrMethod(path, tok, _mods);
+            var fom = this._parseFieldOrMethod(tok, _mods);
             if (!fom)
                 break; // TODO ?
 
@@ -382,7 +404,7 @@ function ClassBody(path, tok) {
 }
 util.inherits(ClassBody, BlockLike);
 
-ClassBody.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
+ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
 
     var type = tok.readGeneric();
     var name = tok.readName();
@@ -390,13 +412,13 @@ ClassBody.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
     if (tok.peekEquals() || tok.peekSemicolon()) {
         //_log("vardef!", type, name);
-        var field = new VarDef(path, tok, type, name);
+        var field = new VarDef(this, tok, type, name);
         field.modifiers = modifiers;
         return field;
     } else {
         //_log("method!", type, name, tok.getLine());
         //_log("mods:", modifiers);
-        return new Method(path, tok, modifiers, type, name);
+        return new Method(this, tok, modifiers, type, name);
     }
 };
 
@@ -412,15 +434,15 @@ ClassBody.prototype.dump = function(level) {
 /**
  * Method in a class
  */
-function Method(path, tok, modifiers, returnType, name) {
-    BlockLike.call(this, path, tok);
+function Method(prev, tok, modifiers, returnType, name) {
+    BlockLike.call(this, prev, tok);
 
     this.modifiers = modifiers;
     
     this.returnType = returnType;
     this.name = name;
 
-    this.args = new ArgumentsDef(path, tok);
+    this.args = new ArgumentsDef(this, tok);
 
     // throws declaration?
     if (tok.peekName() == "throws") {
@@ -434,7 +456,7 @@ function Method(path, tok, modifiers, returnType, name) {
 
     if (!tok.readSemicolon()) {
         // we have a body!
-        this.body = new Block(path, tok);
+        this.body = new Block(this, tok);
     }
 
     this.end();
@@ -463,9 +485,8 @@ Method.prototype.dump = function(level) {
  *  a field, a local variable, or even
  *  a method arg definition
  */
-function VarDef(path, tok, type, name) {
-    this._path = path;
-    this.line = tok.getLine();
+function VarDef(prev, tok, type, name) {
+    SimpleNode.call(this, prev, tok);
 
     if (type) {
         this.type = type;
@@ -474,7 +495,7 @@ function VarDef(path, tok, type, name) {
         this.modifiers = [];
 
         if (tok.isAnnotation())
-            this.modifiers.push(new Annotations(path, tok));
+            this.modifiers.push(new Annotations(this, tok));
 
         while (tok.isModifier())
             this.modifiers.push(tok.readName());
@@ -504,15 +525,16 @@ function VarDef(path, tok, type, name) {
     //_log('vardef=', type, name, value);
     
     if ('new' == value) {
-        this.creator = new Creator(path, tok);
+        this.creator = new Creator(this, tok);
         tok.expect(true, tok.readSemicolon);
     } else {
         // TODO constant value
         _log("Read creator");
-        this.creator = Expression.read(path, tok);
+        this.creator = Expression.read(this, tok);
         tok.readSemicolon(); // the expression might've already read it
     }
 }
+util.inherits(VarDef, SimpleNode);
 
 VarDef.prototype.dump = function(level) {
     var buf = indent(level);
@@ -528,17 +550,19 @@ VarDef.prototype.dump = function(level) {
 /**
  * "Creator" (Oracle's term)
  */
-function Creator(path, tok) {
+function Creator(prev, tok) {
+    SimpleNode.call(this, prev, tok);
 
     tok.expect("new", tok.readName);
     var type = tok.readGeneric();
     this.initializer = '[new] ' + type; // TODO fancier
-    this.args = new Arguments(path, tok);
+    this.args = new Arguments(this, tok);
 
     if (tok.peekBlockOpen()) {
-        this.body = new ClassBody(path, tok);
+        this.body = new ClassBody(this, tok);
     }
 }
+util.inherits(Creator, SimpleNode);
 
 Creator.prototype.dump = function(level) {
 
@@ -553,16 +577,16 @@ Creator.prototype.dump = function(level) {
 /**
  * Arguments list, ex: `(var1, 2, 3)`
  */
-function Arguments(path, tok) {
+function Arguments(prev, tok) {
+    SimpleNode.call(this, prev, tok);
 
-    this.line = tok.getLine();
     this.expressions = [];
 
     tok.expect(true, tok.readParenOpen);
 
     _log("Reading Arguments expressions @", tok.getLine());
     do {
-        var expr = Expression.read(path, tok);
+        var expr = Expression.read(this, tok);
         if (!expr)
             break;
 
@@ -572,6 +596,7 @@ function Arguments(path, tok) {
     _log(this.dump());
     tok.expect(true, tok.readParenClose);
 }
+util.inherits(Arguments, SimpleNode);
 
 Arguments.prototype.dump = function(level) {
     return "[ARGS:@" + this.line + " (" + this.expressions.dumpEach().join(" , ") + ")]";
@@ -581,19 +606,21 @@ Arguments.prototype.dump = function(level) {
 /**
  * Arguments list definition: ex `(@annot final int var, @special java.lang.Class klass)`
  */
-function ArgumentsDef(path, tok) {
-    this.line = tok.getLine();
+function ArgumentsDef(prev, tok) {
+    SimpleNode.call(this, prev, tok);
+
     this.args = [];
     
     tok.expect(true, tok.readParenOpen);
     while (!tok.peekParenClose()) {
-        this.args.push(new VarDef(path, tok));
+        this.args.push(new VarDef(this, tok));
 
         tok.readComma();
     }
 
     tok.expect(true, tok.readParenClose);
 }
+util.inherits(ArgumentsDef, SimpleNode);
 
 ArgumentsDef.prototype.dump = function() {
     if (this.args.length) {
@@ -608,17 +635,16 @@ ArgumentsDef.prototype.dump = function() {
 /**
  * Using annotations
  */
-function Annotations(path, tok) {
-
-    this.path = path;
-    this.line = tok.getLine();
+function Annotations(prev, tok) {
+    SimpleNode.call(this, prev, tok);
 
     this.annotations = [];
 
     while (tok.isAnnotation()) {
-        this.annotations.push(new Annotation(path, tok));
+        this.annotations.push(new Annotation(this, tok));
     }
 }
+util.inherits(Annotation, SimpleNode);
 
 Annotations.prototype.dump = function() {
     return "[ANNOT:@" + this.line + " [" +
@@ -626,13 +652,14 @@ Annotations.prototype.dump = function() {
 }
 
 
-function Annotation(path, tok) {
-    this.line = tok.getLine();
+function Annotation(prev, tok) {
+    SimpleNode.call(this, prev, tok);
 
     tok.expect(true, tok.readAt);
     this.name = '@' + tok.readQualified();
-    this.args = new AnnotationArguments(path, tok);
+    this.args = new AnnotationArguments(this, tok);
 }
+util.inherits(Annotation, SimpleNode);
 
 Annotation.prototype.dump = function() {
     return this.name + this.args.dump();
@@ -640,8 +667,8 @@ Annotation.prototype.dump = function() {
 
 
 
-function AnnotationArguments(path, tok) {
-    this.line = tok.getLine();
+function AnnotationArguments(prev, tok) {
+    SimpleNode.call(this, prev, tok);
 
     this.expressions = [];
 
@@ -652,12 +679,13 @@ function AnnotationArguments(path, tok) {
 
     do {
         // FIXME: allow var=val
-        this.expressions.push(Expression.read(path, tok));
+        this.expressions.push(Expression.read(this, tok));
     } while (tok.readComma());
 
     tok.expect(true, tok.readParenClose);
 
 }
+util.inherits(AnnotationArguments, SimpleNode);
 
 AnnotationArguments.prototype.dump = function() {
     if (this.expressions.length) {
@@ -671,14 +699,14 @@ AnnotationArguments.prototype.dump = function() {
 /**
  * Code blocks!
  */
-function Block(path, tok) {
-    BlockLike.call(this, path, tok);
+function Block(prev, tok) {
+    BlockLike.call(this, prev, tok);
 
     tok.readBlockOpen();
     // _log("Block=", tok.readName(), tok.getLastComment());
     
     // read statements
-    this.statements = new BlockStatements(path, tok);
+    this.statements = new BlockStatements(this, tok);
     tok.readBlockClose();
 
     this.end();
@@ -698,14 +726,14 @@ Block.prototype.dump = function(level) {
 /**
  * Body of a block
  */
-function BlockStatements(path, tok) {
-    BlockLike.call(this, path, tok);
+function BlockStatements(prev, tok) {
+    BlockLike.call(this, prev, tok);
     
     this.statements = [];
 
     while (!tok.peekBlockClose()) {
 
-        var statement = Statement.read(path, tok);
+        var statement = Statement.read(this, tok);
         if (!statement)
             break;
 
@@ -728,8 +756,8 @@ BlockStatements.prototype.dump = function(level) {
 /**
  * An individual statement (within a Block)
  */
-function Statement(path, tok, type) {
-    BlockLike.call(this, path, tok);
+function Statement(prev, tok, type) {
+    BlockLike.call(this, prev, tok);
 
     this.type = type;
 
@@ -738,12 +766,12 @@ function Statement(path, tok, type) {
     switch (type) {
     case "if":
         _log(">> IF! @", tok.getLine());
-        this.parens = Statement.read(path, tok);
-        this.kids.push(Statement.read(path, tok));
+        this.parens = Statement.read(this, tok);
+        this.kids.push(Statement.read(this, tok));
         //_log(this.kids.dumpEach());
         if (tok.peekName() == 'else') {
             tok.expect("else", tok.readName);
-            this.kids.push(Statement.read(path, tok));
+            this.kids.push(Statement.read(this, tok));
         }
         _log("<< IF! @", tok.getLine(), this.kids.dumpEach());
         break;
@@ -752,12 +780,12 @@ function Statement(path, tok, type) {
         // this is like switch-ception... parsing 
         //  "switch" inside a switch
         _log("SWITCH! @", tok.getLine());
-        this.parens = Statement.read(path, tok);
+        this.parens = Statement.read(this, tok);
         tok.expect(true, tok.readBlockOpen);
         while (!tok.peekBlockClose()) {
             var type = tok.readName();
             if ('case' == type) {
-                var expr = Expression.read(path, tok);
+                var expr = Expression.read(this, tok);
                 tok.expect(true, tok.readColon);
                 this.kids.push('case'); // TODO actually implement this type
                 this.kids.push(expr);
@@ -768,20 +796,20 @@ function Statement(path, tok, type) {
                 throw new Error("Unexpected statement within switch@", tok.getLine(), ":", type);
 
             if (tok.peekBlockOpen()) {
-                this.kids.push(new Block(path, tok));
+                this.kids.push(new Block(this, tok));
                 continue;
             }
 
             var next = tok.peekName();
             if (!(next == 'case' || next == 'default'))
-                this.kids.push(new BlockStatements(path, tok));
+                this.kids.push(new BlockStatements(this, tok));
         }
         tok.expect(true, tok.readBlockClose);
         break;
 
     case "try":
         //_log("*** TRY!");
-        this.kids.push(new Block(path, tok));
+        this.kids.push(new Block(this, tok));
         _log("Next=", tok.peekName());
         while ("catch" == tok.peekName()) {
             //_log("*** CATCH!");
@@ -789,28 +817,28 @@ function Statement(path, tok, type) {
             this.kids.push("catch");
 
             tok.expect(true, tok.readParenOpen);
-            this.kids.push(new VarDef(path, tok));
+            this.kids.push(new VarDef(this, tok));
             tok.expect(true, tok.readParenClose);
 
-            this.kids.push(new Block(path, tok));
+            this.kids.push(new Block(this, tok));
         }
 
         if ("finally" == tok.peekName()) {
             //_log("*** FINALLY!");
             tok.expect("finally", tok.readName);
             this.kids.push("finally");
-            this.kids.push(new Block(path, tok));
+            this.kids.push(new Block(this, tok));
         }
         break;
 
     case "for":
         tok.expect(true, tok.readParenOpen);
-        var varDef = new VarDef(path, tok);
+        var varDef = new VarDef(this, tok);
 
         if (tok.readColon()) {
-            this.parens = new ChainExpression(path, tok, varDef, ":");
+            this.parens = new ChainExpression(this, tok, varDef, ":");
             tok.expect(true, tok.readParenClose);
-            this.kids.push(Statement.read(path, tok));
+            this.kids.push(Statement.read(this, tok));
         } else if (tok.readSemicolon()) {
             throw new Error("Normal for(;;) not supported yet");
         }
@@ -820,7 +848,7 @@ function Statement(path, tok, type) {
     case "continue":
     case "break":
         if (!tok.peekSemicolon())
-            this.parens = Expression.read(path, tok);
+            this.parens = Expression.read(this, tok);
 
         tok.readSemicolon();
         break;
@@ -843,35 +871,35 @@ Statement.prototype.dump = function(level) {
 }
 
 /** Factory; we might return VarDef, for example */
-Statement.read = function(path, tok) {
+Statement.read = function(prev, tok) {
     if (tok.peekBlockOpen()) {
 
         // it's a block
-        return new Block(path, tok);
+        return new Block(prev, tok);
 
     } else if (tok.readParenOpen()) {
 
         // should we wrap this so we know?
-        var expr = Expression.read(path, tok);
+        var expr = Expression.read(prev, tok);
         _log("ParExpression", expr);
         tok.expect(true, tok.readParenClose);
         return expr;
     } else if (tok.isControl()) {
         var control = tok.readName();
-        return new Statement(path, tok, control);
+        return new Statement(prev, tok, control);
     } else if (tok.isModifier()) {
         // definitely a vardef, I think
-        return new VarDef(path, tok);
+        return new VarDef(prev, tok);
     } else if ((type = tok.peekGeneric())
             && (name = tok.peekName(type.length))) {
         
         tok.readGeneric();
         tok.readName();
         _log("Var def statement!", type, name);
-        return new VarDef(path, tok, type, name);
+        return new VarDef(prev, tok, type, name);
     } else {
         // some sort of expression
-        var expr = Expression.read(path, tok);
+        var expr = Expression.read(prev, tok);
         tok.readSemicolon(); // may or may not be, here
         _log("Statement->expr", expr);
         return expr;
@@ -882,14 +910,14 @@ Statement.read = function(path, tok) {
 /**
  * An expression 
  */
-function Expression(path, tok, value) {
-    this.line = tok.getLine();
+function Expression(prev, tok, value) {
+    SimpleNode.call(this, prev, tok);
 
     this.value = tok.readQualified();
 
     if (tok.peekParenOpen()) {
         _log("METHOD CALL:", this.value);
-        this.right = new Arguments(path, tok);
+        this.right = new Arguments(this, tok);
         return;
     }
 
@@ -898,11 +926,11 @@ function Expression(path, tok, value) {
         if (read) {
             _log("@", tok.getLine(), "value=", this.value, "read=", read);
             if (read == 'new') {
-                this.right = new Creator(path, tok);
+                this.right = new Creator(this, tok);
                 break;
             } else if (tok.peekParenOpen(read.length))
                 // method call!
-                this.right = new Expression(path, tok);
+                this.right = new Expression(this, tok);
             else
                 this.value += tok.readGeneric();
 
@@ -918,27 +946,28 @@ function Expression(path, tok, value) {
         }
     }
 }
+util.inherits(Expression, SimpleNode);
 
-Expression.read = function(path, tok) {
+Expression.read = function(prev, tok) {
 
     if (tok.peekParenOpen()) {
-        var paren = new ParenExpression(path, tok);
+        var paren = new ParenExpression(prev, tok);
         if (tok.peekExpressionEnd())
             return paren;
 
         if (tok.readDot())
-            return new ChainExpression(path, tok, paren, '.');
+            return new ChainExpression(prev, tok, paren, '.');
         else
-            return new ChainExpression(path, tok, paren, ' ');
+            return new ChainExpression(prev, tok, paren, ' ');
     } else if (tok.peekQuote()) {
         _log("Read string literal @", tok.getLine());
-        return new LiteralExpression(tok, tok.readString());
+        return new LiteralExpression(prev, tok, tok.readString());
     }
 
     var math = tok.readMath();
     if (math) {
         // lazy way to do an prefix expression
-        return new ChainExpression(path, tok, new LiteralExpression(tok, math));
+        return new ChainExpression(prev, tok, new LiteralExpression(prev, tok, math));
     }
 
     var name = tok.peekName();
@@ -948,15 +977,15 @@ Expression.read = function(path, tok) {
     }
 
     if (name == 'new') {
-        return new Creator(path, tok);
+        return new Creator(prev, tok);
     } else {
 
-        var expr = new Expression(path, tok);
+        var expr = new Expression(prev, tok);
 
         if (tok.readDot()) {
             // support chained method calls, eg: Foo.get().calculate().stuff();
             //_log(">> CHAINED FROM", expr.dump());
-            var chain = new ChainExpression(path, tok, expr, '.');
+            var chain = new ChainExpression(prev, tok, expr, '.');
             //_log("<< CHAINED INTO", chain.dump());
             return chain;
         }
@@ -965,7 +994,7 @@ Expression.read = function(path, tok) {
         var math = tok.readMath();
         _log("MATH!?", math);
         if (math) {
-            var chain = new ChainExpression(path, tok, expr, math);
+            var chain = new ChainExpression(prev, tok, expr, math);
             return chain;
         }
 
@@ -986,25 +1015,28 @@ Expression.prototype.dump = function(level) {
 
 
 /** Literal value, like a String */
-function LiteralExpression(tok, value) {
-    this.line = tok.getLine();
+function LiteralExpression(prev, tok, value) {
+    SimpleNode.call(this, prev, tok);
+
     this.value = value;
 }
+util.inherits(LiteralExpression, SimpleNode);
 
 LiteralExpression.prototype.dump = function() {
     return this.value;
 }
 
+
 /** Ex: (Bar) ((Foo) baz.getFoo()).getBar() */
-function ParenExpression(path, tok, left) {
-    BlockLike.call(this, path, tok);
+function ParenExpression(prev, tok, left) {
+    BlockLike.call(this, prev, tok);
 
     //_log("CAST EXPRESSION!!!!");
     tok.expect(true, tok.readParenOpen);
 
     this.left = left
         ? left
-        : Expression.read(path, tok);
+        : Expression.read(this, tok);
 
     if (!tok.peekParenClose())
         _log(">>> Left=", this.left.dump());
@@ -1022,12 +1054,12 @@ ParenExpression.prototype.dump = function() {
 
 
 /** Ex: Foo.getBar().getBaz(), or even a + b */
-function ChainExpression(path, tok, left, link) {
-    BlockLike.call(this, path, tok);
+function ChainExpression(prev, tok, left, link) {
+    BlockLike.call(this, prev, tok);
 
     this.left = left;
     this.link = link;
-    this.right = Expression.read(path, tok);
+    this.right = Expression.read(this, tok);
 }
 util.inherits(ChainExpression, BlockLike);
 
