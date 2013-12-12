@@ -5,6 +5,12 @@ var util = require("util")
 
 INDENT_LEVEL = 2;
 
+DEBUG = false;
+
+_log = DEBUG
+    ? function() { console.log.apply(console.log, arguments); }
+    : function() { };
+
 function indent(level) {
     var buf = "";
     var level = level ? level : 0;
@@ -118,7 +124,7 @@ function JavaFile(path, tok) {
     // parse the file
     for (;;) {
         var type = tok.peekName();
-        //console.log('type = ' + type);
+        //_log('type = ' + type);
         if (type == 'package') {
             tok.readName();
             this.package = tok.readQualified();
@@ -199,7 +205,7 @@ function Class(path, tok, modifiers) {
     this.body = new ClassBody(path, tok);
 
     this.end();
-    console.log("End ClassBody", this.dumpLine());
+    _log("End ClassBody", this.dumpLine());
 }
 util.inherits(Class, BlockLike);
 
@@ -296,7 +302,7 @@ function ClassBody(path, tok) {
     // read in the body
     for (;;) {
         if (tok.readBlockClose()) {
-            console.log("!! Close ClassBody block @", tok.getLine());
+            _log("!! Close ClassBody block @", tok.getLine());
             break;
         }
 
@@ -309,7 +315,7 @@ function ClassBody(path, tok) {
 
         // what've we got here?
         token = tok.peekName();
-        console.log("In ClassBody block @", tok.getLine(), "peek=", token);
+        _log("In ClassBody block @", tok.getLine(), "peek=", token);
     
         // check for static block
         if (token == 'static') {
@@ -340,13 +346,13 @@ function ClassBody(path, tok) {
             if (tok.readSemicolon())
                 continue; // ; can be a ClassBodyStatement
 
-            console.log("!!! WHAT! @", tok.getLine(),
+            _log("!!! WHAT! @", tok.getLine(),
                 'token=', token,
                 'nextClose=', tok.peekBlockClose(), 
                 'nextSemi=', tok.peekSemicolon());
 
             tok._countBlank();
-            console.log('crazy=', tok._read(10));
+            _log('crazy=', tok._read(10));
             tok._rewindLastSkip();
             break; // TODO ?
 
@@ -364,12 +370,12 @@ function ClassBody(path, tok) {
             else if ('Method' == fom.constructor.name)
                 this.methods.push(fom);
 
-            console.log("JAVADOC for", fom.constructor.name, fom.name, _javadoc);
+            _log("JAVADOC for", fom.constructor.name, fom.name, _javadoc);
         }
 
         _mods = [];
         _javadoc = null;
-        console.log('peek=', _mods.join(' '), token);
+        _log('peek=', _mods.join(' '), token);
     }
 
     this.end();
@@ -380,16 +386,16 @@ ClassBody.prototype._parseFieldOrMethod = function(path, tok, modifiers) {
 
     var type = tok.readGeneric();
     var name = tok.readName();
-    //console.log('!!!fom=', modifiers.join(' '), type, name);
+    //_log('!!!fom=', modifiers.join(' '), type, name);
 
     if (tok.peekEquals() || tok.peekSemicolon()) {
-        //console.log("vardef!", type, name);
+        //_log("vardef!", type, name);
         var field = new VarDef(path, tok, type, name);
         field.modifiers = modifiers;
         return field;
     } else {
-        //console.log("method!", type, name, tok.getLine());
-        //console.log("mods:", modifiers);
+        //_log("method!", type, name, tok.getLine());
+        //_log("mods:", modifiers);
         return new Method(path, tok, modifiers, type, name);
     }
 };
@@ -484,7 +490,7 @@ function VarDef(path, tok, type, name) {
     else if (tok.peekEquals())
         tok.expect(true, tok.readEquals);
     else {
-        //console.log("!!! Unexpected end of VarDef (?) @", tok.getLine());
+        //_log("!!! Unexpected end of VarDef (?) @", tok.getLine());
         throw new Error("Unexpected end of VarDef (?) @" + tok.getLine() 
                 + "; mods=" + this.modifiers 
                 + "; type=" + this.type 
@@ -495,14 +501,14 @@ function VarDef(path, tok, type, name) {
     }
 
     var value = tok.peekName();
-    //console.log('vardef=', type, name, value);
+    //_log('vardef=', type, name, value);
     
     if ('new' == value) {
         this.creator = new Creator(path, tok);
         tok.expect(true, tok.readSemicolon);
     } else {
         // TODO constant value
-        console.log("Read creator");
+        _log("Read creator");
         this.creator = Expression.read(path, tok);
         tok.readSemicolon(); // the expression might've already read it
     }
@@ -554,7 +560,7 @@ function Arguments(path, tok) {
 
     tok.expect(true, tok.readParenOpen);
 
-    console.log("Reading Arguments expressions @", tok.getLine());
+    _log("Reading Arguments expressions @", tok.getLine());
     do {
         var expr = Expression.read(path, tok);
         if (!expr)
@@ -563,7 +569,7 @@ function Arguments(path, tok) {
         this.expressions.push(expr);
     } while (tok.readComma());
 
-    console.log(this.dump());
+    _log(this.dump());
     tok.expect(true, tok.readParenClose);
 }
 
@@ -669,14 +675,14 @@ function Block(path, tok) {
     BlockLike.call(this, path, tok);
 
     tok.readBlockOpen();
-    // console.log("Block=", tok.readName(), tok.getLastComment());
+    // _log("Block=", tok.readName(), tok.getLastComment());
     
     // read statements
     this.statements = new BlockStatements(path, tok);
     tok.readBlockClose();
 
     this.end();
-    console.log("\n\n!!!!End Block", this.dumpLine(), this.statements.dump(2));
+    _log("\n\n!!!!End Block", this.dumpLine(), this.statements.dump(2));
 }
 util.inherits(Block, BlockLike);
 
@@ -731,21 +737,21 @@ function Statement(path, tok, type) {
 
     switch (type) {
     case "if":
-        console.log(">> IF! @", tok.getLine());
+        _log(">> IF! @", tok.getLine());
         this.parens = Statement.read(path, tok);
         this.kids.push(Statement.read(path, tok));
-        //console.log(this.kids.dumpEach());
+        //_log(this.kids.dumpEach());
         if (tok.peekName() == 'else') {
             tok.expect("else", tok.readName);
             this.kids.push(Statement.read(path, tok));
         }
-        console.log("<< IF! @", tok.getLine(), this.kids.dumpEach());
+        _log("<< IF! @", tok.getLine(), this.kids.dumpEach());
         break;
 
     case "switch":
         // this is like switch-ception... parsing 
         //  "switch" inside a switch
-        console.log("SWITCH! @", tok.getLine());
+        _log("SWITCH! @", tok.getLine());
         this.parens = Statement.read(path, tok);
         tok.expect(true, tok.readBlockOpen);
         while (!tok.peekBlockClose()) {
@@ -774,11 +780,11 @@ function Statement(path, tok, type) {
         break;
 
     case "try":
-        //console.log("*** TRY!");
+        //_log("*** TRY!");
         this.kids.push(new Block(path, tok));
-        console.log("Next=", tok.peekName());
+        _log("Next=", tok.peekName());
         while ("catch" == tok.peekName()) {
-            //console.log("*** CATCH!");
+            //_log("*** CATCH!");
             tok.expect("catch", tok.readName);
             this.kids.push("catch");
 
@@ -790,7 +796,7 @@ function Statement(path, tok, type) {
         }
 
         if ("finally" == tok.peekName()) {
-            //console.log("*** FINALLY!");
+            //_log("*** FINALLY!");
             tok.expect("finally", tok.readName);
             this.kids.push("finally");
             this.kids.push(new Block(path, tok));
@@ -847,7 +853,7 @@ Statement.read = function(path, tok) {
 
         // should we wrap this so we know?
         var expr = Expression.read(path, tok);
-        console.log("ParExpression", expr);
+        _log("ParExpression", expr);
         tok.expect(true, tok.readParenClose);
         return expr;
     } else if (tok.isControl()) {
@@ -861,13 +867,13 @@ Statement.read = function(path, tok) {
         
         tok.readGeneric();
         tok.readName();
-        console.log("Var def statement!", type, name);
+        _log("Var def statement!", type, name);
         return new VarDef(path, tok, type, name);
     } else {
         // some sort of expression
         var expr = Expression.read(path, tok);
         tok.readSemicolon(); // may or may not be, here
-        console.log("Statement->expr", expr);
+        _log("Statement->expr", expr);
         return expr;
     }
 }
@@ -882,7 +888,7 @@ function Expression(path, tok, value) {
     this.value = tok.readQualified();
 
     if (tok.peekParenOpen()) {
-        console.log("METHOD CALL:", this.value);
+        _log("METHOD CALL:", this.value);
         this.right = new Arguments(path, tok);
         return;
     }
@@ -890,7 +896,7 @@ function Expression(path, tok, value) {
     while (!tok.peekExpressionEnd()) {
         var read = tok.peekGeneric();
         if (read) {
-            console.log("@", tok.getLine(), "value=", this.value, "read=", read);
+            _log("@", tok.getLine(), "value=", this.value, "read=", read);
             if (read == 'new') {
                 this.right = new Creator(path, tok);
                 break;
@@ -900,14 +906,14 @@ function Expression(path, tok, value) {
             else
                 this.value += tok.readGeneric();
 
-            console.log('Expression Value=', this.value);
+            _log('Expression Value=', this.value);
         } else if (tok.readEquals()) {
             // assignment
             this.value += ' [=] ';
-            console.log(this.value);
+            _log(this.value);
         } else {
             // FIXME what?
-            console.log("WHAT?", tok._peek());
+            _log("WHAT?", tok._peek());
             break;
         }
     }
@@ -925,7 +931,7 @@ Expression.read = function(path, tok) {
         else
             return new ChainExpression(path, tok, paren, ' ');
     } else if (tok.peekQuote()) {
-        console.log("Read string literal @", tok.getLine());
+        _log("Read string literal @", tok.getLine());
         return new LiteralExpression(tok, tok.readString());
     }
 
@@ -937,7 +943,7 @@ Expression.read = function(path, tok) {
 
     var name = tok.peekName();
     if (!name) {
-        console.log("Read expression missing name @", tok.getLine());
+        _log("Read expression missing name @", tok.getLine());
         return null;
     }
 
@@ -949,15 +955,15 @@ Expression.read = function(path, tok) {
 
         if (tok.readDot()) {
             // support chained method calls, eg: Foo.get().calculate().stuff();
-            //console.log(">> CHAINED FROM", expr.dump());
+            //_log(">> CHAINED FROM", expr.dump());
             var chain = new ChainExpression(path, tok, expr, '.');
-            //console.log("<< CHAINED INTO", chain.dump());
+            //_log("<< CHAINED INTO", chain.dump());
             return chain;
         }
 
         // FIXME: allow maths, etc.
         var math = tok.readMath();
-        console.log("MATH!?", math);
+        _log("MATH!?", math);
         if (math) {
             var chain = new ChainExpression(path, tok, expr, math);
             return chain;
@@ -993,7 +999,7 @@ LiteralExpression.prototype.dump = function() {
 function ParenExpression(path, tok, left) {
     BlockLike.call(this, path, tok);
 
-    //console.log("CAST EXPRESSION!!!!");
+    //_log("CAST EXPRESSION!!!!");
     tok.expect(true, tok.readParenOpen);
 
     this.left = left
@@ -1001,7 +1007,7 @@ function ParenExpression(path, tok, left) {
         : Expression.read(path, tok);
 
     if (!tok.peekParenClose())
-        console.log(">>> Left=", this.left.dump());
+        _log(">>> Left=", this.left.dump());
     tok.expect(true, tok.readParenClose);
 
     //if (!tok.peekExpressionEnd())
