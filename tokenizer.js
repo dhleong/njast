@@ -427,10 +427,25 @@ Tokenizer.prototype.readQualified = function() {
 }
 
 Tokenizer.prototype.readGeneric = function() {
-    name = this.readQualified();
+    var name = this.readQualified();
+    if (!name) {
+        this._rewindLastSkip();
+        return name;
+    }
+
     var genericLen = 0;
     var valid = [COMMA, DOT];
     if (this._readToken(GENERIC_OPEN)) {
+        
+        // make sure this isn't just math
+        this._countBlank();
+        if (!isName(this._peek())) {
+            // yep, just math
+            this._fp.offset--; // undo an extra _skip in _readToken
+            this._rewindLastSkip();
+            return name;
+        }
+
         // read through generic stuff
         var generics = 1;
         name += "<";
@@ -455,10 +470,12 @@ Tokenizer.prototype.readGeneric = function() {
                 if (valid.indexOf(tok) > -1 || isName(tok)) {
                     name += this._read();
                 } else
-                    throw new Error("Unexpected token ``" + tok + "'' (" + 
+                    throw new Error("Unexpected token ``" + tok + "'' @" + this._lineno 
+                        + "\n(" + 
                         + String.fromCharCode(tok)
                         + ") in generic name ``" 
-                        + name + this._read() + "''; valid=" + valid);
+                        + name + this._read() + "''; valid=" + valid
+                        + "\nPreview: " + this._read(15));
             } 
         }
     } else {
