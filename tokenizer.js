@@ -1,7 +1,10 @@
 
+/** If true, we fail fast on parse trouble */
+var DEBUG_FAIL = true; 
+
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()=+-|&;:@\"\\ ",
+    _val: "\r\n/*09azAZ_$.,{}<>()=+-|&;:@\"?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -38,6 +41,7 @@ var SEMICOLON = VALS.next();
 var COLON = VALS.next();
 var AT = VALS.next();
 var QUOTE = VALS.next();
+var QUESTION = VALS.next();
 
 var ESCAPE = VALS.next();
 var SPACE = VALS.next();
@@ -57,6 +61,7 @@ var OTHER_TOKENS = [
     COLON,
     AT,
     QUOTE,
+    QUESTION
 ];
 
 var MATH = [
@@ -324,6 +329,7 @@ Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
 Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
 Tokenizer.prototype.readQuote      = _doRead(QUOTE);
+Tokenizer.prototype.readQuestion   = _doRead(QUESTION);
 
 // just peek; return True if it matches
 var _doPeek = function(token) { 
@@ -346,6 +352,7 @@ Tokenizer.prototype.peekSemicolon  = _doPeek(SEMICOLON);
 Tokenizer.prototype.peekParenOpen  = _doPeek(PAREN_OPEN);
 Tokenizer.prototype.peekParenClose = _doPeek(PAREN_CLOSE);
 Tokenizer.prototype.peekQuote      = _doPeek(QUOTE);
+Tokenizer.prototype.peekQuestion   = _doPeek(QUESTION);
 
 /** Convenience */
 Tokenizer.prototype.peekExpressionEnd = function(offset) {
@@ -469,13 +476,16 @@ Tokenizer.prototype.readGeneric = function() {
 
                 if (valid.indexOf(tok) > -1 || isName(tok)) {
                     name += this._read();
-                } else
+                } else if (DEBUG_FAIL) {
                     throw new Error("Unexpected token ``" + tok + "'' @" + this._lineno 
                         + "\n(" + 
                         + String.fromCharCode(tok)
                         + ") in generic name ``" 
                         + name + this._read() + "''; valid=" + valid
                         + "\nPreview: " + this._read(15));
+                } else {
+                    return name;
+                }
             } 
         }
     } else {

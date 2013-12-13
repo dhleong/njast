@@ -239,7 +239,7 @@ Class.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
     var parentsLevel = nextLevel + INDENT_LEVEL;
     var buf = indent(level);
-    buf += "[Class:" + this.modifiers.join(' ') 
+    buf += "[Class:" + this.modifiers.join(' ')
         + " ``" + this.name + "'' " + this.dumpLine();
 
     if (this.superclass)
@@ -961,12 +961,14 @@ Expression.read = function(prev, tok) {
 
         if (tok.readDot())
             return new ChainExpression(prev, tok, paren, '.');
+        else if (tok.peekQuestion())
+            return new TernaryExpression(prev, tok, paren);
         else
             return new ChainExpression(prev, tok, paren, ' ');
     } else if (tok.peekQuote()) {
         _log("Read string literal @", tok.getLine());
         return new LiteralExpression(prev, tok, tok.readString());
-    }
+    } 
 
     var math = tok.readMath();
     if (math) {
@@ -992,14 +994,17 @@ Expression.read = function(prev, tok) {
             var chain = new ChainExpression(prev, tok, expr, '.');
             //_log("<< CHAINED INTO", chain.dump());
             return chain;
+        } 
+
+        // allow maths, etc.
+        var math = tok.readMath();
+        //_log("MATH!?", math);
+        if (math) {
+            expr = new ChainExpression(prev, tok, expr, math);
         }
 
-        // FIXME: allow maths, etc.
-        var math = tok.readMath();
-        _log("MATH!?", math);
-        if (math) {
-            var chain = new ChainExpression(prev, tok, expr, math);
-            return chain;
+        if (tok.peekQuestion()) {
+            return new TernaryExpression(prev, tok, expr);
         }
 
         return expr
@@ -1056,7 +1061,6 @@ ParenExpression.prototype.dump = function() {
 }
 
 
-
 /** Ex: Foo.getBar().getBaz(), or even a + b */
 function ChainExpression(prev, tok, left, link) {
     BlockLike.call(this, prev, tok);
@@ -1072,6 +1076,26 @@ ChainExpression.prototype.dump = function(level) {
         ? " [" + this.link + "] "
         : '';
     return indent(level) + this.left.dump() + link + (this.right ? this.right.dump() : "<NULL>");
+}
+
+
+/** ex: a ? b : c */
+function TernaryExpression(prev, tok, paren) {
+    BlockLike.call(this, prev, tok);
+
+    this.paren = paren;
+    tok.expect(true, tok.readQuestion);
+    this.left = Expression.read(this, tok);
+    tok.expect(true, tok.readColon);
+    this.right = Expression.read(this, tok);
+}
+util.inherits(TernaryExpression, BlockLike);
+
+TernaryExpression.prototype.dump = function(level) {
+    var nextLevel = level + INDENT_LEVEL;
+    return indent(level) + this.paren.dump() 
+        + "\n" + indent(nextLevel) + "[?]" + (this.left ? this.left.dump() : "<NULL>")
+        + "\n" + indent(nextLevel) + "[:]" + (this.right ? this.right.dump() : "<NULL>");
 }
 
 module.exports = Ast;
