@@ -585,7 +585,7 @@ util.inherits(Creator, SimpleNode);
 Creator.prototype.dump = function(level) {
 
     var buf = this.initializer ? this.initializer : "";
-    buf += this.args ? this.args.dump() : "";
+    buf += dump(this.args, "");
     if (this.body)
         buf += this.body.dump(level + INDENT_LEVEL);
 
@@ -1063,7 +1063,7 @@ function ParenExpression(prev, tok, left) {
 util.inherits(ParenExpression, BlockLike);
 
 ParenExpression.prototype.dump = function() {
-    return "(" + this.left.dump() + ")" + (this.right ? this.right.dump() : "");
+    return "(" + this.left.dump() + ")" + dump(this.right, "");
 }
 
 
