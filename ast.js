@@ -843,7 +843,8 @@ function Statement(prev, tok, type) {
             this.parens = new ChainExpression(this, tok, varDef, ":");
             tok.expect(true, tok.readParenClose);
             this.kids.push(Statement.read(this, tok));
-        } else if (tok.readSemicolon()) {
+        } else {
+            // NB: VarDef eats the trailing semicolon!
             throw new Error("Normal for(;;) not supported yet");
         }
         break;
