@@ -1066,8 +1066,14 @@ function ChainExpression(prev, tok, left, link) {
     BlockLike.call(this, prev, tok);
 
     this.left = left;
-    this.link = link;
-    this.right = Expression.read(this, tok);
+    if (link == '++' || link == '--') {
+        // simple postfix expression
+        this.link = '';
+        this.right = new LiteralExpression(this, tok, link);
+    } else {
+        this.link = link;
+        this.right = Expression.read(this, tok);
+    }
 }
 util.inherits(ChainExpression, BlockLike);
 
