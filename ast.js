@@ -20,6 +20,20 @@ function indent(level) {
     return buf;
 }
 
+/** 
+ * Returns the result of calling dump() 
+ * on the obj, if possible, else "defaultValue"
+ * @param defaultValue (optional) The default value
+ *  to return if obj is null/undefined.
+ *  The default value is "null"
+ */
+function dump(obj, defaultValue) {
+    defaultValue = defaultValue
+        ? defaultValue
+        : null;
+    return obj ? obj.dump() : defaultValue;
+}
+
 function dumpArray(label, array, level) {
 
     var buf = '';
@@ -836,17 +850,8 @@ function Statement(prev, tok, type) {
         break;
 
     case "for":
-        tok.expect(true, tok.readParenOpen);
-        var varDef = new VarDef(this, tok);
-
-        if (tok.readColon()) {
-            this.parens = new ChainExpression(this, tok, varDef, ":");
-            tok.expect(true, tok.readParenClose);
-            this.kids.push(Statement.read(this, tok));
-        } else {
-            // NB: VarDef eats the trailing semicolon!
-            throw new Error("Normal for(;;) not supported yet");
-        }
+        this.parens = new ForControl(this, tok);
+        this.kids.push(Statement.read(this, tok));
         break;
 
     case "return":
@@ -1104,5 +1109,67 @@ TernaryExpression.prototype.dump = function(level) {
         + "\n" + indent(nextLevel) + "[?]" + (this.left ? this.left.dump() : "<NULL>")
         + "\n" + indent(nextLevel) + "[:]" + (this.right ? this.right.dump() : "<NULL>");
 }
+
+
+function ForControl(prev, tok) {
+    SimpleNode.call(this, prev, tok);
+
+    tok.expect(true, tok.readParenOpen);
+    var varDef = new VarDef(this, tok);
+
+    if (tok.readColon()) {
+        this.type = ForControl.ENHANCED;
+        this.init = varDef;
+        this.source = Expression.read(this, tok);
+        tok.expect(true, tok.readParenClose);
+    } else {
+        this.type = ForControl.NORMAL;
+
+        // NB: VarDef eats the trailing semicolon!
+        this.inits = [varDef];
+        if (tok.peekComma()) {
+            do {
+                inits.push(Expression.read(this, tok));
+            } while (!tok.readSemicolon());
+        }
+
+        this.condition = null;
+        if (!tok.readSemicolon()) {
+            condition = Expression.read(this, tok);
+        }
+
+        this.updates = []
+        while (!tok.readParenClose()) {
+            this.updates.push(Expression.read(this, tok));
+
+            tok.readComma();
+        }
+
+        console.log("inits=", this.inits.dumpEach());
+        console.log("condition=", dump(this.condition));
+        console.log("updates=", this.updates.dumpEach());
+        //throw new Error("Normal for(;;) not supported yet");
+    }
+}
+util.inherits(ForControl, SimpleNode);
+
+ForControl.prototype.dump = function(level) {
+
+    var buf = indent(level) + "(";
+
+    if (this.type == ForControl.ENHANCED) {
+        buf += this.init.dump() + " : " + this.source.dump()
+    } else if (this.type == ForControl.NORMAL) {
+
+        buf += this.inits.dumpEach().join(",")
+            + ";" + dump(this.condition, "")
+            + ";" + this.updates.dumpEach().join(",");
+    }
+
+    return buf + ")";
+}
+
+ForControl.ENHANCED = 1;
+ForControl.NORMAL   = 2;
 
 module.exports = Ast;
