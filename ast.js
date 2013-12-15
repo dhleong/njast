@@ -443,10 +443,15 @@ util.inherits(ClassBody, BlockLike);
 ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
 
     var type = tok.readGeneric();
+    while (tok.readBracketOpen()) {
+        type += "[]"; // lazy!
+        tok.expect(true, tok.readBracketClose);
+    }
     var name = tok.readName();
     //_log('!!!fom=', modifiers.join(' '), type, name);
 
-    if (tok.peekEquals() || tok.peekSemicolon()) {
+    if (tok.peekEquals() 
+            || tok.peekSemicolon()) {
         //_log("vardef!", type, name);
         var field = new VarDef(this, tok, type, name);
         field.modifiers = modifiers;
@@ -537,6 +542,13 @@ function VarDef(prev, tok, type, name) {
             this.modifiers.push(tok.readName());
 
         this.type = tok.readGeneric();
+
+        // while because... r3d[][]
+        while (tok.readBracketOpen()) {
+            this.isArray = true;
+            tok.expect(true, tok.readBracketClose);
+        }
+
         this.name = tok.readName();
     }
 
@@ -548,11 +560,11 @@ function VarDef(prev, tok, type, name) {
         tok.expect(true, tok.readEquals);
     else {
         //_log("!!! Unexpected end of VarDef (?) @", tok.getLine());
-        throw new Error("Unexpected end of VarDef (?) @" + tok.getLine() 
-                + "; mods=" + this.modifiers 
-                + "; type=" + this.type 
-                + "; name=" + this.name
-                + "; next=" + tok._read(10)
+        tok.error("Unexpected end of VarDef (?)"
+                + ";\n mods=" + this.modifiers 
+                + ";\n type=" + this.type 
+                + ";\n arry=" + this.isArray
+                + ";\n name=" + this.name
                 );
         return; //
     }
@@ -571,6 +583,20 @@ VarDef.prototype.dump = function(level) {
         + "\n";
 }
 
+/** @return True if this statement is a VarDef */
+VarDef.isStatement = function(tok) {
+    if (tok.isModifier()) 
+        return true;
+
+    var type = tok.peekGeneric();
+    if (!type)
+        return false;
+
+    if (tok.peekBracketOpen(type.length))
+        return true;
+
+    return tok.peekName(type.length);
+}
 
 /**
  * VariableInitializer; this class is
@@ -624,19 +650,33 @@ function Creator(prev, tok) {
     SimpleNode.call(this, prev, tok);
 
     tok.expect("new", tok.readName);
-    var type = tok.readGeneric();
-    this.initializer = '[new] ' + type; // TODO fancier
-    this.args = new Arguments(this, tok);
+    this.type = tok.readGeneric();
 
-    if (tok.peekBlockOpen()) {
-        this.body = new ClassBody(this, tok);
+    if (tok.readBracketOpen()) {
+        // new Type[] {}
+        if (!tok.readBracketClose()) {
+            this.args = Expression.read(this, tok);
+            tok.expect(true, tok.readBracketClose);
+        }
+
+        if (tok.peekBlockOpen()) {
+            this.body = VariableInitializer.read(this, tok);
+        }
+
+    } else {
+
+        this.args = new Arguments(this, tok);
+
+        if (tok.peekBlockOpen()) {
+            this.body = new ClassBody(this, tok);
+        }
     }
 }
 util.inherits(Creator, SimpleNode);
 
 Creator.prototype.dump = function(level) {
 
-    var buf = this.initializer ? this.initializer : "";
+    var buf = "[new] " + this.type;
     buf += dump(this.args, "");
     if (this.body)
         buf += this.body.dump(level + INDENT_LEVEL);
@@ -968,16 +1008,9 @@ Statement.read = function(prev, tok) {
     } else if (tok.isControl()) {
         var control = tok.readName();
         return new Statement(prev, tok, control);
-    } else if (tok.isModifier()) {
+    } else if (VarDef.isStatement(tok)) {
         // definitely a vardef, I think
         return new VarDef(prev, tok);
-    } else if ((type = tok.peekGeneric())
-            && (name = tok.peekName(type.length))) {
-        
-        tok.readGeneric();
-        tok.readName();
-        _log("Var def statement!", type, name);
-        return new VarDef(prev, tok, type, name);
     } else {
         // some sort of expression
         var expr = Expression.read(prev, tok);

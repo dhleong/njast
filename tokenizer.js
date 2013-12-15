@@ -4,7 +4,7 @@ var DEBUG_FAIL = true;
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()=+-|&;:@\"?\\ ",
+    _val: "\r\n/*09azAZ_$.,{}<>()[]=+-|&;:@\"?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -32,6 +32,8 @@ var GENERIC_OPEN = VALS.next();
 var GENERIC_CLOSE = VALS.next();
 var PAREN_OPEN = VALS.next();
 var PAREN_CLOSE = VALS.next();
+var BRACKET_OPEN = VALS.next();
+var BRACKET_CLOSE = VALS.next();
 var EQUALS = VALS.next();
 var PLUS = VALS.next();
 var MINUS = VALS.next();
@@ -61,7 +63,10 @@ var OTHER_TOKENS = [
     COLON,
     AT,
     QUOTE,
-    QUESTION
+    QUESTION,
+
+    BRACKET_OPEN,
+    BRACKET_CLOSE,
 ];
 
 var MATH = [
@@ -332,6 +337,8 @@ Tokenizer.prototype.readPlus       = _doRead(PLUS);
 Tokenizer.prototype.readStar       = _doRead(STAR);
 Tokenizer.prototype.readQuote      = _doRead(QUOTE);
 Tokenizer.prototype.readQuestion   = _doRead(QUESTION);
+Tokenizer.prototype.readBracketOpen  = _doRead(BRACKET_OPEN);
+Tokenizer.prototype.readBracketClose = _doRead(BRACKET_CLOSE);
 
 // just peek; return True if it matches
 var _doPeek = function(token) { 
@@ -355,13 +362,16 @@ Tokenizer.prototype.peekParenOpen  = _doPeek(PAREN_OPEN);
 Tokenizer.prototype.peekParenClose = _doPeek(PAREN_CLOSE);
 Tokenizer.prototype.peekQuote      = _doPeek(QUOTE);
 Tokenizer.prototype.peekQuestion   = _doPeek(QUESTION);
+Tokenizer.prototype.peekBracketOpen  = _doPeek(BRACKET_OPEN);
+Tokenizer.prototype.peekBracketClose = _doPeek(BRACKET_CLOSE);
 
 /** Convenience */
 Tokenizer.prototype.peekExpressionEnd = function(offset) {
     return this.readSemicolon(offset) 
         || this.peekComma(offset) 
         || this.peekParenClose(offset) 
-        || this.peekColon(offset);
+        || this.peekColon(offset)
+        || this.peekBracketClose(offset);
 }
 
 /** Read math operation */
