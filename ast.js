@@ -859,6 +859,11 @@ function Statement(prev, tok, type) {
         this.kids.push(Statement.read(this, tok));
         break;
 
+    case "throw":
+        this.parens = Expression.read(this, tok);
+        tok.expect(true, tok.readSemicolon);
+        break;
+
     case "return":
     case "continue":
     case "break":
@@ -900,7 +905,7 @@ Statement.read = function(prev, tok) {
 
         // should we wrap this so we know?
         var expr = Expression.read(prev, tok);
-        console.log("ParExpression", dump(expr, "<NULL>"));
+        _log("ParExpression", dump(expr, "<NULL>"));
         tok.expect(true, tok.readParenClose);
 
         while (expr != null && tok.readDot()) {
@@ -973,29 +978,34 @@ function Expression(prev, tok, value) {
 util.inherits(Expression, SimpleNode);
 
 Expression.read = function(prev, tok) {
-    console.log("READ EXPR @", tok.getLine());
-    console.log("prev=", prev.constructor.name);
+    _log("READ EXPR @", tok.getLine());
+    _log("prev=", prev.constructor.name);
 
     if (tok.peekParenOpen()) {
         var paren = new ParenExpression(prev, tok);
         if (tok.peekExpressionEnd())
             return paren;
 
-        console.log("Paren=", paren.dump());
+        _log("Paren=", paren.dump());
         if (tok.readDot())
             return new ChainExpression(prev, tok, paren, '.');
         else if (tok.peekQuestion())
             return new TernaryExpression(prev, tok, paren);
         else {
             var chain = new ChainExpression(prev, tok, paren, ' ');
-            console.log(chain.dump());
+            _log(chain.dump());
 
-            console.log('closeParenNext=', tok.peekParenClose());
+            _log('closeParenNext=', tok.peekParenClose());
             return chain;
         }
     } else if (tok.peekQuote()) {
         _log("Read string literal @", tok.getLine());
-        return new LiteralExpression(prev, tok, tok.readString());
+        var expr = new LiteralExpression(prev, tok, tok.readString());
+        // eg: "foo" + var + "bar"
+        while (tok.readPlus())
+            expr = new ChainExpression(prev, tok, expr, '+');
+
+        return expr;
     } 
 
     var math = tok.readMath();
@@ -1099,10 +1109,10 @@ function ChainExpression(prev, tok, left, link) {
         this.link = '';
         this.right = new LiteralExpression(this, tok, link);
     } else {
-        console.log("BlockLike!");
+        _log("BlockLike!");
         this.link = link;
         this.right = Expression.read(this, tok);
-        console.log("BlockLike! right=", dump(this.right));
+        _log("BlockLike! right=", dump(this.right));
     }
 }
 util.inherits(ChainExpression, BlockLike);
