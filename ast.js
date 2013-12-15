@@ -784,12 +784,17 @@ function Statement(prev, tok, type) {
     switch (type) {
     case "if":
         _log(">> IF! @", tok.getLine());
-        this.parens = Statement.read(this, tok);
+        this.parens = new ParenExpression(this, tok);
         this.kids.push(Statement.read(this, tok));
+        if (this.kids[0] == null)
+            tok.error("No statement read for if");
+
         //_log(this.kids.dumpEach());
         if (tok.peekName() == 'else') {
             tok.expect("else", tok.readName);
             this.kids.push(Statement.read(this, tok));
+            if (this.kids[1] == null)
+                tok.error("No statement read for else");
         }
         _log("<< IF! @", tok.getLine(), this.kids.dumpEach());
         break;
@@ -889,10 +894,19 @@ Statement.read = function(prev, tok) {
 
     } else if (tok.readParenOpen()) {
 
+        // FIXME this should probably
+        //  just be Expression.read()
+        //  and peekParenOpen() above
+
         // should we wrap this so we know?
         var expr = Expression.read(prev, tok);
-        _log("ParExpression", expr);
+        console.log("ParExpression", dump(expr, "<NULL>"));
         tok.expect(true, tok.readParenClose);
+
+        while (expr != null && tok.readDot()) {
+            expr = new ChainExpression(prev, tok, expr, '.');
+        }
+
         return expr;
     } else if (tok.isControl()) {
         var control = tok.readName();
@@ -959,18 +973,26 @@ function Expression(prev, tok, value) {
 util.inherits(Expression, SimpleNode);
 
 Expression.read = function(prev, tok) {
+    console.log("READ EXPR @", tok.getLine());
+    console.log("prev=", prev.constructor.name);
 
     if (tok.peekParenOpen()) {
         var paren = new ParenExpression(prev, tok);
         if (tok.peekExpressionEnd())
             return paren;
 
+        console.log("Paren=", paren.dump());
         if (tok.readDot())
             return new ChainExpression(prev, tok, paren, '.');
         else if (tok.peekQuestion())
             return new TernaryExpression(prev, tok, paren);
-        else
-            return new ChainExpression(prev, tok, paren, ' ');
+        else {
+            var chain = new ChainExpression(prev, tok, paren, ' ');
+            console.log(chain.dump());
+
+            console.log('closeParenNext=', tok.peekParenClose());
+            return chain;
+        }
     } else if (tok.peekQuote()) {
         _log("Read string literal @", tok.getLine());
         return new LiteralExpression(prev, tok, tok.readString());
@@ -1063,7 +1085,7 @@ function ParenExpression(prev, tok, left) {
 util.inherits(ParenExpression, BlockLike);
 
 ParenExpression.prototype.dump = function() {
-    return "(" + this.left.dump() + ")" + dump(this.right, "");
+    return "(" + dump(this.left) + ")";// + dump(this.right, "");
 }
 
 
@@ -1077,8 +1099,10 @@ function ChainExpression(prev, tok, left, link) {
         this.link = '';
         this.right = new LiteralExpression(this, tok, link);
     } else {
+        console.log("BlockLike!");
         this.link = link;
         this.right = Expression.read(this, tok);
+        console.log("BlockLike! right=", dump(this.right));
     }
 }
 util.inherits(ChainExpression, BlockLike);
@@ -1145,9 +1169,9 @@ function ForControl(prev, tok) {
             tok.readComma();
         }
 
-        console.log("inits=", this.inits.dumpEach());
-        console.log("condition=", dump(this.condition));
-        console.log("updates=", this.updates.dumpEach());
+        _log("inits=", this.inits.dumpEach());
+        _log("condition=", dump(this.condition));
+        _log("updates=", this.updates.dumpEach());
         //throw new Error("Normal for(;;) not supported yet");
     }
 }

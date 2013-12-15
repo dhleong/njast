@@ -495,15 +495,22 @@ Tokenizer.prototype.readGeneric = function() {
     return name;
 }
 
+Tokenizer.prototype.error = function(message) {
+
+        throw new Error("At line #" + this.getLine() 
+            + "\n" + message
+            + "\nPreview: " + this._read(15));
+};
+
 Tokenizer.prototype.expect = function(expected, methodOrValue) {
     var result = (typeof(methodOrValue) == 'function')
         ? methodOrValue.call(this)
         : methodOrValue;
 
     if (expected != result) {
-        throw new Error("At line #" + this.getLine() 
-            + "\nExpected ``" + expected + "'' but was ``" + result + "''"
-            + "\nPreview: " + this._read(15));
+            
+        this.error("Expected ``" + expected 
+            + "'' but was ``" + result + "''");
     }
 }
 
