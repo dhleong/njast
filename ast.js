@@ -5,7 +5,7 @@ var util = require("util")
 
 INDENT_LEVEL = 2;
 
-DEBUG = true;
+DEBUG = false;
 
 _log = DEBUG
     ? function() { console.log.apply(console.log, arguments); }
@@ -423,7 +423,7 @@ function ClassBody(prev, tok) {
         } else {
             var fom = this._parseFieldOrMethod(tok, _mods);
             if (!fom) {
-                console.log("Couldn't parse fom @" + tok.getLine());
+                _log("Couldn't parse fom @" + tok.getLine());
                 break; // TODO ?
             }
 
@@ -631,10 +631,16 @@ VariableInitializer.read = function(prev, tok) {
         tok.expect(true, tok.readSemicolon);
     } else if (tok.peekBlockOpen()) {
         // array initializer
+        _log("Read array init'r");
         creator = new VariableInitializer(prev, tok);
+    } else if (tok.peekAt()) {
+
+        // annotation init'r! Crazy
+        creator = new Annotation(prev, tok);
+            
     } else {
         _log("Read creator");
-        creator = Expression.read(this, tok);
+        creator = Expression.read(prev, tok);
         tok.readSemicolon(); // the expression might've already read it
     }
 
@@ -792,9 +798,28 @@ function AnnotationArguments(prev, tok) {
 
     do {
         // FIXME: allow var=val
-        this.expressions.push(Expression.read(this, tok));
+        var name = tok.peekName();
+        _log("!!Next=" + name 
+            + "=" + tok.peekEquals(name.length+1));
+        if (name && tok.peekEquals(name.length+1)) {
+            _log("Read var init'r!");
+            tok.expect(name, tok.readName);
+            tok.expect(true, tok.readEquals);
+
+            // this could probably be done better
+            this.expressions.push(
+                new ChainExpression(this, tok, 
+                    new LiteralExpression(this, tok, name), 
+                    '=', 
+                    VariableInitializer.read(this, tok)
+                )
+            );
+        } else {
+            this.expressions.push(Expression.read(this, tok));
+        }
     } while (tok.readComma());
 
+    _log(this.dump());
     tok.expect(true, tok.readParenClose);
 
 }
@@ -1056,9 +1081,13 @@ function Expression(prev, tok, value) {
             // assignment
             this.value += ' [=] ';
             _log(this.value);
+        } else if (tok.peekQuote()) {
+            // perhaps just do this always?
+            this.right = Expression.read(this, tok);
         } else {
             // FIXME what?
             _log("WHAT?", tok._peek());
+            //tok.error("WHAT");
             break;
         }
     }
@@ -1195,11 +1224,15 @@ ParenExpression.prototype.dump = function() {
 
 
 /** Ex: Foo.getBar().getBaz(), or even a + b */
-function ChainExpression(prev, tok, left, link) {
+function ChainExpression(prev, tok, left, link, right) {
     BlockLike.call(this, prev, tok);
 
     this.left = left;
-    if (link == '++' || link == '--') {
+    if (right) {
+        // simple constructor; we know what we want!
+        this.link = link;
+        this.right = right;
+    } else if (link == '++' || link == '--') {
         // simple postfix expression
         this.link = '';
         this.right = new LiteralExpression(this, tok, link);

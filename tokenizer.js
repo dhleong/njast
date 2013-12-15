@@ -260,6 +260,7 @@ Tokenizer.prototype._peek = function(offset) {
         : this._fp.offset;
     if (offset > this._fp.length)
         throw "Peeking at " + offset + "; length = " + this._fp.length;
+
     return this._fp[ offset ];
 }
 
