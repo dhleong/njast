@@ -203,6 +203,7 @@ function Import(root, tok) {
 
     tok.readSemicolon();
 }
+util.inherits(Import, SimpleNode);
 
 Import.prototype.dump = function(level) {
     return indent(level) + 'import ' 
@@ -556,18 +557,7 @@ function VarDef(prev, tok, type, name) {
         return; //
     }
 
-    var value = tok.peekName();
-    //_log('vardef=', type, name, value);
-    
-    if ('new' == value) {
-        this.creator = new Creator(this, tok);
-        tok.expect(true, tok.readSemicolon);
-    } else {
-        // TODO constant value
-        _log("Read creator");
-        this.creator = Expression.read(this, tok);
-        tok.readSemicolon(); // the expression might've already read it
-    }
+    this.creator = VariableInitializer.read(this, tok);
 }
 util.inherits(VarDef, SimpleNode);
 
@@ -579,6 +569,51 @@ VarDef.prototype.dump = function(level) {
         + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
         + init
         + "\n";
+}
+
+
+/**
+ * VariableInitializer; this class is
+ *  actually only used for Array initializers
+ */
+function VariableInitializer(prev, tok) {
+    BlockLike.call(this, prev, tok);
+    this.array = [];
+
+    tok.expect(true, tok.readBlockOpen);
+    do {
+        this.array.push(VariableInitializer.read(this, tok));
+
+        tok.readComma();
+    } while (!tok.readBlockClose());
+
+    this.end();
+}
+util.inherits(VariableInitializer, BlockLike);
+
+VariableInitializer.read = function(prev, tok) {
+    var creator;
+
+    var value = tok.peekName();
+    //_log('vardef=', type, name, value);
+    
+    if ('new' == value) {
+        creator = new Creator(this, tok);
+        tok.expect(true, tok.readSemicolon);
+    } else if (tok.peekBlockOpen()) {
+        // array initializer
+        creator = new VariableInitializer(prev, tok);
+    } else {
+        _log("Read creator");
+        creator = Expression.read(this, tok);
+        tok.readSemicolon(); // the expression might've already read it
+    }
+
+    return creator;
+}
+
+VariableInitializer.prototype.dump = function(level) {
+    return "{" + this.array.dumpEach().join(",") + "}";
 }
 
 
