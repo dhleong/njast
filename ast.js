@@ -594,7 +594,8 @@ VarDef.isStatement = function(tok) {
     if (!type)
         return false;
 
-    if (tok.peekBracketOpen(type.length))
+    if (tok.peekBracketOpen(type.length)
+            && tok.peekBracketClose(type.length+1))
         return true;
 
     return tok.peekName(type.length);
