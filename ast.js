@@ -5,7 +5,7 @@ var util = require("util")
 
 INDENT_LEVEL = 2;
 
-DEBUG = false;
+DEBUG = true;
 
 _log = DEBUG
     ? function() { console.log.apply(console.log, arguments); }
@@ -377,15 +377,17 @@ function ClassBody(prev, tok) {
     
         // check for static block
         if (token == 'static') {
+            token = tok.readName();
             if (tok.readBlockOpen()) {
                 _mods = [];
                 _javadoc = null;
 
                 // yep, static block
+                _log("Read STATIC block!");
                 this.blocks.push(new Block(this, tok));
             } else {
 
-                _mods.push(tok.readName());
+                _mods.push(token);
                 token = tok.peekName();
             }
         }
@@ -420,8 +422,10 @@ function ClassBody(prev, tok) {
             this.subclasses.push(new Interface(this, tok, _mods));
         } else {
             var fom = this._parseFieldOrMethod(tok, _mods);
-            if (!fom)
+            if (!fom) {
+                console.log("Couldn't parse fom @" + tok.getLine());
                 break; // TODO ?
+            }
 
             if ('VarDef' == fom.constructor.name)
                 this.fields.push(fom);
@@ -551,8 +555,6 @@ function VarDef(prev, tok, type, name) {
 
         this.name = tok.readName();
     }
-
-    this.initializer = null;
 
     if (tok.peekExpressionEnd())
         return; // just defined; not initialized
@@ -1118,6 +1120,13 @@ Expression.read = function(prev, tok) {
             //_log("<< CHAINED INTO", chain.dump());
             return chain;
         } 
+
+        if (tok.readBracketOpen()) {
+            // array access expression?
+            expr = new ChainExpression(prev, tok, expr, '-[R]-');
+            tok.expect(true, tok.readBracketClose);
+        }
+
 
         // allow maths, etc.
         var math = tok.readMath();
