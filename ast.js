@@ -163,9 +163,7 @@ function JavaFile(root, tok) {
             this.package = tok.readQualified();
             tok.readSemicolon();
         } else if (type == 'import') {
-            tok.readName();
-            this.imports.push(tok.readQualified());
-            tok.readSemicolon();
+            this.imports.push(new Import(this, tok));
         } else {
             klass = new Class(root, tok);
             this.classes.push(klass);
@@ -180,18 +178,37 @@ util.inherits(JavaFile, SimpleNode);
 JavaFile.prototype.dump = function() {
     var buf = "[JavaFile:package " + this.package + ";\n";
 
-    /* TODO restore; hidden for testing convenience
-    this.imports.forEach(function(i) {
-        buf += 'import ' + i + ";\n";
-    });
-    */
-
-    buf += "\nClasses:\n";
-    this.classes.forEach(function(cl) {
-        buf += cl.dump(2) + "\n";
-    });
+    buf += dumpArray("Imports", this.imports, 0);
+    buf += dumpArray("Classes", this.classes, 0);
 
     return buf + "] // END " + this.getPath();
+}
+
+
+function Import(root, tok) {
+    SimpleNode.call(this, root, tok);
+
+    tok.readName();
+    if (tok.peekName() == 'static') {
+        this.isStatic = true;
+        tok.readName();
+    }
+
+    this.path = tok.readQualified();
+    
+    if (tok.readStar()) {
+        this.isStar = true;
+        this.path = this.path.substr(0, this.path.length-1);
+    }
+
+    tok.readSemicolon();
+}
+
+Import.prototype.dump = function(level) {
+    return indent(level) + 'import ' 
+        + (this.isStatic ? 'static ' : '')
+        + this.path 
+        + (this.isStar ? '[.*]' : '');
 }
 
 

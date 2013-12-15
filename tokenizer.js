@@ -329,6 +329,7 @@ Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
 Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
 Tokenizer.prototype.readPlus       = _doRead(PLUS);
+Tokenizer.prototype.readStar       = _doRead(STAR);
 Tokenizer.prototype.readQuote      = _doRead(QUOTE);
 Tokenizer.prototype.readQuestion   = _doRead(QUESTION);
 
