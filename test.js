@@ -8,8 +8,6 @@ path = '/lib/android-sdk/sources/android-15/android/widget/GridView.java';
 path = '/lib/android-sdk/sources/android-15/android/view/View.java';
 var buf = fs.readFile(path, function(err, buf) {
     var ast = new Ast(path, buf);
-    //console.log(ast.dump());
-
-    //console.log(buf);
+    console.log(ast.dump());
 });
 

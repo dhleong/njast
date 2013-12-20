@@ -355,6 +355,7 @@ var _doPeek = function(token) {
 Tokenizer.prototype.peekBlockOpen  = _doPeek(BLOCK_OPEN);
 Tokenizer.prototype.peekBlockClose = _doPeek(BLOCK_CLOSE);
 Tokenizer.prototype.peekAt         = _doPeek(AT); // at symbol, for annotations
+Tokenizer.prototype.peekDot        = _doPeek(DOT);
 Tokenizer.prototype.peekComma      = _doPeek(COMMA);
 Tokenizer.prototype.peekColon      = _doPeek(COLON);
 Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);

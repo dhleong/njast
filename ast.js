@@ -1115,15 +1115,12 @@ Expression.read = function(prev, tok) {
             _log('closeParenNext=', tok.peekParenClose());
             return chain;
         }
-    } else if (tok.peekQuote()) {
-        _log("Read string literal @", tok.getLine());
-        var expr = new LiteralExpression(prev, tok, tok.readString());
-        // eg: "foo" + var + "bar"
-        while (tok.readPlus())
-            expr = new ChainExpression(prev, tok, expr, '+');
-
-        return expr;
-    } 
+    } else {
+        var expr = LiteralExpression.read(prev, tok);
+        if (expr)
+            return expr;
+        
+    }
 
     var math = tok.readMath();
     if (math) {
@@ -1192,6 +1189,29 @@ function LiteralExpression(prev, tok, value) {
     this.value = value;
 }
 util.inherits(LiteralExpression, SimpleNode);
+
+LiteralExpression.read = function(prev, tok) {
+
+    if (tok.peekQuote()) {
+        _log("Read string literal @", tok.getLine());
+        var expr = new LiteralExpression(prev, tok, tok.readString());
+        // eg: "foo" + var + "bar"
+        while (tok.readPlus())
+            expr = new ChainExpression(prev, tok, expr, '+');
+
+        return expr;
+    } else if (tok.peekDot()) {
+        tok.readDot();
+        var expr = new LiteralExpression(prev, tok, '.' + tok.readName());
+
+        // TODO it's a number; could also be -, *, etc.
+        while (tok.readPlus())
+            expr = new ChainExpression(prev, tok, expr, '+');
+
+        return expr;
+    }
+    // TODO  Character literals
+}
 
 LiteralExpression.prototype.dump = function() {
     return this.value;
