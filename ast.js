@@ -79,6 +79,7 @@ function Ast(path, buffer) {
     this._fp = buffer
         ? buffer
         : fs.readFileSync(buffer);
+    //console.log(this._fp.toString());
     this.tok = new Tokenizer(this._fp);
     
     this._root = new JavaFile(this, this.tok);

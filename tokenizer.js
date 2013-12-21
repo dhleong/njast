@@ -189,6 +189,7 @@ var Commentor = {
 
 function Tokenizer(buffer) {
     this._fp = buffer;
+    this._start = buffer.offset;
     this._lineno = 1;
     
     this._lastComment = null;
@@ -208,7 +209,8 @@ Tokenizer.prototype._countBlank = function() {
     //console.log("Count Blank @", this._lineno);
     
     var startLine = this._lineno;
-    var off = this._fp.offset;
+    var base = this._fp.offset - this._start;
+    var off = base;
     while (off < this._fp.length) { 
         var token = this._fp[off];
         var nextToken = off < this._fp.length + 1
@@ -221,8 +223,8 @@ Tokenizer.prototype._countBlank = function() {
         // if we had a skip from Commentor, don't process this
         if (!skip && !Commentor.inComment() && isToken(token)) {
             // done!
-            var skipped = off - this._fp.offset;
-            this._fp.offset = off;
+            var skipped = off - base;
+            this._fp.offset = off + this._start;
             this._lastComment = Commentor.value;
             this._lastSkipped = skipped; // save bytes skipped
             this._lastLine = startLine; // save last line (in case we rewind)
@@ -248,8 +250,10 @@ Tokenizer.prototype._countBlank = function() {
 }
 
 Tokenizer.prototype._rewindLastSkip = function() {
-    this._fp.offset -= this._lastSkipped;
-    this._lineno = this._lastLine;
+    if (this._lastSkipped) {
+        this._fp.offset -= this._lastSkipped;
+        this._lineno = this._lastLine;
+    }
 
     this._lastSkipped = 0;
 }
@@ -258,9 +262,11 @@ Tokenizer.prototype._peek = function(offset) {
     offset = offset 
         ? this._fp.offset + offset 
         : this._fp.offset;
+    offset -= this._start;
     if (offset > this._fp.length)
-        throw "Peeking at " + offset + "; length = " + this._fp.length;
+        throw new Error("Peeking at " + offset + "; length = " + this._fp.length);
 
+    //console.log("peek @", offset, "=", this._fp[ offset ]);
     return this._fp[ offset ];
 }
 
@@ -279,7 +285,8 @@ Tokenizer.prototype._read = function(length) {
         ? length
         : 1;
     if (length > this._fp.length)
-        throw "_read " + length + "; length = " + this._fp.length;
+        throw new Error("_read " + length + "; length = " + this._fp.length);
+    //console.log(this._fp.length, this._fp.offset, length);
     var value = this._fp.toString("UTF-8", 0, length);
     this._fp.offset += length;
     return value;
@@ -421,6 +428,7 @@ Tokenizer.prototype.readString = function() {
 }
 
 Tokenizer.prototype.readName = function() {
+
     this._countBlank();
     var length = 0;
     while (isName(this._peek(length)))
