@@ -5,7 +5,7 @@ var util = require("util")
 
 INDENT_LEVEL = 2;
 
-DEBUG = true;
+DEBUG = false;
 
 _log = DEBUG
     ? function() { console.log.apply(console.log, arguments); }
@@ -995,6 +995,19 @@ function Statement(prev, tok, type) {
 
     case "for":
         this.parens = new ForControl(this, tok);
+        this.kids.push(Statement.read(this, tok));
+        break;
+
+    case "do":
+        this.kids.push(Statement.read(this, tok));
+        tok.expect("while", tok.readName);
+        this.kids.push("while");
+        this.parens = new ParenExpression(this, tok);
+        tok.readSemicolon();
+        break;
+
+    case "while":
+        this.parens = new ParenExpression(this, tok);
         this.kids.push(Statement.read(this, tok));
         break;
 
