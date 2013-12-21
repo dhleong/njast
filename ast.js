@@ -9,7 +9,7 @@ DEBUG = false;
 
 _log = DEBUG
     ? function() { console.log.apply(console.log, arguments); }
-    : function() { };
+    : function() { }
 
 function indent(level) {
     var buf = "";
@@ -406,13 +406,15 @@ function ClassBody(prev, tok) {
             if (tok.readSemicolon())
                 continue; // ; can be a ClassBodyStatement
 
-            _log("!!! WHAT! @", tok.getLine(),
-                'token=', token,
-                'nextClose=', tok.peekBlockClose(), 
-                'nextSemi=', tok.peekSemicolon());
+            if (DEBUG) {
+                _log("!!! WHAT! @", tok.getLine(),
+                    'token=', token,
+                    'nextClose=', tok.peekBlockClose(), 
+                    'nextSemi=', tok.peekSemicolon());
+            }
 
             tok._countBlank();
-            _log('crazy=', tok._read(10));
+            //_log('crazy=', tok._read(10));
             tok._rewindLastSkip();
             break; // TODO ?
 
@@ -423,7 +425,7 @@ function ClassBody(prev, tok) {
         } else {
             var fom = this._parseFieldOrMethod(tok, _mods);
             if (!fom) {
-                _log("Couldn't parse fom @" + tok.getLine());
+                if (DEBUG) _log("Couldn't parse fom @", tok.getLine());
                 break; // TODO ?
             }
 
@@ -437,7 +439,7 @@ function ClassBody(prev, tok) {
 
         _mods = [];
         _javadoc = null;
-        _log('peek=', _mods.join(' '), token);
+        if (DEBUG) _log('peek=', _mods.join(' '), token);
     }
 
     this.end();
@@ -461,7 +463,7 @@ ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
         field.modifiers = modifiers;
         return field;
     } else {
-        //_log("method!", type, name, tok.getLine());
+        //_log("method! type=", type, 'name=', name, tok.getLine());
         //_log("mods:", modifiers);
         return new Method(this, tok, modifiers, type, name);
     }
@@ -484,8 +486,13 @@ function Method(prev, tok, modifiers, returnType, name) {
 
     this.modifiers = modifiers;
     
-    this.returnType = returnType;
-    this.name = name;
+    if (name) {
+        this.returnType = returnType;
+        this.name = name;
+    } else {
+        this.returnType = '';
+        this.name = '[constructor]';
+    }
 
     this.args = new ArgumentsDef(this, tok);
 
@@ -505,23 +512,30 @@ function Method(prev, tok, modifiers, returnType, name) {
     }
 
     this.end();
+    _log("END Method ", this.name, this.dumpLine);
 }
 util.inherits(Method, BlockLike);
 
 Method.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
     var type = this.body ? "Method" : "MethodDef";
+    var isConstructor = this.isConstructor();
     var buf = indent(level);
     buf += "[" + type + ":" + this.modifiers.dumpEach().join(' ')
         + " ``" + this.name + "'' " + this.dumpLine()
-        + "\n" + indent(nextLevel) + this.args.dump()
-        + (!this.throws ? '' : "\n" + indent(nextLevel) + "throws " + this.throws.join(','))
-        + "\n" + indent(nextLevel) + " -> " + this.returnType;
+        + "\n" + indent(nextLevel) + dump(this.args, "<>")
+        + (!this.throws ? '' : "\n" + indent(nextLevel) + "throws " + this.throws.join(','));
+    if (isConstructor)
+        buf += "\n" + indent(nextLevel) + " -> " + this.returnType;
 
     if (this.body)
         buf += this.body.dump(nextLevel);
 
     return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
+}
+
+Method.prototype.isConstructor = function() {
+    return this.name == '[constructor]';
 }
 
 
@@ -567,6 +581,7 @@ function VarDef(prev, tok, type, name) {
                 + ";\n type=" + this.type 
                 + ";\n arry=" + this.isArray
                 + ";\n name=" + this.name
+                + ";\n parent=" + this.getParent().dump()
                 );
         return; //
     }
@@ -712,7 +727,7 @@ function Arguments(prev, tok) {
         this.expressions.push(expr);
     } while (tok.readComma());
 
-    _log(this.dump());
+    if (DEBUG) _log(this.dump());
     tok.expect(true, tok.readParenClose);
 }
 util.inherits(Arguments, SimpleNode);
@@ -799,8 +814,10 @@ function AnnotationArguments(prev, tok) {
     do {
         // FIXME: allow var=val
         var name = tok.peekName();
-        _log("!!Next=" + name 
-            + "=" + tok.peekEquals(name.length+1));
+        if (DEBUG) {
+            _log("!!Next=" + name 
+                + "=" + tok.peekEquals(name.length+1));
+        }
         if (name && tok.peekEquals(name.length+1)) {
             _log("Read var init'r!");
             tok.expect(name, tok.readName);
@@ -819,7 +836,7 @@ function AnnotationArguments(prev, tok) {
         }
     } while (tok.readComma());
 
-    _log(this.dump());
+    if (DEBUG) _log(this.dump());
     tok.expect(true, tok.readParenClose);
 
 }
@@ -848,7 +865,7 @@ function Block(prev, tok) {
     tok.readBlockClose();
 
     this.end();
-    _log("\n\n!!!!End Block", this.dumpLine(), this.statements.dump(2));
+    //_log("\n\n!!!!End Block", this.dumpLine(), this.statements.dump(2));
 }
 util.inherits(Block, BlockLike);
 
@@ -872,8 +889,10 @@ function BlockStatements(prev, tok) {
     while (!tok.peekBlockClose()) {
 
         var statement = Statement.read(this, tok);
-        if (!statement)
+        if (!statement) {
+            console.log("!!!!Failed to read statement @" + tok.getLine());
             break;
+        }
 
         this.statements.push(statement);
 
@@ -903,7 +922,7 @@ function Statement(prev, tok, type) {
 
     switch (type) {
     case "if":
-        _log(">> IF! @", tok.getLine());
+        if (DEBUG) _log(">> IF! @", tok.getLine());
         this.parens = new ParenExpression(this, tok);
         this.kids.push(Statement.read(this, tok));
         if (this.kids[0] == null)
@@ -916,13 +935,13 @@ function Statement(prev, tok, type) {
             if (this.kids[1] == null)
                 tok.error("No statement read for else");
         }
-        _log("<< IF! @", tok.getLine(), this.kids.dumpEach());
+        if (DEBUG) _log("<< IF! @", tok.getLine(), this.kids.dumpEach());
         break;
 
     case "switch":
         // this is like switch-ception... parsing 
         //  "switch" inside a switch
-        _log("SWITCH! @", tok.getLine());
+        _log(tok, "SWITCH! @", tok.getLine);
         this.parens = Statement.read(this, tok);
         tok.expect(true, tok.readBlockOpen);
         while (!tok.peekBlockClose()) {
@@ -953,7 +972,7 @@ function Statement(prev, tok, type) {
     case "try":
         //_log("*** TRY!");
         this.kids.push(new Block(this, tok));
-        _log("Next=", tok.peekName());
+        _log(tok, "Next=", tok.peekName);
         while ("catch" == tok.peekName()) {
             //_log("*** CATCH!");
             tok.expect("catch", tok.readName);
@@ -1025,7 +1044,7 @@ Statement.read = function(prev, tok) {
 
         // should we wrap this so we know?
         var expr = Expression.read(prev, tok);
-        _log("ParExpression", dump(expr, "<NULL>"));
+        if (DEBUG) _log("ParExpression", dump(expr, "<NULL>"));
         tok.expect(true, tok.readParenClose);
 
         while (expr != null && tok.readDot()) {
@@ -1086,7 +1105,7 @@ function Expression(prev, tok, value) {
             this.right = Expression.read(this, tok);
         } else {
             // FIXME what?
-            _log("WHAT?", tok._peek());
+            if (DEBUG) _log("WHAT?", tok._peek());
             //tok.error("WHAT");
             break;
         }
@@ -1103,16 +1122,16 @@ Expression.read = function(prev, tok) {
         if (tok.peekExpressionEnd())
             return paren;
 
-        _log("Paren=", paren.dump());
+        if (DEBUG) _log("Paren=", paren.dump());
         if (tok.readDot())
             return new ChainExpression(prev, tok, paren, '.');
         else if (tok.peekQuestion())
             return new TernaryExpression(prev, tok, paren);
         else {
             var chain = new ChainExpression(prev, tok, paren, ' ');
-            _log(chain.dump());
+            if (DEBUG) _log(chain.dump());
 
-            _log('closeParenNext=', tok.peekParenClose());
+            //_log('closeParenNext=', tok.peekParenClose());
             return chain;
         }
     } else {
@@ -1230,7 +1249,7 @@ function ParenExpression(prev, tok, left) {
         : Expression.read(this, tok);
 
     if (!tok.peekParenClose())
-        _log(">>> Left=", this.left.dump());
+        console.log(">>> Left=", this.left.dump());
     tok.expect(true, tok.readParenClose);
 
     //if (!tok.peekExpressionEnd())
@@ -1260,7 +1279,7 @@ function ChainExpression(prev, tok, left, link, right) {
         _log("BlockLike!");
         this.link = link;
         this.right = Expression.read(this, tok);
-        _log("BlockLike! right=", dump(this.right));
+        if (DEBUG) _log("BlockLike! right=", dump(this.right));
     }
 }
 util.inherits(ChainExpression, BlockLike);
@@ -1327,9 +1346,11 @@ function ForControl(prev, tok) {
             tok.readComma();
         }
 
-        _log("inits=", this.inits.dumpEach());
-        _log("condition=", dump(this.condition));
-        _log("updates=", this.updates.dumpEach());
+        if (DEBUG) {
+            _log("inits=", this.inits.dumpEach());
+            _log("condition=", dump(this.condition));
+            _log("updates=", this.updates.dumpEach());
+        }
         //throw new Error("Normal for(;;) not supported yet");
     }
 }
