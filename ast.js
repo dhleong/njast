@@ -5,7 +5,7 @@ var util = require("util")
 
 INDENT_LEVEL = 2;
 
-DEBUG = false;
+DEBUG = true;
 
 _log = DEBUG
     ? function() { console.log.apply(console.log, arguments); }
@@ -1062,7 +1062,8 @@ Statement.read = function(prev, tok) {
         // some sort of expression
         var expr = Expression.read(prev, tok);
         tok.readSemicolon(); // may or may not be, here
-        _log("Statement->expr", expr);
+        if (expr)
+            _log("Statement->expr", expr.dump());
         return expr;
     }
 }
@@ -1100,7 +1101,7 @@ function Expression(prev, tok, value) {
             // assignment
             this.value += ' [=] ';
             _log(this.value);
-        } else if (tok.peekQuote()) {
+        } else if (tok.peekQuote() || tok.peekParenOpen()) {
             // perhaps just do this always?
             this.right = Expression.read(this, tok);
         } else {
@@ -1143,6 +1144,7 @@ Expression.read = function(prev, tok) {
 
     var math = tok.readMath();
     if (math) {
+        _log("!! Read Math", math);
         // lazy way to do an prefix expression
         return new ChainExpression(prev, tok, new LiteralExpression(prev, tok, math));
     }
@@ -1176,8 +1178,8 @@ Expression.read = function(prev, tok) {
 
         // allow maths, etc.
         var math = tok.readMath();
-        //_log("MATH!?", math);
         if (math) {
+            _log("MATH!", math);
             expr = new ChainExpression(prev, tok, expr, math);
         }
 
