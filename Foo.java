@@ -9,6 +9,10 @@ class Foo {
     }
 
     int baz(Fancy arg2, Boring arg3) {
+        int left, top, right, bottom;
+
+        int up, down=2, in=3, out;
+
         ((Fanciest) arg3).prepare();
         return ((Fancier) arg2).doFancier(arg3);
     }

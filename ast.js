@@ -541,6 +541,34 @@ Method.prototype.isConstructor = function() {
 
 
 /**
+ * A list of VarDefs (seriously)
+ */
+function VarDefs(prev, tok, type, name) {
+    BlockLike.call(this, prev, tok);
+
+    this.defs = [];
+    this.defs.push(new VarDef(this, tok, type, name));
+
+    this.type = this.defs[0].type;
+
+    while (tok.readComma()) {
+        var newName = tok.readName();
+        console.log("NEWNAME=", newName);
+        this.defs.push(new VarDef(this, tok, this.type, newName));
+    }
+
+    this.end();
+}
+util.inherits(VarDefs, BlockLike);
+
+VarDefs.prototype.dump = function(level) {
+    return indent(level) + '[Defs' + this.dumpLine() 
+        + this.defs.dumpEach().join(',') + ']';
+}
+
+
+
+/**
  * A variable definition; could be 
  *  a field, a local variable, or even
  *  a method arg definition
@@ -1072,7 +1100,7 @@ Statement.read = function(prev, tok) {
         return new Statement(prev, tok, control);
     } else if (VarDef.isStatement(tok)) {
         // definitely a vardef, I think
-        return new VarDef(prev, tok);
+        return new VarDefs(prev, tok);
     } else {
         // some sort of expression
         var expr = Expression.read(prev, tok);
