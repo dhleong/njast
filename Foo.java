@@ -8,6 +8,7 @@ class Foo {
         field1 = arg1;
     }
 
+    @SuppressWarnings({"UnusedDeclaration"})
     int baz(Fancy arg2, Boring arg3) {
         int left, top, right, bottom;
 

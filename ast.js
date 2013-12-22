@@ -553,7 +553,6 @@ function VarDefs(prev, tok, type, name) {
 
     while (tok.readComma()) {
         var newName = tok.readName();
-        console.log("NEWNAME=", newName);
         this.defs.push(new VarDef(this, tok, this.type, newName));
     }
 
@@ -841,7 +840,6 @@ function AnnotationArguments(prev, tok) {
     tok.expect(true, tok.readParenOpen);
 
     do {
-        // FIXME: allow var=val
         var name = tok.peekName();
         if (DEBUG) {
             _log("!!Next=" + name 
@@ -861,7 +859,7 @@ function AnnotationArguments(prev, tok) {
                 )
             );
         } else {
-            this.expressions.push(Expression.read(this, tok));
+            this.expressions.push(VariableInitializer.read(this, tok));
         }
     } while (tok.readComma());
 
