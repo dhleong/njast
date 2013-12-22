@@ -1050,7 +1050,7 @@ Statement.read = function(prev, tok) {
         // it's a block
         return new Block(prev, tok);
 
-    } else if (tok.readParenOpen()) {
+    } else if (tok.peekParenOpen()) {
 
         // FIXME this should probably
         //  just be Expression.read()
@@ -1059,11 +1059,12 @@ Statement.read = function(prev, tok) {
         // should we wrap this so we know?
         var expr = Expression.read(prev, tok);
         if (DEBUG) _log("ParExpression", dump(expr, "<NULL>"));
-        tok.expect(true, tok.readParenClose);
+        //tok.expect(true, tok.readParenClose);
 
         while (expr != null && tok.readDot()) {
             expr = new ChainExpression(prev, tok, expr, '.');
         }
+        tok.readSemicolon();
 
         return expr;
     } else if (tok.isControl()) {
