@@ -1,5 +1,6 @@
 
-var util = require("util")
+var util = require('util')
+    , events = require('events')
     , fs = require('fs')
     , Tokenizer = require('./tokenizer');
 
@@ -79,9 +80,12 @@ function Ast(path, buffer) {
     this._fp = buffer
         ? buffer
         : fs.readFileSync(buffer);
-    //console.log(this._fp.toString());
+
     this.tok = new Tokenizer(this._fp);
-    
+}
+util.inherits(Ast, events.EventEmitter);
+
+Ast.prototype.parse = function() {
     this._root = new JavaFile(this, this.tok);
 }
 
@@ -106,6 +110,12 @@ Ast.prototype.dump = function() {
 function SimpleNode(prev, tok) {
     this._prev = prev;
     this._root = prev._root;
+    if (!this._root) {
+        this._root = prev;
+    }
+    if (!(this._root instanceof Ast))
+        throw Error("Root is wrong!" + this._root.constructor.name);
+
     this.tok = tok;
     this.line = tok.getLine();
 }
@@ -122,6 +132,10 @@ SimpleNode.prototype.getRoot = function() {
     return this._root;
 }
 
+SimpleNode.prototype.publish = function() {
+    var eventType = this.constructor.name.toLowerCase();
+    this._root.emit(eventType, this);
+}
 
 /**
  * Superclass for block-like things
@@ -140,6 +154,8 @@ BlockLike.prototype.dumpLine = function() {
 /** Call when done processing */
 BlockLike.prototype.end = function() {
     this.line_end = this.tok.getLine();
+
+    this.publish();
 }
 
 
@@ -149,7 +165,6 @@ BlockLike.prototype.end = function() {
  */
 function JavaFile(root, tok) {
     SimpleNode.call(this, root, tok);
-    this._root = root;
 
     this.package = '<default>';
     this.imports = [];
@@ -670,7 +685,7 @@ VariableInitializer.read = function(prev, tok) {
     //_log('vardef=', type, name, value);
     
     if ('new' == value) {
-        creator = new Creator(this, tok);
+        creator = new Creator(prev, tok);
         tok.expect(true, tok.readSemicolon);
     } else if (tok.peekBlockOpen()) {
         // array initializer
