@@ -68,25 +68,49 @@ Array.prototype.dumpEach = function dumpEach(level) {
     return ret;
 }
 
+
+Array.prototype._publishEach = function publishEach() {
+    this.forEach(function(el) {
+        el.publish();
+    });
+}
+
 /**
- * Constructs Ast root
+ * Constructs Ast root. 
+ *
+ * Events:
+ *  method, interface, class - Emit'd when a
+ *      type such a type is completely parsed
+ *  vardef - Emit'd when a variable is defined
+ *  toplevel - Emit'd as soon as the `extends`
+ *      and `implements` information for a toplevel
+ *      class (IE: one at the top level of the file)
+ *      is parsed. The body of the class will NOT
+ *      be available yet (wait for the `class` event
+ *      if you need that)
+ *
  * @param path FS path of the file to parse
- * @param buffer Optional; if provided, a String 
- *  with the contents of "path"
+ * @param buffer A Buffer with the contents of path
  */
 function Ast(path, buffer) {
     this._path = path;
-
-    this._fp = buffer
-        ? buffer
-        : fs.readFileSync(buffer);
+    this._fp = buffer;
 
     this.tok = new Tokenizer(this._fp);
+
+    // TODO listen to and save our own events,
+    //  so we can replay them later without
+    //  having to re-parse
 }
 util.inherits(Ast, events.EventEmitter);
 
-Ast.prototype.parse = function() {
+Ast.prototype.parse = function(callback) {
+    // TODO if we're already parsed,
+    //  just replay the events we emit'd
     this._root = new JavaFile(this, this.tok);
+
+    if (callback)
+        callback(this);
 }
 
 /**
@@ -120,6 +144,21 @@ function SimpleNode(prev, tok) {
     this.line = tok.getLine();
 }
 
+SimpleNode.prototype.contains = function(lineNo) {
+    return this.line == lineNo;
+}
+
+SimpleNode.prototype.getLocalScope = function() {
+
+    var parent = this.getParent();
+    while (!(parent instanceof BlockLike)) {
+        parent = parent.getParent();
+    }
+
+    return parent;
+}
+
+
 SimpleNode.prototype.getParent = function() {
     return this._prev;
 }
@@ -147,7 +186,23 @@ function BlockLike(prev, tok) {
 }
 util.inherits(BlockLike, SimpleNode);
 
+BlockLike.prototype.contains = function(lineNo) {
+    if (lineNo < this.line)
+        return false; // definitely not
+
+    if (this.line == this.line_end) {
+        // haven't finished!
+        // TODO doesn't *quite* work....
+        return lineNo <= this.tok.getLine();
+    }
+
+    // finished parsing
+    return lineNo <= this.line_end;
+}
+
 BlockLike.prototype.dumpLine = function() {
+    if (/*DEBUG && */this.line == this.line_end)
+        return "(@" + this.line + " ~ " + this.tok.getLine() + ")";
     return "(@" + this.line + " ~ " + this.line_end + ")";
 }
 
@@ -181,7 +236,7 @@ function JavaFile(root, tok) {
         } else if (type == 'import') {
             this.imports.push(new Import(this, tok));
         } else {
-            klass = new Class(root, tok);
+            klass = new Class(this, tok);
             this.classes.push(klass);
 
             // TODO save refs to all "tags" 
@@ -234,12 +289,13 @@ Import.prototype.dump = function(level) {
  * @param prev The previous (parent) node in the AST
  * @param tok A Tokenizer
  */
-function Class(prev, tok, modifiers) {
+function Class(prev, tok, modifiers, javadoc) {
     BlockLike.call(this, prev, tok);
 
     this.modifiers = modifiers ? modifiers.slice() : [];
     this.superclass = null;
     this.interfaces = [];
+    this.javadoc = javadoc;
 
     if (!modifiers) {
 
@@ -276,6 +332,10 @@ function Class(prev, tok, modifiers) {
         tok.expect(true, tok.peekBlockOpen);
     }
 
+    if (this.getParent() instanceof JavaFile) {
+        this.getRoot().emit('toplevel', this);
+    }
+
     this.body = new ClassBody(prev, tok);
 
     this.end();
@@ -305,11 +365,12 @@ Class.prototype.dump = function(level) {
 /**
  * A java interface
  */
-function Interface(prev, tok, modifiers) {
+function Interface(prev, tok, modifiers, javadoc) {
     BlockLike.call(this, prev, tok);
 
     this.modifiers = modifiers ? modifiers.slice() : [];
     this.interfaces = [];
+    this.javadoc = javadoc;
 
     if (!modifiers) {
         // only look if they weren't provided
@@ -435,9 +496,9 @@ function ClassBody(prev, tok) {
             break; // TODO ?
 
         } else if ("class" == token) {
-            this.subclasses.push(new Class(this, tok, _mods));
+            this.subclasses.push(new Class(this, tok, _mods, _javadoc));
         } else if ("interface" == token) {
-            this.subclasses.push(new Interface(this, tok, _mods));
+            this.subclasses.push(new Interface(this, tok, _mods, _javadoc));
         } else {
             var fom = this._parseFieldOrMethod(tok, _mods);
             if (!fom) {
@@ -451,6 +512,8 @@ function ClassBody(prev, tok) {
                 this.methods.push(fom);
 
             _log("JAVADOC for", fom.constructor.name, fom.name, _javadoc);
+            if (_javadoc)
+                fom.javadoc = _javadoc;
         }
 
         _mods = [];
@@ -459,6 +522,9 @@ function ClassBody(prev, tok) {
     }
 
     this.end();
+
+    this.fields._publishEach();
+    this.methods._publishEach();
 }
 util.inherits(ClassBody, BlockLike);
 
@@ -475,6 +541,7 @@ ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
     if (tok.peekEquals() 
             || tok.peekSemicolon()) {
         //_log("vardef!", type, name);
+        // TODO should this be VarDefs ?
         var field = new VarDef(this, tok, type, name);
         field.modifiers = modifiers;
         return field;
@@ -529,6 +596,11 @@ function Method(prev, tok, modifiers, returnType, name) {
 
     this.end();
     _log("END Method ", this.name, this.dumpLine);
+
+    this.args.publishEach();
+    if (this.body) {
+        this.body.publishEach();
+    }
 }
 util.inherits(Method, BlockLike);
 
@@ -559,7 +631,7 @@ Method.prototype.isConstructor = function() {
  * A list of VarDefs (seriously)
  */
 function VarDefs(prev, tok, type, name) {
-    BlockLike.call(this, prev, tok);
+    SimpleNode.call(this, prev, tok);
 
     this.defs = [];
     this.defs.push(new VarDef(this, tok, type, name));
@@ -571,15 +643,17 @@ function VarDefs(prev, tok, type, name) {
         this.defs.push(new VarDef(this, tok, this.type, newName));
     }
 
-    this.end();
 }
-util.inherits(VarDefs, BlockLike);
+util.inherits(VarDefs, SimpleNode);
 
 VarDefs.prototype.dump = function(level) {
-    return indent(level) + '[Defs' + this.dumpLine() 
+    return indent(level) + '[Defs' + this.line
         + this.defs.dumpEach().join(',') + ']';
 }
 
+VarDefs.prototype.publish = function() {
+    this.defs._publishEach();
+}
 
 
 /**
@@ -641,6 +715,14 @@ VarDef.prototype.dump = function(level) {
         + " [" + this.type + "] ``" + this.name + "'' (@" + this.line + ")" 
         + init
         + "\n";
+}
+
+/**
+ * Return True if this VarDef is visible in the
+ *  given scope
+ */
+VarDef.prototype.matchesScope = function(lineNo) {
+    return this.getLocalScope().contains(lineNo);
 }
 
 /** @return True if this statement is a VarDef */
@@ -808,6 +890,9 @@ ArgumentsDef.prototype.dump = function() {
     }
 }
 
+ArgumentsDef.prototype.publishEach = function() {
+    this.args._publishEach();
+}
 
 /**
  * Using annotations
@@ -919,6 +1004,9 @@ Block.prototype.dump = function(level) {
     return buf + '\n' + indent(level) + '}';
 }
 
+Block.prototype.publishEach = function() {
+    this.statements.publishEach();
+}
 
 /**
  * Body of a block
@@ -949,6 +1037,16 @@ util.inherits(BlockStatements, BlockLike);
 
 BlockStatements.prototype.dump = function(level) {
     return dumpArray("Statements", this.statements, level);
+}
+
+
+BlockStatements.prototype.publishEach = function() {
+    this.statements.forEach(function(node) {
+        if (node instanceof VarDefs
+                || node instanceof VarDef) {
+            node.publish();
+        }
+    });
 }
 
 
