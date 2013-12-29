@@ -75,6 +75,21 @@ Array.prototype._publishEach = function publishEach() {
     });
 }
 
+String.prototype.endsWith = function(value) {
+    var N = this.length;
+    if (value.length > N)
+        return false;
+    else if (value.length == N)
+        return this == value;
+
+    for (i=N - value.length, j=0; i < N; i++, j++) {
+        if (this[i] != value[j])
+            return false;
+    }
+
+    return true;
+}
+
 /**
  * Constructs Ast root. 
  *
@@ -148,6 +163,10 @@ function SimpleNode(prev, tok) {
 
 SimpleNode.prototype.contains = function(lineNo) {
     return this.line == lineNo;
+}
+
+SimpleNode.prototype.extractTypeInfo = function(word, line, col) {
+    return undefined;
 }
 
 SimpleNode.prototype.getLocalScope = function() {
@@ -720,6 +739,15 @@ VarDef.prototype.dump = function(level) {
         + init
         + "\n";
 }
+
+VarDef.prototype.extractTypeInfo = function(word, line, col) {
+    if (this.name == word) {
+        return new TypeInfo(Ast.VARIABLE, this.type);
+    } else if (this.type == word) {
+        return new TypeInfo(Ast.TYPE, this.type);
+    }
+}
+
 
 /**
  * Return True if this VarDef is visible in the
@@ -1357,6 +1385,17 @@ Expression.read = function(prev, tok) {
     }
 }
 
+Expression.prototype.extractTypeInfo = function(word, line, col) {
+    if (this.value.endsWith(word)) {
+        if (this.right instanceof Arguments) {
+            // in a method call
+            // TODO figure out parent type?
+            var container = this.value.substr(0, 
+                this.value.length - word.length - 1);
+            return new TypeInfo(Ast.METHOD, word, container); 
+        }
+    }
+}
 
 Expression.prototype.dump = function(level) {
     var buf = indent(level) + "[EXPR:@" + this.line + " " + this.value;
@@ -1461,6 +1500,16 @@ ChainExpression.prototype.dump = function(level) {
     return indent(level) + this.left.dump() + link + (this.right ? this.right.dump() : "<NULL>");
 }
 
+ChainExpression.prototype.extractTypeInfo = function(word, line, col) {
+    var rightInfo = this.right.extractTypeInfo(word, line, col);
+    if (rightInfo) {
+        if (!rightInfo.container)
+            rightInfo.container = this.left.dump(); // FIXME
+
+        return rightInfo;
+    }
+}
+
 
 /** ex: a ? b : c */
 function TernaryExpression(prev, tok, paren) {
@@ -1546,5 +1595,20 @@ ForControl.prototype.dump = function(level) {
 
 ForControl.ENHANCED = 1;
 ForControl.NORMAL   = 2;
+
+
+
+/**
+ * TypeInfo, returned by the extractTypeInfo 
+ *  methods. This is NOT publically constructable
+ */
+function TypeInfo(type, name, container) {
+    this.type = type;
+    this.name = name;
+    this.container = container;
+}
+
+Ast.VARIABLE = 'v';
+Ast.METHOD =   'm';
 
 module.exports = Ast;

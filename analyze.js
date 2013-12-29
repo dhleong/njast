@@ -39,6 +39,8 @@ Analyzer.prototype.find = function(callback) {
             found = true;
             callback(null, node);
             // TODO short-circuit stop parsing (?)
+            // TODO confirm that the type is a vardef,
+            //  and not a method!
             return;
         }
     };
@@ -53,8 +55,17 @@ Analyzer.prototype.find = function(callback) {
         if (!node.contains(self._line))
             return; 
 
-        console.log(node.dump());
+        var info = node.extractTypeInfo(self._word, 
+            self._line, self._col);
+        if (!info) {
+            console.log('no info!', node.constructor.name);
+            console.log(' -->', node.dump());
+            return;
+        }
+
+        console.log(info);
         found = true;
+        self._ast.removeListener('statement', onStatement);
     };
 
     self._ast

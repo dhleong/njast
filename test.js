@@ -39,8 +39,8 @@ var buf = fs.readFile(path, function(err, buf) {
     Analyzer.of(path, buf)
         //.word("onInitializeAccessibilityNodeInfoInternal")
         //.at(14972, 18)
-        .word("doBoring")
-        .at(19, 14)
+        .word("prepare")
+        .at(17, 14)
         .find(function(err, type) {
             if (err) {
                 console.log(err);
