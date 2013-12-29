@@ -13,7 +13,7 @@ var path;
 path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/now/InstantSocket.java';
 path = '/lib/android-sdk/sources/android-15/android/widget/GridView.java';
 path = '/lib/android-sdk/sources/android-15/android/view/View.java';
-//path = 'Foo.java';
+path = 'Foo.java';
 
 var buf = fs.readFile(path, function(err, buf) {
 
@@ -37,8 +37,10 @@ var buf = fs.readFile(path, function(err, buf) {
     //console.log(ast.parse().dump());
 
     Analyzer.of(path, buf)
-        .word("NO_ID")
-        .at(2852, 49)
+        //.word("onInitializeAccessibilityNodeInfoInternal")
+        //.at(14972, 18)
+        .word("doBoring")
+        .at(19, 14)
         .find(function(err, type) {
             if (err) {
                 console.log(err);

@@ -195,6 +195,21 @@ function Tokenizer(buffer) {
     this._lastComment = null;
 }
 
+Tokenizer.prototype._save = function() {
+    return {
+        line: this._lineno,
+        comment: this._lastComment,
+        offset: this._fp.offset
+    };
+}
+
+Tokenizer.prototype._restore = function(state) {
+    this._lineno = state.line;
+    this._lastComment = state.comment;
+    this._fp.offset = state.offset;
+}
+
+
 /** Static method */
 Tokenizer.isModifier = function(token) {
     return MODIFIERS.indexOf(token) >= 0;
@@ -226,8 +241,6 @@ Tokenizer.prototype._countBlank = function() {
             var skipped = off - base;
             this._fp.offset = off + this._start;
             this._lastComment = Commentor.value;
-            this._lastSkipped = skipped; // save bytes skipped
-            this._lastLine = startLine; // save last line (in case we rewind)
             //console.log("! Counted Blank @", this._lineno, "skipped=", skipped, "token=", String.fromCharCode(token));
             return skipped; // also return bytes skipped
         }
@@ -247,15 +260,6 @@ Tokenizer.prototype._countBlank = function() {
     }
 
     return false;
-}
-
-Tokenizer.prototype._rewindLastSkip = function() {
-    if (this._lastSkipped) {
-        this._fp.offset -= this._lastSkipped;
-        this._lineno = this._lastLine;
-    }
-
-    this._lastSkipped = 0;
 }
 
 Tokenizer.prototype._peek = function(offset) {
@@ -297,13 +301,14 @@ Tokenizer.prototype._read = function(length) {
  * @return True if we read it, else false
  */
 Tokenizer.prototype._readToken = function(token) {
+    var state = this._save();
     this._countBlank();
     if (this._peek() == token) {
         this._skip();
         return true;
     }
 
-    this._rewindLastSkip();
+    this._restore(state);
     return false;
 }
 
@@ -351,12 +356,12 @@ Tokenizer.prototype.readBracketClose = _doRead(BRACKET_CLOSE);
 // just peek; return True if it matches
 var _doPeek = function(token) { 
     return function(offset) { 
+        var state = this._save();
         this._countBlank(); 
-        if (this._peek(offset) == token)
-            return true;
+        var peeked = this._peek(offset);
+        this._restore(state);
 
-        this._rewindLastSkip();
-        return false;
+        return (peeked == token);
     } 
 };
 Tokenizer.prototype.peekBlockOpen  = _doPeek(BLOCK_OPEN);
@@ -385,6 +390,7 @@ Tokenizer.prototype.peekExpressionEnd = function(offset) {
 
 /** Read math operation */
 Tokenizer.prototype.readMath = function() {
+    var state = this._save();
     this._countBlank();
 
     var length = 0;
@@ -400,7 +406,7 @@ Tokenizer.prototype.readMath = function() {
     }
 
     if (length == 0) {
-        this._rewindLastSkip();
+        this._restore(state);
         return null;
     }
 
@@ -429,13 +435,14 @@ Tokenizer.prototype.readString = function() {
 
 Tokenizer.prototype.readName = function() {
 
+    var state = this._save();
     this._countBlank();
     var length = 0;
     while (isName(this._peek(length)))
         length++;
 
     if (!length) {
-        this._rewindLastSkip();
+        this._restore(state);
         return "";
     }
 
@@ -444,13 +451,15 @@ Tokenizer.prototype.readName = function() {
 
 /** Read qualified name, eg: com.package.Class */
 Tokenizer.prototype.readQualified = function() {
+    var state = this._save();
     name = this.readName();
     while (this._readToken(DOT)) {
         name += '.' + this.readName();
     }
 
-    if (!name)
-        this._rewindLastSkip();
+    if (!name) {
+        this._restore(state);
+    }
 
     return name;
 }
@@ -458,10 +467,10 @@ Tokenizer.prototype.readQualified = function() {
 Tokenizer.prototype.readGeneric = function() {
     var name = this.readQualified();
     if (!name) {
-        this._rewindLastSkip();
         return name;
     }
 
+    var state = this._save();
     var genericLen = 0;
     var valid = [COMMA, DOT];
     if (this._readToken(GENERIC_OPEN)) {
@@ -470,8 +479,7 @@ Tokenizer.prototype.readGeneric = function() {
         this._countBlank();
         if (!isName(this._peek())) {
             // yep, just math
-            this._fp.offset--; // undo an extra _skip in _readToken
-            this._rewindLastSkip();
+            this._restore(state);
             return name;
         }
 
@@ -511,7 +519,7 @@ Tokenizer.prototype.readGeneric = function() {
             } 
         }
     } else {
-        this._rewindLastSkip();
+        this._restore(state);
     }
 
     return name;
@@ -519,9 +527,9 @@ Tokenizer.prototype.readGeneric = function() {
 
 Tokenizer.prototype.error = function(message) {
 
-        throw new Error("At line #" + this.getLine() 
-            + "\n" + message
-            + "\nPreview: " + this._read(15));
+    throw new Error("At line #" + this.getLine() 
+        + "\n" + message
+        + "\nPreview: " + this._read(15));
 };
 
 Tokenizer.prototype.expect = function(expected, methodOrValue) {
@@ -541,6 +549,8 @@ Tokenizer.prototype.expect = function(expected, methodOrValue) {
 var _peekType = function(method) {
     return function(offset) {
 
+        var state = this._save();
+
         if (offset) {
             //console.log("Offset<", offset);
             this._fp.offset += offset;
@@ -550,13 +560,8 @@ var _peekType = function(method) {
         }
 
         var read = method.call(this);
-        this._fp.offset -= read.length;
 
-        if (offset) {
-            //console.log('Offset!', read);
-            this._fp.offset -= offset;
-            //throw new Exception();
-        }
+        this._restore(state);
 
         return read;
     };

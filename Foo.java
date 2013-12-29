@@ -15,6 +15,8 @@ class Foo {
         int up, down=2, in=3, out;
 
         ((Fanciest) arg3).prepare();
+        arg3
+            .doBoring(down);
         return ((Fancier) arg2).doFancier(arg3);
     }
 

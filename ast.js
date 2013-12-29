@@ -111,6 +111,8 @@ Ast.prototype.parse = function(callback) {
 
     if (callback)
         callback(this);
+
+    return this;
 }
 
 /**
@@ -171,8 +173,10 @@ SimpleNode.prototype.getRoot = function() {
     return this._root;
 }
 
-SimpleNode.prototype.publish = function() {
-    var eventType = this.constructor.name.toLowerCase();
+SimpleNode.prototype.publish = function(type) {
+    var eventType = type
+        ? type
+        : this.constructor.name.toLowerCase();
     this._root.emit(eventType, this);
 }
 
@@ -734,6 +738,9 @@ VarDef.isStatement = function(tok) {
     if (!type)
         return false;
 
+    if (tok.peekParenOpen(type.length+1))
+        return false;
+
     if (tok.peekBracketOpen(type.length)
             && tok.peekBracketClose(type.length+1))
         return true;
@@ -1205,6 +1212,7 @@ Statement.read = function(prev, tok) {
         }
         tok.readSemicolon();
 
+        expr.publish('statement');
         return expr;
     } else if (tok.isControl()) {
         var control = tok.readName();
@@ -1218,6 +1226,7 @@ Statement.read = function(prev, tok) {
         tok.readSemicolon(); // may or may not be, here
         if (expr)
             _log("Statement->expr", expr.dump());
+        expr.publish('statement');
         return expr;
     }
 }
@@ -1227,13 +1236,14 @@ Statement.read = function(prev, tok) {
  * An expression 
  */
 function Expression(prev, tok, value) {
-    SimpleNode.call(this, prev, tok);
+    BlockLike.call(this, prev, tok);
 
     this.value = tok.readQualified();
 
     if (tok.peekParenOpen()) {
         _log("METHOD CALL:", this.value);
         this.right = new Arguments(this, tok);
+        this.end();
         return;
     }
 
@@ -1265,8 +1275,10 @@ function Expression(prev, tok, value) {
             break;
         }
     }
+
+    this.end();
 }
-util.inherits(Expression, SimpleNode);
+util.inherits(Expression, BlockLike);
 
 Expression.read = function(prev, tok) {
     _log("READ EXPR @", tok.getLine());
@@ -1437,6 +1449,8 @@ function ChainExpression(prev, tok, left, link, right) {
         this.right = Expression.read(this, tok);
         if (DEBUG) _log("BlockLike! right=", dump(this.right));
     }
+
+    this.end();
 }
 util.inherits(ChainExpression, BlockLike);
 
@@ -1457,6 +1471,8 @@ function TernaryExpression(prev, tok, paren) {
     this.left = Expression.read(this, tok);
     tok.expect(true, tok.readColon);
     this.right = Expression.read(this, tok);
+
+    this.end();
 }
 util.inherits(TernaryExpression, BlockLike);
 

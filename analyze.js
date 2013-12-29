@@ -28,7 +28,7 @@ Analyzer.prototype.find = function(callback) {
 
     var found = false;
     var self = this;
-    var onVarDef;
+    var onVarDef, onMethod;
     onVarDef = function(node) {
         if (!node.matchesScope(self._line))
             return;
@@ -43,11 +43,29 @@ Analyzer.prototype.find = function(callback) {
         }
     };
 
+    onMethod = function(node) {
+        if (node.name == self._word) {
+            console.log(node.dumpLine());
+        }
+    };
+
+    onStatement = function(node) {
+        if (!node.contains(self._line))
+            return; 
+
+        console.log(node.dump());
+        found = true;
+    };
+
     self._ast
     .on('vardef', onVarDef)
+    //.on('method', onMethod)
+    .on('statement', onStatement)
     .parse(function() {
         // reached end!
         self._ast.removeListener('vardef', onVarDef);
+        //self._ast.removeListener('method', onMethod);
+        self._ast.removeListener('statement', onStatement);
 
         if (!found)
             callback(new Error("Couldn't find"));
