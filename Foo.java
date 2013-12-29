@@ -17,7 +17,11 @@ class Foo {
         ((Fanciest) arg3).prepare();
         arg3
             .doBoring(down);
+        arg3.baz().biz().doBar();
         return ((Fancier) arg2).doFancier(arg3);
     }
 
+    Bar biz() {
+        return new Bar();
+    }
 }

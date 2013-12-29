@@ -766,7 +766,7 @@ VarDef.isStatement = function(tok) {
     if (!type)
         return false;
 
-    if (tok.peekParenOpen(type.length+1))
+    if (tok.peekParenOpen(type.length))
         return false;
 
     if (tok.peekBracketOpen(type.length)
@@ -1260,6 +1260,13 @@ Statement.read = function(prev, tok) {
 }
 
 
+Statement.prototype.extractTypeInfo = function(word, line, col) {
+    if (this.parens.contains(line)) {
+        return this.parens.extractTypeInfo(word, line, col);
+    }
+}
+
+
 /**
  * An expression 
  */
@@ -1385,14 +1392,46 @@ Expression.read = function(prev, tok) {
     }
 }
 
+/* util method for below */
+_extractMethodInfo = function(self, type, word) {
+
+    if (!word) {
+        // no word provided, so pick the last
+        //  .word there
+        var dot = self.value.lastIndexOf('.');
+
+        // this correctly handles the -1 case!
+        word = self.value.substr(dot + 1);
+    }
+
+    var container = undefined;
+    if (word.length < self.value.length) {
+        // we know about a container!
+        var containerType = self.value.substr(0, 
+            self.value.length - word.length - 1);
+        container = new TypeInfo(Ast.EXPRESSION, containerType);
+    }
+    return new TypeInfo(type, word, container); 
+}
+
 Expression.prototype.extractTypeInfo = function(word, line, col) {
+    if (!word) {
+        if (!this.right) {
+            // TODO
+            return new TypeInfo(Ast.TYPE, this.value);
+        } else if (this.right instanceof Arguments) {
+            // TODO container?
+            return _extractMethodInfo(this, Ast.METHOD_CALL);
+        }
+
+        if (DEBUG) console.log("!word!", this.dump());
+        return;
+    }
+
     if (this.value.endsWith(word)) {
         if (this.right instanceof Arguments) {
             // in a method call
-            // TODO figure out parent type?
-            var container = this.value.substr(0, 
-                this.value.length - word.length - 1);
-            return new TypeInfo(Ast.METHOD, word, container); 
+            return _extractMethodInfo(this, Ast.METHOD, word);
         }
     }
 }
@@ -1468,6 +1507,9 @@ ParenExpression.prototype.dump = function() {
     return "(" + dump(this.left) + ")";// + dump(this.right, "");
 }
 
+ParenExpression.prototype.extractTypeInfo = function() {
+    return this.left.extractTypeInfo();
+}
 
 /** Ex: Foo.getBar().getBaz(), or even a + b */
 function ChainExpression(prev, tok, left, link, right) {
@@ -1501,10 +1543,14 @@ ChainExpression.prototype.dump = function(level) {
 }
 
 ChainExpression.prototype.extractTypeInfo = function(word, line, col) {
+    if (!word && this.left instanceof ParenExpression) {
+        return this.left.extractTypeInfo();
+    }
+
     var rightInfo = this.right.extractTypeInfo(word, line, col);
     if (rightInfo) {
         if (!rightInfo.container)
-            rightInfo.container = this.left.dump(); // FIXME
+            rightInfo.container = this.left.extractTypeInfo();
 
         return rightInfo;
     }
@@ -1608,7 +1654,19 @@ function TypeInfo(type, name, container) {
     this.container = container;
 }
 
-Ast.VARIABLE = 'v';
-Ast.METHOD =   'm';
+/**
+ * This is probably either a Type 
+ *  (for static method calls/static vars)
+ *  or a variable
+ */
+Ast.EXPRESSION    = 'e';
+Ast.METHOD        = 'm';
+/** 
+ * We don't know the actual type, but it's whatever
+ *  type is returned from the method call described here
+ */
+Ast.METHOD_CALL   = 'c';
+Ast.TYPE          = 't';
+Ast.VARIABLE      = 'v';
 
 module.exports = Ast;
