@@ -1549,9 +1549,23 @@ ChainExpression.prototype.extractTypeInfo = function(word, line, col) {
 
     var rightInfo = this.right.extractTypeInfo(word, line, col);
     if (rightInfo) {
-        if (!rightInfo.container)
+        if (!rightInfo.container) {
             rightInfo.container = this.left.extractTypeInfo();
+        } else { 
+            // dive into the deepest
+            var grandContainer = rightInfo.container;
+            while (grandContainer.type == Ast.METHOD_CALL
+                    && grandContainer.container) {
+                grandContainer = grandContainer.container;
+            }
 
+            if (grandContainer.type == Ast.METHOD_CALL
+                    && !grandContainer.container) {
+                // ?
+                grandContainer.container = this.left.extractTypeInfo();
+            }
+        }
+        
         return rightInfo;
     }
 }

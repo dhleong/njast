@@ -1,5 +1,6 @@
 
-var Ast = require('./ast');
+var Ast = require('./ast')
+    util = require('util');
 
 function Analyzer(path, buffer, ast) {
     
@@ -63,7 +64,7 @@ Analyzer.prototype.find = function(callback) {
             return;
         }
 
-        console.log(info);
+        console.log(util.inspect(info, {depth:null}));
         found = true;
         self._ast.removeListener('statement', onStatement);
     };

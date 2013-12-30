@@ -17,7 +17,7 @@ class Foo {
         ((Fanciest) arg3).prepare();
         arg3
             .doBoring(down);
-        arg3.baz().biz().doBar();
+        ((Fancier) arg3).buz().baz().biz().doBar();
         return ((Fancier) arg2).doFancier(arg3);
     }
 
