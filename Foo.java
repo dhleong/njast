@@ -1,5 +1,7 @@
 package net.dhleong.njast;
 
+import net.dhleong.njast.util.Fanciest;
+
 class Foo {
 
     int field1;

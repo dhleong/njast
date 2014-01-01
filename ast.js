@@ -112,6 +112,7 @@ function Ast(path, buffer) {
     this._fp = buffer;
 
     this.tok = new Tokenizer(this._fp);
+    this._root = new JavaFile(this, this.tok);
 
     // TODO listen to and save our own events,
     //  so we can replay them later without
@@ -122,7 +123,7 @@ util.inherits(Ast, events.EventEmitter);
 Ast.prototype.parse = function(callback) {
     // TODO if we're already parsed,
     //  just replay the events we emit'd
-    this._root = new JavaFile(this, this.tok);
+    this._root.parse();
 
     if (callback)
         callback(this);
@@ -142,6 +143,18 @@ Ast.prototype.getPath = function() {
  */
 Ast.prototype.dump = function() {
     return this._root.dump();
+}
+
+/**
+ * Resolve the fully-qualified type path
+ *  for the given type
+ */
+Ast.prototype.resolveType = function(type) {
+    var full = this._root.namedImports[type];
+    if (full)
+        return full.path;
+
+    return this._root.package + '.' + type;
 }
 
 
@@ -247,6 +260,18 @@ function JavaFile(root, tok) {
     this.package = '<default>';
     this.imports = [];
     this.classes = [];
+    this.namedImports = {};
+}
+util.inherits(JavaFile, SimpleNode);
+
+/** 
+ * JavaFile is explicitly parsed separately 
+ *  from instantiation so it can be
+ *  accessed from Ast root
+ */
+JavaFile.prototype.parse = function() {
+    
+    var tok = this.tok;
 
     // parse the file
     for (;;) {
@@ -257,7 +282,11 @@ function JavaFile(root, tok) {
             this.package = tok.readQualified();
             tok.readSemicolon();
         } else if (type == 'import') {
-            this.imports.push(new Import(this, tok));
+            var obj = new Import(this, tok);
+            this.imports.push(obj);
+
+            if (obj.name)
+                this.namedImports[obj.name] = obj;
         } else {
             klass = new Class(this, tok);
             this.classes.push(klass);
@@ -267,7 +296,6 @@ function JavaFile(root, tok) {
         }
     }
 }
-util.inherits(JavaFile, SimpleNode);
 
 JavaFile.prototype.dump = function() {
     var buf = "[JavaFile:package " + this.package + ";\n";
@@ -293,6 +321,10 @@ function Import(root, tok) {
     if (tok.readStar()) {
         this.isStar = true;
         this.path = this.path.substr(0, this.path.length-1);
+        this.name = null; // I guess?
+    } else {
+        var lastDot = this.path.lastIndexOf('.');
+        this.name = this.path.substr(lastDot+1);
     }
 
     tok.readSemicolon();
@@ -305,7 +337,6 @@ Import.prototype.dump = function(level) {
         + this.path 
         + (this.isStar ? '[.*]' : '');
 }
-
 
 /**
  * A java class
@@ -742,9 +773,9 @@ VarDef.prototype.dump = function(level) {
 
 VarDef.prototype.extractTypeInfo = function(word, line, col) {
     if (this.name == word) {
-        return new TypeInfo(Ast.VARIABLE, this.type);
+        return new TypeInfo(this, Ast.VARIABLE, this.type);
     } else if (this.type == word) {
-        return new TypeInfo(Ast.TYPE, this.type);
+        return new TypeInfo(this, Ast.TYPE, this.type);
     }
 }
 
@@ -1409,16 +1440,16 @@ _extractMethodInfo = function(self, type, word) {
         // we know about a container!
         var containerType = self.value.substr(0, 
             self.value.length - word.length - 1);
-        container = new TypeInfo(Ast.EXPRESSION, containerType);
+        container = new TypeInfo(self, Ast.EXPRESSION, containerType);
     }
-    return new TypeInfo(type, word, container); 
+    return new TypeInfo(self, type, word, container); 
 }
 
 Expression.prototype.extractTypeInfo = function(word, line, col) {
     if (!word) {
         if (!this.right) {
             // TODO
-            return new TypeInfo(Ast.TYPE, this.value);
+            return new TypeInfo(this, Ast.TYPE, this.value);
         } else if (this.right instanceof Arguments) {
             // TODO container?
             return _extractMethodInfo(this, Ast.METHOD_CALL);
@@ -1662,10 +1693,14 @@ ForControl.NORMAL   = 2;
  * TypeInfo, returned by the extractTypeInfo 
  *  methods. This is NOT publically constructable
  */
-function TypeInfo(type, name, container) {
+function TypeInfo(node, type, name, container) {
     this.type = type;
     this.name = name;
     this.container = container;
+
+    if (type == Ast.TYPE) {
+        this.name = node.getRoot().resolveType(name);
+    }
 }
 
 /**

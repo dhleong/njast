@@ -40,7 +40,7 @@ var buf = fs.readFile(path, function(err, buf) {
         //.word("onInitializeAccessibilityNodeInfoInternal")
         //.at(14972, 18)
         .word("doBar")
-        .at(20, 14)
+        .at(22, 14)
         .find(function(err, type) {
             if (err) {
                 console.log(err);
