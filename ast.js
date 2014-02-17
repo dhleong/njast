@@ -1,21 +1,20 @@
 
 var util = require('util')
     , events = require('events')
-    , fs = require('fs')
     , Tokenizer = require('./tokenizer');
 
-INDENT_LEVEL = 2;
+var INDENT_LEVEL = 2;
 
-DEBUG = false;
+var DEBUG = false;
 
-_log = DEBUG
+var _log = DEBUG
     ? function() { console.log.apply(console.log, arguments); }
     : function() { }
 
 function indent(level) {
     var buf = "";
     var level = level ? level : 0;
-    for (i=0; i < level; i++)
+    for (var i=0; i < level; i++)
         buf += ' ';
 
     return buf;
@@ -82,7 +81,7 @@ String.prototype.endsWith = function(value) {
     else if (value.length == N)
         return this == value;
 
-    for (i=N - value.length, j=0; i < N; i++, j++) {
+    for (var i=N - value.length, j=0; i < N; i++, j++) {
         if (this[i] != value[j])
             return false;
     }
@@ -147,12 +146,23 @@ Ast.prototype.dump = function() {
 
 /**
  * Resolve the fully-qualified type path
- *  for the given type
+ *  for the given type.
+ *
+ * Inner classes and classes within the
+ *  same package cannot be confidently
+ *  resolved until the AST is completely parsed
+ *  (since the declaration of inner classes
+ *  may be *after* a reference). In such
+ *  a case, "null" will be returned, indicating
+ *  that the resolve should be attempted again later
  */
 Ast.prototype.resolveType = function(type) {
     var full = this._root.namedImports[type];
     if (full)
         return full.path;
+
+    if (!this._parsed)
+        return null;
 
     return this._root.package + '.' + type;
 }
@@ -178,7 +188,7 @@ SimpleNode.prototype.contains = function(lineNo) {
     return this.line == lineNo;
 }
 
-SimpleNode.prototype.extractTypeInfo = function(word, line, col) {
+SimpleNode.prototype.extractTypeInfo = function(/*word, line, col*/) {
     return undefined;
 }
 
@@ -288,7 +298,7 @@ JavaFile.prototype.parse = function() {
             if (obj.name)
                 this.namedImports[obj.name] = obj;
         } else {
-            klass = new Class(this, tok);
+            var klass = new Class(this, tok);
             this.classes.push(klass);
 
             // TODO save refs to all "tags" 
@@ -503,7 +513,7 @@ function ClassBody(prev, tok) {
             _javadoc += nextJavadoc;
 
         // what've we got here?
-        token = tok.peekName();
+        var token = tok.peekName();
         _log("In ClassBody block @", tok.getLine(), "peek=", token);
     
         // check for static block
@@ -528,7 +538,7 @@ function ClassBody(prev, tok) {
             continue;
         }
 
-        if ("" == token) {
+        if ("" === token) {
             if (tok.isAnnotation()) {
                 _mods.push(new Annotations(this, tok));
                 continue;
@@ -608,7 +618,7 @@ ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
 
 ClassBody.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
-    buf = indent(level) + " {" + this.dumpLine();
+    var buf = indent(level) + " {" + this.dumpLine();
     buf += dumpArray("Subclasses", this.subclasses, nextLevel);
     buf += dumpArray("Fields", this.fields, nextLevel);
     buf += dumpArray("Methods", this.methods, nextLevel);
@@ -771,7 +781,7 @@ VarDef.prototype.dump = function(level) {
         + "\n";
 }
 
-VarDef.prototype.extractTypeInfo = function(word, line, col) {
+VarDef.prototype.extractTypeInfo = function(word/*, line, col*/) {
     if (this.name == word) {
         return new TypeInfo(this, Ast.VARIABLE, this.type);
     } else if (this.type == word) {
@@ -853,7 +863,7 @@ VariableInitializer.read = function(prev, tok) {
     return creator;
 }
 
-VariableInitializer.prototype.dump = function(level) {
+VariableInitializer.prototype.dump = function(/*level*/) {
     return "{" + this.array.dumpEach().join(",") + "}";
 }
 
@@ -923,7 +933,7 @@ function Arguments(prev, tok) {
 }
 util.inherits(Arguments, SimpleNode);
 
-Arguments.prototype.dump = function(level) {
+Arguments.prototype.dump = function(/*level*/) {
     return "[ARGS:@" + this.line + " (" + this.expressions.dumpEach().join(" , ") + ")]";
 }
 
@@ -1301,7 +1311,7 @@ Statement.prototype.extractTypeInfo = function(word, line, col) {
 /**
  * An expression 
  */
-function Expression(prev, tok, value) {
+function Expression(prev, tok/*, value*/) {
     BlockLike.call(this, prev, tok);
 
     this.value = tok.readQualified();
@@ -1424,7 +1434,7 @@ Expression.read = function(prev, tok) {
 }
 
 /* util method for below */
-_extractMethodInfo = function(self, type, word) {
+var _extractMethodInfo = function(self, type, word) {
 
     if (!word) {
         // no word provided, so pick the last
@@ -1435,7 +1445,7 @@ _extractMethodInfo = function(self, type, word) {
         word = self.value.substr(dot + 1);
     }
 
-    var container = undefined;
+    var container;
     if (word.length < self.value.length) {
         // we know about a container!
         var containerType = self.value.substr(0, 
@@ -1445,7 +1455,7 @@ _extractMethodInfo = function(self, type, word) {
     return new TypeInfo(self, type, word, container); 
 }
 
-Expression.prototype.extractTypeInfo = function(word, line, col) {
+Expression.prototype.extractTypeInfo = function(word/*, line, col*/) {
     if (!word) {
         if (!this.right) {
             // TODO
@@ -1642,13 +1652,13 @@ function ForControl(prev, tok) {
         this.inits = [varDef];
         if (tok.peekComma()) {
             do {
-                inits.push(Expression.read(this, tok));
+                this.inits.push(Expression.read(this, tok));
             } while (!tok.readSemicolon());
         }
 
         this.condition = null;
         if (!tok.readSemicolon()) {
-            condition = Expression.read(this, tok);
+            this.condition = Expression.read(this, tok);
         }
 
         this.updates = []
@@ -1699,7 +1709,14 @@ function TypeInfo(node, type, name, container) {
     this.container = container;
 
     if (type == Ast.TYPE) {
-        this.name = node.getRoot().resolveType(name);
+        var resolved = node.getRoot().resolveType(name);
+        if (resolved) {
+            this.name = resolved;
+            this.resolved = true;
+        } else {
+            this.name = name;
+            this.resolved = false;
+        }
     }
 }
 

@@ -26,4 +26,11 @@ class Foo {
     Bar biz() {
         return new Bar();
     }
+
+    class Fancy {
+        
+        class Fancier {
+        }
+    }
+
 }

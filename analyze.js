@@ -1,6 +1,6 @@
 
 var Ast = require('./ast')
-    util = require('util');
+    , util = require('util');
 
 function Analyzer(path, buffer, ast) {
     
@@ -29,7 +29,7 @@ Analyzer.prototype.find = function(callback) {
 
     var found = false;
     var self = this;
-    var onVarDef, onMethod;
+    var onVarDef, onMethod, onStatement;
     onVarDef = function(node) {
         if (!node.matchesScope(self._line))
             return;

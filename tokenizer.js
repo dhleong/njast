@@ -17,7 +17,7 @@ var NL = VALS.next();
 var SLASH = VALS.next();
 var STAR = VALS.next();
 
-for (i = 0; i < 3; i++) {
+for (var i = 0; i < 3; i++) {
     NAME_RANGES.push([VALS.next(), VALS.next()]);
 }
 var OTHER_NAME_CHARS = [ 
@@ -46,7 +46,7 @@ var QUOTE = VALS.next();
 var QUESTION = VALS.next();
 
 var ESCAPE = VALS.next();
-var SPACE = VALS.next();
+//var SPACE = VALS.next();
 
 
 var OTHER_TOKENS = [
@@ -223,7 +223,7 @@ Tokenizer.prototype._countBlank = function() {
 
     //console.log("Count Blank @", this._lineno);
     
-    var startLine = this._lineno;
+    //var startLine = this._lineno;
     var base = this._fp.offset - this._start;
     var off = base;
     while (off < this._fp.length) { 
@@ -405,7 +405,7 @@ Tokenizer.prototype.readMath = function() {
         }
     }
 
-    if (length == 0) {
+    if (length === 0) {
         this._restore(state);
         return null;
     }
@@ -452,7 +452,7 @@ Tokenizer.prototype.readName = function() {
 /** Read qualified name, eg: com.package.Class */
 Tokenizer.prototype.readQualified = function() {
     var state = this._save();
-    name = this.readName();
+    var name = this.readName();
     while (this._readToken(DOT)) {
         name += '.' + this.readName();
     }
@@ -471,7 +471,7 @@ Tokenizer.prototype.readGeneric = function() {
     }
 
     var state = this._save();
-    var genericLen = 0;
+    //var genericLen = 0;
     var valid = [COMMA, DOT];
     if (this._readToken(GENERIC_OPEN)) {
         
@@ -496,7 +496,7 @@ Tokenizer.prototype.readGeneric = function() {
                 break;
             case GENERIC_CLOSE:
                 name += this._read();
-                if (--generics == 0)
+                if (--generics === 0)
                     return name;
                 break;
                 
@@ -508,7 +508,7 @@ Tokenizer.prototype.readGeneric = function() {
                     name += this._read();
                 } else if (DEBUG_FAIL) {
                     throw new Error("Unexpected token ``" + tok + "'' @" + this._lineno 
-                        + "\n(" + 
+                        + "\n("
                         + String.fromCharCode(tok)
                         + ") in generic name ``" 
                         + name + this._read() + "''; valid=" + valid
