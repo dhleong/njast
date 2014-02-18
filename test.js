@@ -6,8 +6,7 @@ require('nodetime').profile({
 */
 
 var fs = require('fs')
-    , Ast = require('./ast')
-    , Analyzer = require('./analyze');
+    , Tagifier = require('./tagifier');
 
 var path;
 path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/now/InstantSocket.java';
@@ -15,9 +14,18 @@ path = '/lib/android-sdk/sources/android-15/android/widget/GridView.java';
 path = '/lib/android-sdk/sources/android-15/android/view/View.java';
 path = 'Foo.java';
 
-var buf = fs.readFile(path, function(err, buf) {
+function stringify(obj) {
+    return JSON.stringify(obj, function(key, value) {
+        if (key.charAt(0) == '_')
+            return;
 
-    var ast = new Ast(path, buf);
+        return value;
+    }, '  ');
+}
+
+fs.readFile(path, function(err, buf) {
+
+    //var ast = new Ast(path, buf);
     /*
     ast.on('class', function(node) {
         console.log(" CLASS:" + node.name);
@@ -36,6 +44,7 @@ var buf = fs.readFile(path, function(err, buf) {
     */
     //console.log(ast.parse().dump());
 
+    /*
     Analyzer.of(path, buf)
         //.word("onInitializeAccessibilityNodeInfoInternal")
         //.at(14972, 18)
@@ -54,9 +63,18 @@ var buf = fs.readFile(path, function(err, buf) {
                 scope.constructor.name, 
                 scope.dumpLine(),
                 scope.dump());
-                */
+                /
         });
+    */
 
-
+    Tagifier.of(path, buf)
+        .wordAt('doBar', 22, 14)
+        .on('word', function(err, type) {
+            console.log("WORD!", stringify(err), type);
+        })
+        .on('parsed', function(err, tags) {
+            console.log("TAGS!", stringify(err), stringify(tags));
+        })
+        .start();
 });
 
