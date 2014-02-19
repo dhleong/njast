@@ -28,7 +28,7 @@ Tagifier.prototype.start = function() {
     .on('vardef', function(node) {
 
         // TODO node path...
-        self._tags[node.name] = node;
+        self._tags[buildTagPath(node)] = node;
 
         if (!node.matchesScope(self._line))
             return;
@@ -39,7 +39,7 @@ Tagifier.prototype.start = function() {
     })
     .on('method', function(node) {
         // TODO node path...
-        self._tags[node.name] = node;
+        self._tags[buildTagPath(node)] = node;
 
         if (node.name == self._word) {
             self.emit('word', node);

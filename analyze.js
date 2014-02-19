@@ -1,6 +1,6 @@
 
-var Ast = require('./ast')
-    , util = require('util');
+var Ast = require('./ast');
+    //, util = require('util');
 
 function Analyzer(path, buffer, ast) {
     
@@ -48,7 +48,8 @@ Analyzer.prototype.find = function(callback) {
 
     onMethod = function(node) {
         if (node.name == self._word) {
-            console.log(node.dumpLine());
+            // TODO remove
+            console.log("method on", node.dumpLine());
         }
     };
 
@@ -64,7 +65,8 @@ Analyzer.prototype.find = function(callback) {
             return;
         }
 
-        console.log(util.inspect(info, {depth:null}));
+        //console.log(util.inspect(info, {depth:null}));
+        callback(null, info);
         found = true;
         self._ast.removeListener('statement', onStatement);
     };

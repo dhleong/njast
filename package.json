@@ -1,4 +1,11 @@
 {
-  "author": "Daniel Leong",
-  "name": "njast"
+    "name": "njast",
+    "version": "0.1.0",
+    "author": "Daniel Leong <me@dhleong.net>",
+    "scripts": {
+        "test": "nodeunit ./test/"
+    },
+    "dependencies": {
+        "async": ">=0.2.10"
+    }
 }
