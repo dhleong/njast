@@ -63,10 +63,22 @@ Analyzer.prototype.find = function(callback) {
         var info = node.extractTypeInfo(self._word, 
             self._line, self._col);
         if (!info) {
-            console.log('no info!', node.constructor.name);
-            console.log(' -->', node.dump());
+            //console.log('no info!', node.constructor.name);
+            //console.log(' -->', node.dump());
             return;
         }
+
+        // TODO climb AST to figure out the containing
+        //  type for the method call (if necessary)
+        var current = info;
+        while (!current.resolved) {
+            if (!current.container)
+                break;
+
+            current = current.container;
+        }
+        if (!current.resolved)
+            console.log("Unresolved!", current);
 
         //console.log(util.inspect(info, {depth:null}));
         callback(null, info);

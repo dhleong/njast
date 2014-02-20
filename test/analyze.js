@@ -88,6 +88,9 @@ module.exports = {
             test.equals(type.name, "doBar");
             test.equals(type.type, Ast.METHOD);
 
+            // TODO actually, we should
+            //  just have an "owner" (or something?)
+            //  which is the type that owns the method...
             var biz = type.container;
             test.equals(biz.name, 'biz');
             test.equals(biz.type, Ast.METHOD_CALL);
