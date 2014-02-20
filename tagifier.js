@@ -3,6 +3,10 @@ var Ast = require('./ast')
     , util = require('util')
     , events = require('events');
 
+function buildTagPath(node) {
+    return node.name; // TODO
+}
+
 function Tagifier(path, buffer) {
     this._path = path;
     this._buffer = buffer;

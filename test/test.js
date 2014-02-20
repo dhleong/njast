@@ -6,7 +6,8 @@ require('nodetime').profile({
 */
 
 var fs = require('fs')
-    , Tagifier = require('./tagifier');
+    //, Tagifier = require('../tagifier');
+    , Analyzer = require('../analyze');
 
 var path;
 path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/now/InstantSocket.java';
@@ -44,7 +45,6 @@ fs.readFile(path, function(err, buf) {
     */
     //console.log(ast.parse().dump());
 
-    /*
     Analyzer.of(path, buf)
         //.word("onInitializeAccessibilityNodeInfoInternal")
         //.at(14972, 18)
@@ -63,10 +63,10 @@ fs.readFile(path, function(err, buf) {
                 scope.constructor.name, 
                 scope.dumpLine(),
                 scope.dump());
-                /
+                */
         });
-    */
 
+    /*
     Tagifier.of(path, buf)
         .wordAt('doBar', 22, 14)
         .on('word', function(err, type) {
@@ -76,5 +76,6 @@ fs.readFile(path, function(err, buf) {
             console.log("TAGS!", stringify(err), stringify(tags));
         })
         .start();
+    */
 });
 

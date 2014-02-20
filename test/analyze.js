@@ -29,10 +29,59 @@ module.exports = {
 
     },
 
+    out: function(test) {
+        
+        an.word("out")
+        .at(17, 31)
+        .find(function(err, type) {
+            test.ifError(err);
+
+            test.equals(type.name, "int");
+            test.equals(type.type, Ast.VARIABLE);
+
+            test.done();
+        });
+    },
+
+    arg3: function(test) {
+        
+        an.word("arg3")
+        .at(17, 31)
+        .find(function(err, type) {
+            test.ifError(err);
+
+            test.equals(type.name, "net.dhleong.njast.lame.Boring");
+            test.equals(type.type, Ast.VARIABLE);
+
+            test.done();
+        });
+    },
+
+    prepare: function(test) {
+        an.word("prepare")
+        .at(20, 28)
+        .find(function(err, type) {
+            test.ifError(err);
+
+            if (!err) {
+                test.equals(type.name, "prepare");
+                test.equals(type.type, Ast.METHOD);
+
+                var fanciest = type.container;
+                test.equals(fanciest.name, 'net.dhleong.njast.util.Fanciest');
+                test.equals(fanciest.type, Ast.TYPE);
+            }
+
+            test.done();
+        });
+        
+    },
+    
+
     doBar: function(test) {
 
         an.word("doBar")
-        .at(22, 14)
+        .at(23, 44)
         .find(function(err, type) {
             test.ifError(err);
 
@@ -43,8 +92,21 @@ module.exports = {
             test.equals(biz.name, 'biz');
             test.equals(biz.type, Ast.METHOD_CALL);
 
+            var baz = biz.container;
+            test.equals(baz.name, 'baz');
+            test.equals(baz.type, Ast.METHOD_CALL);
+
+            var buz = baz.container;
+            test.equals(buz.name, 'buz');
+            test.equals(buz.type, Ast.METHOD_CALL);
+
+            var fancier = buz.container;
+            test.equals(fancier.name, 
+                'net.dhleong.njast.Foo$Fancy$Fancier');
+            test.equals(fancier.type, Ast.TYPE);
+
             test.done();
         });
-    }
-    
+    },
+
 }

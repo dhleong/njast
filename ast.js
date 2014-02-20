@@ -1708,7 +1708,7 @@ function TypeInfo(node, type, name, container) {
     this.name = name;
     this.container = container;
 
-    if (type == Ast.TYPE) {
+    if (type == Ast.TYPE || type == Ast.VARIABLE) {
         var resolved = node.getRoot().resolveType(name);
         if (resolved) {
             this.name = resolved;

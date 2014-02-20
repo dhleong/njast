@@ -28,6 +28,7 @@ Analyzer.prototype.find = function(callback) {
     }
 
     var found = false;
+
     var self = this;
     var onVarDef, onMethod, onStatement;
     onVarDef = function(node) {
@@ -37,8 +38,10 @@ Analyzer.prototype.find = function(callback) {
         //console.log(node.name);
         if (node.name == self._word) {
             self._ast.removeListener('vardef', onVarDef);
+            callback(null, node.extractTypeInfo(self._word,
+                self._line, self._col));
             found = true;
-            callback(null, node);
+
             // TODO short-circuit stop parsing (?)
             // TODO confirm that the type is a vardef,
             //  and not a method!
@@ -81,8 +84,11 @@ Analyzer.prototype.find = function(callback) {
         //self._ast.removeListener('method', onMethod);
         self._ast.removeListener('statement', onStatement);
 
-        if (!found)
-            callback(new Error("Couldn't find"));
+        //console.log("end", self._word, found);
+        if (!found) {
+            console.log("fire callback", self._word);
+            callback({message:"Couldn't find"});
+        }
     });
 
 

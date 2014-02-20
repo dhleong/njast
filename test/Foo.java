@@ -1,5 +1,6 @@
 package net.dhleong.njast;
 
+import net.dhleong.njast.lame.Boring;
 import net.dhleong.njast.util.Fanciest;
 
 class Foo {
@@ -30,6 +31,10 @@ class Foo {
     class Fancy {
         
         class Fancier {
+
+            int doFancier(Boring arg) {
+                return 0;
+            }
         }
     }
 
