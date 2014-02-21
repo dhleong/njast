@@ -81,6 +81,8 @@ var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'
 var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
                 'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
 
+var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
+
 var COMMENT_NONE = 0;
 var COMMENT_LINE = 1;
 var COMMENT_BLOCK= 2;
@@ -570,6 +572,12 @@ var _peekType = function(method) {
 Tokenizer.prototype.peekName    = _peekType(Tokenizer.prototype.readName);
 Tokenizer.prototype.peekGeneric = _peekType(Tokenizer.prototype.readGeneric);
 
+/**
+ * Check if the type name is a primitive type
+ */
+Tokenizer.isPrimitive = function(type) {
+    return PRIMITIVES.indexOf(type) >= 0;
+}
 
 /*
  * JUST export the Tokenizer class

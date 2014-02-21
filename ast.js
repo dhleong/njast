@@ -158,6 +158,10 @@ Ast.prototype.dump = function() {
  *  that the resolve should be attempted again later
  */
 Ast.prototype.resolveType = function(type) {
+    
+    if (Tokenizer.isPrimitive(type))
+        return type;
+
     var full = this._root.namedImports[type];
     if (full)
         return full.path;
@@ -191,7 +195,7 @@ Ast.prototype.resolveType = function(type) {
     }
 
     // must be another class in this package (?)
-    return path + type;
+    return path + '.' + type;
 }
 
 

@@ -1,6 +1,5 @@
 package net.dhleong.njast;
 
-import net.dhleong.njast.lame.Boring;
 import net.dhleong.njast.util.Fanciest;
 
 class Foo {
@@ -11,29 +10,37 @@ class Foo {
         field1 = arg1;
     }
 
+    Fancy baz() {
+        return null; // we're not running this code, so...
+    }
+
     @SuppressWarnings({"UnusedDeclaration"})
-    int baz(Fancy arg2, Boring arg3) {
+    Fancy baz(Fancy arg2, Boring arg3) {
         int left, top, right, bottom;
 
         int up, down=2, in=3, out;
 
         ((Fanciest) arg3).prepare();
-        arg3
-            .doBoring(down);
+        arg3 // Boring#doBoring -> Normal
+            .doBoring(down).doNormal();
         ((Fancier) arg3).buz().baz().biz().doBar();
         return ((Fancier) arg2).doFancier(arg3);
     }
 
-    Bar biz() {
-        return new Bar();
-    }
-
     class Fancy {
         
+        Bar biz() {
+            return new Bar();
+        }
+
         class Fancier {
 
-            int doFancier(Boring arg) {
-                return 0;
+            Fancy doFancier(Boring arg) {
+                return null; // whatever
+            }
+
+            Foo buz() {
+                return null; // also whatever
             }
         }
     }

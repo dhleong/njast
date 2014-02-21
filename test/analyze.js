@@ -32,7 +32,7 @@ module.exports = {
     out: function(test) {
         
         an.word("out")
-        .at(17, 31)
+        .at(21, 31)
         .find(function(err, type) {
             test.ifError(err);
 
@@ -46,11 +46,11 @@ module.exports = {
     arg3: function(test) {
         
         an.word("arg3")
-        .at(17, 31)
+        .at(27, 43)
         .find(function(err, type) {
             test.ifError(err);
 
-            test.equals(type.name, "net.dhleong.njast.lame.Boring");
+            test.equals(type.name, "net.dhleong.njast.Boring");
             test.equals(type.type, Ast.VARIABLE);
 
             test.done();
@@ -59,7 +59,7 @@ module.exports = {
 
     prepare: function(test) {
         an.word("prepare")
-        .at(20, 28)
+        .at(23, 28)
         .find(function(err, type) {
             test.ifError(err);
 
@@ -81,7 +81,7 @@ module.exports = {
     doBar: function(test) {
 
         an.word("doBar")
-        .at(23, 44)
+        .at(26, 44)
         .find(function(err, type) {
             test.ifError(err);
 
@@ -89,9 +89,8 @@ module.exports = {
                 test.equals(type.name, "doBar");
                 test.equals(type.type, Ast.METHOD);
 
-                // TODO actually, we should
-                //  just have an "owner" (or something?)
-                //  which is the type that owns the method...
+                // well, we resolve this anyway,
+                //  so it doesn't hurt to keep it (?)
                 var biz = type.container;
                 test.equals(biz.name, 'biz');
                 test.equals(biz.type, Ast.METHOD_CALL);
@@ -108,6 +107,10 @@ module.exports = {
                 test.equals(fancier.name, 
                     'net.dhleong.njast.Foo$Fancy$Fancier');
                 test.equals(fancier.type, Ast.TYPE);
+
+                var bar = type.owner;
+                test.equals(bar.name, 'net.dhleong.njast.Bar');
+                test.equals(bar.type, Ast.TYPE);
             }
 
             test.done();

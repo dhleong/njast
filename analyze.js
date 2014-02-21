@@ -38,9 +38,15 @@ Analyzer.prototype.find = function(callback) {
         //console.log(node.name);
         if (node.name == self._word) {
             self._ast.removeListener('vardef', onVarDef);
-            callback(null, node.extractTypeInfo(self._word,
-                self._line, self._col));
-            found = true;
+
+            var info = node.extractTypeInfo(self._word,
+                self._line, self._col);
+            if (info.resolved) {
+                found = true;
+                callback(null, info);
+            } else {
+                found = info;
+            }
 
             // TODO short-circuit stop parsing (?)
             // TODO confirm that the type is a vardef,
@@ -96,7 +102,7 @@ Analyzer.prototype.find = function(callback) {
             callback({message:"Couldn't find"});
         } else if (found !== true) {
             // found, but it's unresolved
-            self._resolve(found, callback);
+            self.resolve(found, callback);
         }
     });
 
@@ -104,31 +110,69 @@ Analyzer.prototype.find = function(callback) {
     return this;
 }
 
-Analyzer.prototype._resolve = function(info, callback) {
+var _RESOLVERS = {};
+_RESOLVERS[Ast.METHOD] = function(info) {
+    if (!info.container.resolved) {
+        info.owner = this._resolve(info.container);
+    }
 
+    return info;
+}
+
+/** 
+ * Method calls resolve such that its owner
+ *  is set to a TYPE
+ * @returns the TYPE returned by the method call
+ */
+_RESOLVERS[Ast.METHOD_CALL] = function(info) {
+    if (info.owner)
+        return info.owner; // we already know
+
+    var container = info.container;
+    var owner = container;
+    if (!container.resolved) {
+        owner = this._resolve(info.container);
+    }
+    
+    // TODO find the info.name method in "owner"
+    console.log("Owner of ", info.name, " => ", owner);
+
+    return owner;
+}
+
+/** 
+ * Types simply resolve such that their name
+ *  is filled out
+ * @return The same object
+ */
+_RESOLVERS[Ast.TYPE] = function(info) {
+    var resolved = this._ast.resolveType(info.name);
+    info.name = resolved;
+    info.resolved = true;
+    return info;
+}
+
+_RESOLVERS[Ast.VARIABLE] = _RESOLVERS[Ast.TYPE]; // same
+
+/** internal delegate version */
+Analyzer.prototype._resolve = function(info) {
+    return _RESOLVERS[info.type].call(this, info);
+}
+
+Analyzer.prototype.resolve = function(info, callback) {
+
+    console.log(JSON.stringify(info, null, '  '));
 
     // TODO climb AST to figure out the containing
     //  type for the method call (if necessary)
-    var current = info;
-    while (!current.resolved) {
-        if (!current.container)
-            break;
+    var resolved = this._resolve(info);
 
-        current = current.container;
+    if (resolved.resolved) {
+        callback(null, resolved);
+    } else {
+        console.log("Unresolved!", info.name, resolved);
+        callback({message:"Unresolved"});
     }
-    
-    var resolved = this._ast.resolveType(current.name);
-    if (resolved) {
-        current.name = resolved;
-        current.resolved = true;
-
-        // TODO climb back up
-        callback(null, info);
-        return;
-    }
-
-    console.log("Unresolved!", current, resolved);
-    callback({message:"Unresolved"});
 }
 
 module.exports = {
