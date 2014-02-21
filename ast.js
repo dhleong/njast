@@ -123,6 +123,7 @@ Ast.prototype.parse = function(callback) {
     // TODO if we're already parsed,
     //  just replay the events we emit'd
     this._root.parse();
+    this._parsed = true;
 
     if (callback)
         callback(this);
@@ -164,7 +165,33 @@ Ast.prototype.resolveType = function(type) {
     if (!this._parsed)
         return null;
 
-    return this._root.package + '.' + type;
+    var path = this._root.package;
+
+    function pathify(klass) {
+        return [this, klass];
+    }
+
+    // Loop through nested classes
+    var r = this._root.classes.map(pathify.bind(path));
+    while (r.length > 0) {
+        var obj = r.pop();
+        var subpath = obj[0];
+        var klass = obj[1];
+
+        var connector = subpath == path ? '.' : '$';
+        var subpath = subpath + connector + klass.name;
+        if (klass.name == type)
+            return subpath; // gotcha!
+
+        // nope... recurse
+        if (klass.body.subclasses) {
+            var kids = klass.body.subclasses.map(pathify.bind(subpath));
+            r = r.concat(kids);
+        }
+    }
+
+    // must be another class in this package (?)
+    return path + type;
 }
 
 
@@ -1591,7 +1618,7 @@ ChainExpression.prototype.extractTypeInfo = function(word, line, col) {
     var rightInfo = this.right.extractTypeInfo(word, line, col);
     if (rightInfo) {
         if (!rightInfo.container) {
-            rightInfo.container = this.left.extractTypeInfo();
+            rightInfo.setContainer(this.left.extractTypeInfo());
         } else { 
             // dive into the deepest
             var grandContainer = rightInfo.container;
@@ -1603,7 +1630,7 @@ ChainExpression.prototype.extractTypeInfo = function(word, line, col) {
             if (grandContainer.type == Ast.METHOD_CALL
                     && !grandContainer.container) {
                 // ?
-                grandContainer.container = this.left.extractTypeInfo();
+                grandContainer.setContainer(this.left.extractTypeInfo());
             }
         }
         
@@ -1706,7 +1733,7 @@ ForControl.NORMAL   = 2;
 function TypeInfo(node, type, name, container) {
     this.type = type;
     this.name = name;
-    this.container = container;
+    this.setContainer(container);
 
     if (type == Ast.TYPE || type == Ast.VARIABLE) {
         var resolved = node.getRoot().resolveType(name);
@@ -1718,6 +1745,12 @@ function TypeInfo(node, type, name, container) {
             this.resolved = false;
         }
     }
+}
+
+TypeInfo.prototype.setContainer = function(container) {
+    this.container = container;
+    if (container && container.resolved)
+        this.resolved = container.resolved;
 }
 
 /**

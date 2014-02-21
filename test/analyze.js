@@ -85,28 +85,30 @@ module.exports = {
         .find(function(err, type) {
             test.ifError(err);
 
-            test.equals(type.name, "doBar");
-            test.equals(type.type, Ast.METHOD);
+            if (!err) {
+                test.equals(type.name, "doBar");
+                test.equals(type.type, Ast.METHOD);
 
-            // TODO actually, we should
-            //  just have an "owner" (or something?)
-            //  which is the type that owns the method...
-            var biz = type.container;
-            test.equals(biz.name, 'biz');
-            test.equals(biz.type, Ast.METHOD_CALL);
+                // TODO actually, we should
+                //  just have an "owner" (or something?)
+                //  which is the type that owns the method...
+                var biz = type.container;
+                test.equals(biz.name, 'biz');
+                test.equals(biz.type, Ast.METHOD_CALL);
 
-            var baz = biz.container;
-            test.equals(baz.name, 'baz');
-            test.equals(baz.type, Ast.METHOD_CALL);
+                var baz = biz.container;
+                test.equals(baz.name, 'baz');
+                test.equals(baz.type, Ast.METHOD_CALL);
 
-            var buz = baz.container;
-            test.equals(buz.name, 'buz');
-            test.equals(buz.type, Ast.METHOD_CALL);
+                var buz = baz.container;
+                test.equals(buz.name, 'buz');
+                test.equals(buz.type, Ast.METHOD_CALL);
 
-            var fancier = buz.container;
-            test.equals(fancier.name, 
-                'net.dhleong.njast.Foo$Fancy$Fancier');
-            test.equals(fancier.type, Ast.TYPE);
+                var fancier = buz.container;
+                test.equals(fancier.name, 
+                    'net.dhleong.njast.Foo$Fancy$Fancier');
+                test.equals(fancier.type, Ast.TYPE);
+            }
 
             test.done();
         });

@@ -68,22 +68,17 @@ Analyzer.prototype.find = function(callback) {
             return;
         }
 
-        // TODO climb AST to figure out the containing
-        //  type for the method call (if necessary)
-        var current = info;
-        while (!current.resolved) {
-            if (!current.container)
-                break;
-
-            current = current.container;
-        }
-        if (!current.resolved)
-            console.log("Unresolved!", current);
-
-        //console.log(util.inspect(info, {depth:null}));
-        callback(null, info);
-        found = true;
         self._ast.removeListener('statement', onStatement);
+
+        if (!info.resolved) {
+            // resolve after we've parsed everything
+            found = info;
+        } else {
+
+            //console.log(util.inspect(info, {depth:null}));
+            callback(null, info);
+            found = true;
+        }
     };
 
     self._ast
@@ -98,13 +93,42 @@ Analyzer.prototype.find = function(callback) {
 
         //console.log("end", self._word, found);
         if (!found) {
-            console.log("fire callback", self._word);
             callback({message:"Couldn't find"});
+        } else if (found !== true) {
+            // found, but it's unresolved
+            self._resolve(found, callback);
         }
     });
 
 
     return this;
+}
+
+Analyzer.prototype._resolve = function(info, callback) {
+
+
+    // TODO climb AST to figure out the containing
+    //  type for the method call (if necessary)
+    var current = info;
+    while (!current.resolved) {
+        if (!current.container)
+            break;
+
+        current = current.container;
+    }
+    
+    var resolved = this._ast.resolveType(current.name);
+    if (resolved) {
+        current.name = resolved;
+        current.resolved = true;
+
+        // TODO climb back up
+        callback(null, info);
+        return;
+    }
+
+    console.log("Unresolved!", current, resolved);
+    callback({message:"Unresolved"});
 }
 
 module.exports = {
