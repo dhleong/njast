@@ -149,7 +149,6 @@ _RESOLVERS[Ast.TYPE] = function(info) {
     var resolved = this._ast.resolveType(info.name);
     info.name = resolved;
     info.resolved = true;
-    console.log('QUAL', Object.keys(this._ast.qualifieds));
     return info;
 }
 
