@@ -113,9 +113,16 @@ function Ast(path, buffer) {
     this.tok = new Tokenizer(this._fp);
     this._root = new JavaFile(this, this.tok);
 
+    this.qualifieds = {};
+
+    var saveQualified = function(obj) {
+        this.qualifieds[obj.qualifiedName] = obj;
+    };
+
     // TODO listen to and save our own events,
     //  so we can replay them later without
     //  having to re-parse
+    this.on('class', saveQualified);
 }
 util.inherits(Ast, events.EventEmitter);
 
@@ -406,6 +413,10 @@ function Class(prev, tok, modifiers, javadoc) {
     tok.expect("class", tok.readName);
 
     this.name = tok.readGeneric(); // class name (of course)
+    this.simpleName = generic == -1
+        ? this.name
+        : this.name.substr(0, generic);
+    // generic name is resolved below
 
     if (!tok.peekBlockOpen()) { // opening block
 
@@ -428,10 +439,17 @@ function Class(prev, tok, modifiers, javadoc) {
     }
 
     if (this.getParent() instanceof JavaFile) {
+        var generic = this.name.indexOf('<');
+        this.qualifiedName = this.getParent().package + '.' + this.simpleName;
+
         this.getRoot().emit('toplevel', this);
+    } else {
+        // parent is a ClassBody; grandparent is a Class/Interface
+        this.qualifiedName = this.getParent().getParent().qualifiedName
+                           + '$' + this.simpleName;
     }
 
-    this.body = new ClassBody(prev, tok);
+    this.body = new ClassBody(this, tok);
 
     this.end();
     _log("End ClassBody", this.dumpLine());
