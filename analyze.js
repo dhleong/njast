@@ -114,6 +114,8 @@ var _RESOLVERS = {};
 _RESOLVERS[Ast.METHOD] = function(info) {
     if (!info.container.resolved) {
         info.owner = this._resolve(info.container);
+        if (info.owner)
+            info.resolved = true;
     }
 
     return info;
@@ -129,15 +131,19 @@ _RESOLVERS[Ast.METHOD_CALL] = function(info) {
         return info.owner; // we already know
 
     var container = info.container;
-    var owner = container;
+    info.owner = container;
     if (!container.resolved) {
-        owner = this._resolve(info.container);
+        info.owner = this._resolve(info.container);
+        if (info.owner)
+            info.resolved = true;
     }
     
-    // TODO find the info.name method in "owner"
-    console.log("Owner of ", info.name, " => ", owner);
+    // find the method node and get the return type
+    var qualifiedMethod = info.owner.name + '#' + info.name;
+    var methodNode = this._ast.qualifieds[qualifiedMethod];
+    var returnType = methodNode.extractReturnTypeInfo();
 
-    return owner;
+    return returnType;
 }
 
 /** 
@@ -161,9 +167,9 @@ Analyzer.prototype._resolve = function(info) {
 
 Analyzer.prototype.resolve = function(info, callback) {
 
-    console.log(JSON.stringify(info, null, '  '));
+    //console.log(JSON.stringify(info, null, '  '));
 
-    // TODO climb AST to figure out the containing
+    // climb AST to figure out the containing
     //  type for the method call (if necessary)
     var resolved = this._resolve(info);
 

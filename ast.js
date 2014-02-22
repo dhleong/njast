@@ -115,14 +115,16 @@ function Ast(path, buffer) {
 
     this.qualifieds = {};
 
+    var self = this;
     var saveQualified = function(obj) {
-        this.qualifieds[obj.qualifiedName] = obj;
+        self.qualifieds[obj.qualifiedName] = obj;
     };
 
     // TODO listen to and save our own events,
     //  so we can replay them later without
     //  having to re-parse
-    this.on('class', saveQualified);
+    this.on('class', saveQualified)
+        .on('method', saveQualified);
 }
 util.inherits(Ast, events.EventEmitter);
 
@@ -687,8 +689,11 @@ function Method(prev, tok, modifiers, returnType, name) {
         this.name = name;
     } else {
         this.returnType = '';
-        this.name = '[constructor]';
+        this.name = '[constructor]'; // TODO proper name
     }
+
+    // ClassBody -> Class
+    this.qualifiedName = this.getParent().getParent().qualifiedName + '#' + this.name;
 
     this.args = new ArgumentsDef(this, tok);
 
@@ -733,6 +738,10 @@ Method.prototype.dump = function(level) {
         buf += this.body.dump(nextLevel);
 
     return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
+}
+
+Method.prototype.extractReturnTypeInfo = function() {
+    return new TypeInfo(this, Ast.TYPE, this.returnType);
 }
 
 Method.prototype.isConstructor = function() {
