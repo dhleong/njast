@@ -29,16 +29,21 @@ class Foo {
 
     class Fancy {
         
+        /** Does biz by Fancy */
         Bar biz() {
             return new Bar();
         }
 
         class Fancier {
 
+            /**
+             * Turns a Boring into a Fancy
+             */
             Fancy doFancier(Boring arg) {
                 return null; // whatever
             }
 
+            /** Buzzes */
             Foo buz() {
                 return null; // also whatever
             }

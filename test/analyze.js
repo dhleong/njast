@@ -86,7 +86,15 @@ module.exports = {
             test.ifError(err);
 
             if (!err) {
-                test.equals(type.name, "doBar");
+                // TODO It seems that java bytecode separates
+                //  paths with '/', separates fields and methods
+                //  with '.', and nested classes with '$'. 
+                // Their methods, of course, can be differentiated
+                //  from fields by having :(ARGS;)RETURN; vs fields
+                //  which are simply :TYPE;
+
+                // the main thing
+                test.equals(type.name, "net.dhleong.njast.Bar#doBar");
                 test.equals(type.type, Ast.METHOD);
 
                 // well, we resolve this anyway,
@@ -108,6 +116,7 @@ module.exports = {
                     'net.dhleong.njast.Foo$Fancy$Fancier');
                 test.equals(fancier.type, Ast.TYPE);
 
+                // the real trick!
                 var bar = type.owner;
                 test.equals(bar.name, 'net.dhleong.njast.Bar');
                 test.equals(bar.type, Ast.TYPE);
