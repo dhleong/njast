@@ -111,14 +111,19 @@ Analyzer.prototype.find = function(callback) {
 }
 
 var _RESOLVERS = {};
-_RESOLVERS[Ast.METHOD] = function(info) {
+_RESOLVERS[Ast.METHOD] = function(info, callback) {
     if (!info.container.resolved) {
-        info.owner = this._resolve(info.container);
-        if (info.owner)
-            info.resolved = true;
-    }
+        this._resolve(info.container, function(resolved) {
+            console.log("Resolved method container", resolved);
+            info.owner = resolved;
+            if (info.owner)
+                info.resolved = true;
 
-    return info;
+            callback(info);
+        });
+    } else {
+        callback(info);
+    }
 }
 
 /** 
@@ -126,24 +131,32 @@ _RESOLVERS[Ast.METHOD] = function(info) {
  *  is set to a TYPE
  * @returns the TYPE returned by the method call
  */
-_RESOLVERS[Ast.METHOD_CALL] = function(info) {
-    if (info.owner)
-        return info.owner; // we already know
+_RESOLVERS[Ast.METHOD_CALL] = function(info, callback) {
+    if (info.owner) {
+        callback(info.owner); // we already know
+        return;
+    }
+
+    var self = this;
+    var onContainerResolved = function(resolved) {
+        info.owner = resolved;
+        if (info.owner)
+            info.resolved = true;
+
+        // find the method node and get the return type
+        var qualifiedMethod = info.owner.name + '#' + info.name;
+        var methodNode = self._ast.qualifieds[qualifiedMethod];
+        var returnType = methodNode.extractReturnTypeInfo();
+        callback(returnType);
+    }
 
     var container = info.container;
     info.owner = container;
     if (!container.resolved) {
-        info.owner = this._resolve(info.container);
-        if (info.owner)
-            info.resolved = true;
+        this._resolve(info.container, onContainerResolved);
+    } else {
+        onContainerResolved(info.owner);
     }
-    
-    // find the method node and get the return type
-    var qualifiedMethod = info.owner.name + '#' + info.name;
-    var methodNode = this._ast.qualifieds[qualifiedMethod];
-    var returnType = methodNode.extractReturnTypeInfo();
-
-    return returnType;
 }
 
 /** 
@@ -151,34 +164,38 @@ _RESOLVERS[Ast.METHOD_CALL] = function(info) {
  *  is filled out
  * @return The same object
  */
-_RESOLVERS[Ast.TYPE] = function(info) {
+_RESOLVERS[Ast.TYPE] = function(info, callback) {
     var resolved = this._ast.resolveType(info.name);
     info.name = resolved;
     info.resolved = true;
-    return info;
+    callback(info);
 }
 
 _RESOLVERS[Ast.VARIABLE] = _RESOLVERS[Ast.TYPE]; // same
 
 /** internal delegate version */
-Analyzer.prototype._resolve = function(info) {
-    return _RESOLVERS[info.type].call(this, info);
+Analyzer.prototype._resolve = function(info, callback) {
+    _RESOLVERS[info.type].call(this, info, callback);
 }
 
 Analyzer.prototype.resolve = function(info, callback) {
 
-    //console.log(JSON.stringify(info, null, '  '));
+    // console.log(JSON.stringify(info, null, '  '));
 
     // climb AST to figure out the containing
     //  type for the method call (if necessary)
-    var resolved = this._resolve(info);
+    this._resolve(info, function(resolved) {
 
-    if (resolved.resolved) {
-        callback(null, resolved);
-    } else {
-        console.log("Unresolved!", info.name, resolved);
-        callback({message:"Unresolved"});
-    }
+        console.log("RESOLVED", resolved);
+
+        if (resolved.resolved) {
+            callback(null, resolved);
+        } else {
+            console.log("Unresolved!", info.name, resolved);
+            callback({message:"Unresolved"});
+        }
+    });
+
 }
 
 module.exports = {
