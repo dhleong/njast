@@ -13,7 +13,7 @@ var _log = DEBUG
 
 function indent(level) {
     var buf = "";
-    var level = level ? level : 0;
+    level = level ? level : 0;
     for (var i=0; i < level; i++)
         buf += ' ';
 
@@ -147,6 +147,11 @@ Ast.prototype.getPath = function() {
     return this._path;
 }
 
+Ast.prototype.getParent = function() {
+    return null; // Ast is the root node
+};
+
+
 /**
  * Return a string representing the AST
  */
@@ -192,7 +197,7 @@ Ast.prototype.resolveType = function(type) {
         var klass = obj[1];
 
         var connector = subpath == path ? '.' : '$';
-        var subpath = subpath + connector + klass.name;
+        subpath = subpath + connector + klass.name;
         if (klass.name == type)
             return subpath; // gotcha!
 
@@ -242,6 +247,15 @@ SimpleNode.prototype.getLocalScope = function() {
     return parent;
 }
 
+SimpleNode.prototype.getScope = function() {
+
+    var parent = this.getParent();
+    while (parent && !(parent instanceof ScopeLike)) {
+        parent = parent.getParent();
+    }
+
+    return parent;
+}
 
 SimpleNode.prototype.getParent = function() {
     return this._prev;
@@ -298,6 +312,36 @@ BlockLike.prototype.end = function() {
 
     this.publish();
 }
+
+/**
+ * Superclass for things that might hold
+ *  VarDefs. 
+ */
+function ScopeLike(prev, tok) {
+    BlockLike.call(this, prev, tok);
+}
+util.inherits(ScopeLike, BlockLike);
+
+/**
+ * implement this method to return an array
+ * of VarDefs to use the default functionality
+ */
+ScopeLike.prototype._getVars = undefined;
+
+ScopeLike.prototype.getVar = function(varName) {
+    if (!this._getVars)
+        throw new Error(this.constructor.name 
+            + " does not implement getVar! Cannot find " + varName);
+
+    var varDefs = this._getVars();
+    var len = varDefs.length;
+    for (var i=0; i < len; i++) {
+        var f = varDefs[i];
+        if (f.name == varName)
+            return f;
+    }
+};
+
 
 
 /**
@@ -538,7 +582,7 @@ Interface.prototype.dump = function(level) {
  * The body of a class (extracted for anonymous classes!)
  */
 function ClassBody(prev, tok) {
-    BlockLike.call(this, prev, tok);
+    ScopeLike.call(this, prev, tok);
 
     this.subclasses = [];
     this.blocks = [];
@@ -641,7 +685,7 @@ function ClassBody(prev, tok) {
     this.fields._publishEach();
     this.methods._publishEach();
 }
-util.inherits(ClassBody, BlockLike);
+util.inherits(ClassBody, ScopeLike);
 
 ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
 
@@ -666,6 +710,11 @@ ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
         return new Method(this, tok, modifiers, type, name);
     }
 };
+
+ClassBody.prototype._getVars = function() {
+    return this.fields;
+};
+
 
 ClassBody.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
@@ -1146,7 +1195,7 @@ Block.prototype.publishEach = function() {
  * Body of a block
  */
 function BlockStatements(prev, tok) {
-    BlockLike.call(this, prev, tok);
+    ScopeLike.call(this, prev, tok);
     
     this.statements = [];
 
@@ -1167,11 +1216,21 @@ function BlockStatements(prev, tok) {
 
     this.end();
 }
-util.inherits(BlockStatements, BlockLike);
+util.inherits(BlockStatements, ScopeLike);
 
 BlockStatements.prototype.dump = function(level) {
     return dumpArray("Statements", this.statements, level);
 }
+
+ScopeLike.prototype._getVars = function() {
+    return this.statements.filter(function(statement) {
+        return statement instanceof VarDefs;
+    }).map(function(defs) {
+        return defs.defs;
+    }).reduce(function(result, defs) {
+        return result.concat(defs);
+    }, []);
+};
 
 
 BlockStatements.prototype.publishEach = function() {
@@ -1219,7 +1278,7 @@ function Statement(prev, tok, type) {
         this.parens = Statement.read(this, tok);
         tok.expect(true, tok.readBlockOpen);
         while (!tok.peekBlockClose()) {
-            var type = tok.readName();
+            type = tok.readName();
             if ('case' == type) {
                 var expr = Expression.read(this, tok);
                 tok.expect(true, tok.readColon);
@@ -1349,7 +1408,7 @@ Statement.read = function(prev, tok) {
         return new VarDefs(prev, tok);
     } else {
         // some sort of expression
-        var expr = Expression.read(prev, tok);
+        var expr = Expression.read(prev, tok); // jshint ignore:line
         tok.readSemicolon(); // may or may not be, here
         if (expr)
             _log("Statement->expr", expr.dump());
@@ -1459,12 +1518,12 @@ Expression.read = function(prev, tok) {
         return new Creator(prev, tok);
     } else {
 
-        var expr = new Expression(prev, tok);
+        var expr = new Expression(prev, tok); // jshint ignore:line
 
         if (tok.readDot()) {
             // support chained method calls, eg: Foo.get().calculate().stuff();
             //_log(">> CHAINED FROM", expr.dump());
-            var chain = new ChainExpression(prev, tok, expr, '.');
+            var chain = new ChainExpression(prev, tok, expr, '.'); // jshint ignore:line
             //_log("<< CHAINED INTO", chain.dump());
             return chain;
         } 
@@ -1477,7 +1536,7 @@ Expression.read = function(prev, tok) {
 
 
         // allow maths, etc.
-        var math = tok.readMath();
+        math = tok.readMath();
         if (math) {
             _log("MATH!", math);
             expr = new ChainExpression(prev, tok, expr, math);
@@ -1516,8 +1575,15 @@ var _extractMethodInfo = function(self, type, word) {
 Expression.prototype.extractTypeInfo = function(word/*, line, col*/) {
     if (!word) {
         if (!this.right) {
-            // TODO
-            return new TypeInfo(this, Ast.TYPE, this.value);
+
+            // TODO is this right...?
+            var val = this.value.trim();
+            if (val.endsWith('.')) 
+                val = val.substr(0, val.length - 1);
+            var type = val.charAt(0) == val.charAt(0).toUpperCase()
+                ? Ast.TYPE
+                : Ast.EXPRESSION;
+            return new TypeInfo(this, type, val);
         } else if (this.right instanceof Arguments) {
             // TODO container?
             return _extractMethodInfo(this, Ast.METHOD_CALL);
@@ -1566,7 +1632,7 @@ LiteralExpression.read = function(prev, tok) {
         return expr;
     } else if (tok.peekDot()) {
         tok.readDot();
-        var expr = new LiteralExpression(prev, tok, '.' + tok.readName());
+        var expr = new LiteralExpression(prev, tok, '.' + tok.readName()); // jshint ignore:line
 
         // TODO it's a number; could also be -, *, etc.
         while (tok.readPlus())
@@ -1766,7 +1832,9 @@ function TypeInfo(node, type, name, container) {
     this.name = name;
     this.setContainer(container);
 
-    if (type == Ast.TYPE || type == Ast.VARIABLE) {
+    switch (type) {
+    case Ast.TYPE:
+    case Ast.VARIABLE:
         var resolved = node.getRoot().resolveType(name);
         if (resolved) {
             this.name = resolved;
@@ -1775,6 +1843,12 @@ function TypeInfo(node, type, name, container) {
             this.name = name;
             this.resolved = false;
         }
+        break;
+
+    case Ast.EXPRESSION:
+        this._node = node;
+        this.resolved = false;
+        this.resolveExpressionType();
     }
 }
 
@@ -1783,6 +1857,38 @@ TypeInfo.prototype.setContainer = function(container) {
     if (container && container.resolved)
         this.resolved = container.resolved;
 }
+
+/**
+ * If not resolved already, attempts to resolve the
+ *  Type of the expression stored in "name." Currently
+ *  assumes it's a var ref.
+ * If already resolved, returns the previously-resolved
+ *  value. 
+ * Any resolved type info is stored in classInfo. Even
+ *  if present, it may not be fully resolved. This info's
+ *  "resolved" state will only be "true" if our classInfo's
+ *  "resolved" state is also true
+ */
+TypeInfo.prototype.resolveExpressionType = function() {
+    if (this.resolved)
+        return this.classInfo;
+
+    // climb the AST looking for a vardef
+    var scope = this._node.getScope();
+    var def = null;
+    while (scope && !(def = scope.getVar(this.name))) {
+        scope = scope.getScope();
+    }
+    
+    if (def) {
+        this.classInfo = def.extractTypeInfo(this.name);
+        this.resolved = this.classInfo && this.classInfo.resolved;
+    }
+
+    return def;
+};
+
+
 
 /**
  * This is probably either a Type 

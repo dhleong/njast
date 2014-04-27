@@ -47,6 +47,17 @@ class Foo {
             Foo buz() {
                 return null; // also whatever
             }
+
+            void bla() {
+                Fancier other = new Fancier();
+                return other.  // also for testing
+                               // FIXME without "return," fails to parse
+            }
+
+            Fail breaks() {
+                other. // FIXME parses as other.return; keyword "return" should break off
+                return null;
+            }
         }
     }
 

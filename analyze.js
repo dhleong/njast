@@ -176,6 +176,20 @@ _RESOLVERS[Ast.TYPE] = function(info, callback) {
 
 _RESOLVERS[Ast.VARIABLE] = _RESOLVERS[Ast.TYPE]; // same
 
+/** 
+ * Currently, Expressions are basically 
+ *  var refs
+ *
+ * @return The original info object, hopefully
+ *  resolved
+ */
+_RESOLVERS[Ast.EXPRESSION] = function(info, callback) {
+    info.resolveExpressionType();
+
+    // hope for the best
+    callback(info);
+}
+
 /** internal delegate version */
 Analyzer.prototype._resolve = function(info, callback) {
     _RESOLVERS[info.type].call(this, info, callback);
@@ -194,7 +208,7 @@ Analyzer.prototype.resolve = function(info, callback) {
         if (resolved.resolved) {
             callback(null, resolved);
         } else {
-            console.log("Unresolved!", info.name, resolved);
+            // console.log("Unresolved!", info.name, resolved);
             callback({message:"Unresolved"});
         }
     });
