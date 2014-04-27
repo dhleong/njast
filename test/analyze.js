@@ -1,3 +1,4 @@
+#!/usr/bin/env nodeunit
 
 var fs = require('fs')
     , Ast = require('../ast')

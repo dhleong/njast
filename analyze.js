@@ -114,10 +114,13 @@ var _RESOLVERS = {};
 _RESOLVERS[Ast.METHOD] = function(info, callback) {
     if (!info.container.resolved) {
         this._resolve(info.container, function(resolved) {
-            console.log("Resolved method container", resolved);
+            // console.log("Resolved method container", resolved);
             info.owner = resolved;
             if (info.owner)
                 info.resolved = true;
+
+            // fill out the full, qualified name
+            info.name = resolved.name + '#' + info.name;
 
             callback(info);
         });
@@ -186,7 +189,7 @@ Analyzer.prototype.resolve = function(info, callback) {
     //  type for the method call (if necessary)
     this._resolve(info, function(resolved) {
 
-        console.log("RESOLVED", resolved);
+        // console.log("RESOLVED", resolved);
 
         if (resolved.resolved) {
             callback(null, resolved);

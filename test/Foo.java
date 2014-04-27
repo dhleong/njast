@@ -4,14 +4,14 @@ import net.dhleong.njast.util.Fanciest;
 
 class Foo {
 
-    int field1;
+    Fancier field1;
 
     Foo(int arg1) {
-        field1 = arg1;
+        field1 = NotImported.staticFactory(arg1);
     }
 
     Fancy baz() {
-        return null; // we're not running this code, so...
+        return field1. // sic; placed for suggestion testing
     }
 
     @SuppressWarnings({"UnusedDeclaration"})

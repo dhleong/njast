@@ -6,8 +6,10 @@ require('nodetime').profile({
 */
 
 var fs = require('fs')
-    //, Tagifier = require('../tagifier');
-    , Analyzer = require('../analyze');
+    , Ast = require('../ast')
+    // , Tagifier = require('../tagifier')
+    // , Analyzer = require('../analyze')
+    ;
 
 var path;
 path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/now/InstantSocket.java';
@@ -15,6 +17,7 @@ path = '/lib/android-sdk/sources/android-15/android/widget/GridView.java';
 path = '/lib/android-sdk/sources/android-15/android/view/View.java';
 path = 'Foo.java';
 
+/* jshint unused:false */
 function stringify(obj) {
     return JSON.stringify(obj, function(key, value) {
         if (key.charAt(0) == '_')
@@ -26,8 +29,7 @@ function stringify(obj) {
 
 fs.readFile(path, function(err, buf) {
 
-    //var ast = new Ast(path, buf);
-    /*
+    var ast = new Ast(path, buf);
     ast.on('class', function(node) {
         console.log(" CLASS:" + node.name);
     }).on('toplevel', function(node) {
@@ -42,30 +44,29 @@ fs.readFile(path, function(err, buf) {
         console.log("METHOD:" + node.name);
     })
     .parse();
-    */
-    //console.log(ast.parse().dump());
+    console.log(ast.dump());
 
-    Analyzer.of(path, buf)
-        //.word("onInitializeAccessibilityNodeInfoInternal")
-        //.at(14972, 18)
-        .word("doBar")
-        .at(22, 14)
-        .find(function(err, type) {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            console.log(type.dump());
-
-            var scope = type.getLocalScope();
-            /*
-            console.log("scope=", 
-                scope.constructor.name, 
-                scope.dumpLine(),
-                scope.dump());
-                */
-        });
-
+//     Analyzer.of(path, buf)
+//         //.word("onInitializeAccessibilityNodeInfoInternal")
+//         //.at(14972, 18)
+//         .word("doBar")
+//         .at(22, 14)
+//         .find(function(err, type) {
+//             if (err) {
+//                 console.log(err);
+//                 return;
+//             }
+//             console.log(type.dump());
+//
+//             var scope = type.getLocalScope();
+//             /*
+//             console.log("scope=", 
+//                 scope.constructor.name, 
+//                 scope.dumpLine(),
+//                 scope.dump());
+//                 */
+//         });
+//
     /*
     Tagifier.of(path, buf)
         .wordAt('doBar', 22, 14)
