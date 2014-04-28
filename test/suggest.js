@@ -70,9 +70,9 @@ describe("Foo.java at 14,23", function() {
     it("suggests", function() {
         suggestor
         .at(14, 23)
-        .find(function(/* err, resolved */) {
+        .find(function(err, resolved) {
             // // TODO up
-            // console.log("reso", resolved);
+            console.log("reso", resolved);
         });
     });
 });

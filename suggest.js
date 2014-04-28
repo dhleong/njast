@@ -1,5 +1,6 @@
 
-var Analyzer = require('./analyze');
+var Analyzer = require('./analyze')
+  , Ast = require('./ast');
 
 var CR = '\r'.charCodeAt(0);
 var NL = '\n'.charCodeAt(0);
@@ -34,7 +35,13 @@ Suggestor.prototype.find = function(cb) {
         .at(this._line, dot-1)
         .find(function(err, result) {
 
-            cb(undefined, result);
+            if (err) return cb(err);
+
+            switch (result.type) {
+            case Ast.EXPRESSION:
+
+                cb(undefined, result);
+            }
         });
     } else {
         // TODO else, suggest fields, local methods, classnames
