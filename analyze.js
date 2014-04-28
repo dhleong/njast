@@ -76,6 +76,7 @@ Analyzer.prototype.find = function(callback) {
 
         self._ast.removeListener('statement', onStatement);
 
+        // console.log(self._line, info);
         if (!info.resolved) {
             // resolve after we've parsed everything
             found = info;
@@ -97,7 +98,7 @@ Analyzer.prototype.find = function(callback) {
         //self._ast.removeListener('method', onMethod);
         self._ast.removeListener('statement', onStatement);
 
-        //console.log("end", self._word, found);
+        // console.log("end", self._line, self._word, found);
         if (!found) {
             callback({message:"Couldn't find"});
         } else if (found !== true) {

@@ -128,11 +128,35 @@ function Ast(path, buffer) {
 }
 util.inherits(Ast, events.EventEmitter);
 
+// wrap "emit" and record events
+Ast.prototype._parentEmit = Ast.prototype.emit;
+Ast.prototype.emit = function() {
+    var args = Array.prototype.slice.apply(arguments);
+
+    if (!this._parsed)
+        this._replay.push(args);
+
+    Ast.prototype._parentEmit.apply(this, args);
+};
+
+
 Ast.prototype.parse = function(callback) {
-    // TODO if we're already parsed,
-    //  just replay the events we emit'd
-    this._root.parse();
-    this._parsed = true;
+    if (this._replay) {
+
+        // if we're already parsed,
+        //  just replay the events we emit'd
+        var self = this;
+        this._replay.forEach(function(args) {
+            Ast.prototype._parentEmit.apply(self, args)
+        });
+    } else {
+
+        // parse
+        this._replay = [];
+        this._root.parse();
+        this._parsed = true;
+        this._fp.offset = 0; // reset buffer
+    }
 
     if (callback)
         callback(this);
@@ -230,7 +254,7 @@ function SimpleNode(prev, tok) {
 }
 
 SimpleNode.prototype.contains = function(lineNo) {
-    return this.line == lineNo;
+    return this.line === lineNo;
 }
 
 SimpleNode.prototype.extractTypeInfo = function(/*word, line, col*/) {
@@ -290,7 +314,7 @@ BlockLike.prototype.contains = function(lineNo) {
     if (lineNo < this.line)
         return false; // definitely not
 
-    if (this.line == this.line_end) {
+    if (!this._ended) {
         // haven't finished!
         // TODO doesn't *quite* work....
         return lineNo <= this.tok.getLine();
@@ -301,13 +325,17 @@ BlockLike.prototype.contains = function(lineNo) {
 }
 
 BlockLike.prototype.dumpLine = function() {
-    if (/*DEBUG && */this.line == this.line_end)
+    if (!this._ended)
         return "(@" + this.line + " ~ " + this.tok.getLine() + ")";
     return "(@" + this.line + " ~ " + this.line_end + ")";
 }
 
 /** Call when done processing */
 BlockLike.prototype.end = function() {
+    if (this._ended)
+        throw new Error("Already called end");
+    this._ended = true;
+
     this.line_end = this.tok.getLine();
 
     this.publish();
@@ -1883,6 +1911,8 @@ TypeInfo.prototype.resolveExpressionType = function() {
     if (def) {
         this.classInfo = def.extractTypeInfo(this.name);
         this.resolved = this.classInfo && this.classInfo.resolved;
+        if (this.resolved)
+            this._node = undefined; // no longer needed
     }
 
     return def;

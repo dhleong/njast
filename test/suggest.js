@@ -1,4 +1,5 @@
-#!/usr/bin/env mocha --tester nyan
+#!/usr/bin/env mocha 
+//--reporter nyan
 
 var fs = require('fs')
   , should = require('chai').should()
@@ -11,7 +12,7 @@ var fs = require('fs')
   , buf, an, suggestor;
 
 
-beforeEach(function(done) {
+before(function(done) {
     fs.readFile(PATH, function(err, b) {
 
         buf = b;
@@ -22,7 +23,7 @@ beforeEach(function(done) {
 });
 
 describe("Foo.java", function() {
-    it("at 14,21: analyzes as var", function(cb) {
+    it("at 14,21: analyzes as var", function(done) {
         an.at(14, 21)
         .find(function(err, resolved) {
             should.not.exist(err);
@@ -39,11 +40,11 @@ describe("Foo.java", function() {
             varType.should.have.property('name')
                 .that.equals('net.dhleong.njast.Foo$Fancy$Fancier');
 
-            cb();
+            done();
         });
     });
 
-    it("at 53,28: analyzes as var", function(cb) {
+    it("at 53,28: analyzes as var", function(done) {
         an.at(53, 28)
         .find(function(err, resolved) {
             should.not.exist(err);
@@ -60,7 +61,7 @@ describe("Foo.java", function() {
             varType.should.have.property('name')
                 .that.equals('net.dhleong.njast.Foo$Fancy$Fancier');
 
-            cb();
+            done();
         });
     });
 });
