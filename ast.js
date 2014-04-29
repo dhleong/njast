@@ -139,6 +139,27 @@ Ast.prototype.emit = function() {
     Ast.prototype._parentEmit.apply(this, args);
 };
 
+/**
+ * Given a fully-qualified className, such as
+ *  com.bar.Cool$Hot, extracts a nested class and
+ *  returns a Class node just for that class. 
+ *
+ * This Ast MUST have already been parsed. It is
+ *  an error to call this on a non-parsed Ast
+ */
+Ast.prototype.extractClass = function(className) {
+
+    if (!this._parsed)
+        throw new Error("Ast has not been parsed yet");
+
+    if (className in this.qualifieds) {
+        var node = this.qualifieds[className];
+        return node;
+    }
+
+    return null;
+};
+
 
 Ast.prototype.parse = function(callback) {
     if (this._replay) {

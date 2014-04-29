@@ -7,11 +7,29 @@ function ClassLoader() {
 }
 
 /**
+ * Given a qualified class name, such as com.bar.Cool$Hot,
+ *  returns an array of path names to the file, ex:
+ *  ['com', 'bar', 'Cool.java']
+ */
+ClassLoader.prototype._getPath = function(className) {
+    var split = className.split('.');
+    var fileName = split[split.length - 1];
+    var nested = fileName.indexOf('$');
+    if (~nested) {
+        fileName = fileName.substr(0, nested);
+    }
+    fileName += '.java';
+    split[split.length - 1] = fileName;
+
+    return split;
+};
+
+/**
  * Attempts to locate the qualified class name within this
  *  loader and open a file handle to it. The callback should be:
- *      fn(err, ast:Ast)
- *  where Ast will at least implement the same interface that 
- *  our source Ast implements (IE it could actually be from
+ *      fn(err, ast:Class)
+ *  where Class will at least implement the same interface that 
+ *  our source Ast Class implements (IE it could actually be from
  *  a .class file)
  *
  * @param qualifiedName Class name to load
@@ -31,6 +49,8 @@ function SourceProjectClassLoader(projectRoot) {
     this._root = projectRoot;
 }
 util.inherits(SourceProjectClassLoader, ClassLoader);
+
+
 
 
 /**
