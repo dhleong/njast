@@ -1,12 +1,17 @@
 
-var util = require('util')
+var async = require('async')
+  , util = require('util')
   , path = require('path')
   , fs = require('fs')
   
   , Ast = require('./ast');
 
+/**
+ * Base ClassLoader interface; mostly for the
+ *  method definition, but also provides the
+ *  _getPath util method
+ */
 function ClassLoader() {
-    
 }
 
 /**
@@ -44,6 +49,49 @@ ClassLoader.prototype.openClass = function(/* qualifiedName, callback */) {
 
 
 /**
+ * The ComposedClassLoader doesn't do any loading itself; instead
+ *  it composes multiple ClassLoader implementations and provides
+ *  caching
+ */
+function ComposedClassLoader(loaders) {
+    this._loaders = loaders;
+    this._cached = {};
+}
+
+ComposedClassLoader.prototype.openClass = function(qualifiedName, callback) {
+    if (qualifiedName in this._cached)
+        return callback(null, this._cached[qualifiedName]);
+
+    // create functions to call that are bound with
+    // the qualifiedName arg, plus caching
+    var self = this;
+    var loaders = this._loaders.map(function(loader) {
+        return function(cb) {
+            loader.openClass(qualifiedName, function(err, result) {
+                // cache successful results
+                if (result && !err)
+                    self._cached[qualifiedName] = result;
+
+                // call through
+                cb(err, result);
+            });
+        };
+    });
+
+    // evaluate wrapped loaders in parallel
+    async.parallel(loaders, function(err, results) {
+        // reduce results into the first successful one
+        var result = results.reduce(function(last, item) {
+            if (last) return last;
+            return item;
+        });
+
+        // finally, call the actual callback
+        callback(err, result);
+    });
+};
+
+/**
  * The SourceProjectClassLoader loads classes via
  *  our Ast implementation from source files located
  *  as expected from a 'src' directory in a project root
@@ -66,7 +114,7 @@ function SourceDirectoryClassLoader(dir) {
 }
 util.inherits(SourceDirectoryClassLoader, ClassLoader);
 
-ClassLoader.prototype.openClass = function(qualifiedName, callback) {
+SourceDirectoryClassLoader.prototype.openClass = function(qualifiedName, callback) {
     var dirs = this._getPath(qualifiedName);
     var fileName = dirs[dirs.length - 1];
     var filePath = path.join(this._root, fileName);
@@ -90,6 +138,12 @@ function JarClassLoader(jarPath) {
 }
 util.inherits(JarClassLoader, ClassLoader);
 
+
+/** wrap any loader in a ComposedClassLoader for caching */
+function _cached(loader) {
+    return new ComposedClassLoader([loader]);
+}
+
 module.exports = {
     /**
      * Create a ClassLoader appropriate for the project
@@ -101,12 +155,12 @@ module.exports = {
         var srcIndex = dir.indexOf('src');
         if (!~srcIndex) {
             // no apparent project root
-            return new SourceDirectoryClassLoader(sourceFilePath); 
+            return _cached(new SourceDirectoryClassLoader(sourceFilePath)); 
         }
 
         // TODO actually, compose this with any JarClassLoaders there,
         //  source dir for Android, etc.
-        // TODO ALSO, cache these guys
-        return new SourceProjectClassLoader(path.join(dir.slice(0, srcIndex)));
+        var projectDir = path.join(dir.slice(0, srcIndex));
+        return _cached(new SourceProjectClassLoader(projectDir));
     }
 }
