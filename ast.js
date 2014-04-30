@@ -153,7 +153,7 @@ Ast.prototype.extractClass = function(className) {
         throw new Error("Ast has not been parsed yet");
 
     if (className in this.qualifieds) {
-        var node = this.qualifieds[className];
+        var node = this.qualifieds[className].extractInfo();
         return node;
     }
 
@@ -569,6 +569,15 @@ Class.prototype.dump = function(level) {
     return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
 }
 
+Class.prototype.extractInfo = function() {
+    var body = this.body ? this.body.extractInfo() : {};
+    body.name = this.name;
+    body.javadoc = this.javadoc;
+    body.superclass = this.superclass;
+    body.interfaces = this.interfaces;
+    return body;
+};
+
 
 /**
  * A java interface
@@ -625,6 +634,15 @@ Interface.prototype.dump = function(level) {
 
     return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
 }
+
+Interface.prototype.extractInfo = function() {
+    var body = this.body.extractInfo();
+    body.name = this.name;
+    body.javadoc = this.javadoc;
+    body.interfaces = this.interfaces;
+    return body;
+};
+
 
 
 /**
@@ -774,6 +792,26 @@ ClassBody.prototype.dump = function(level) {
     return buf + "\n" + indent(level) + "}";
 }
 
+ClassBody.prototype.extractInfo = function() {
+    return {
+        subclasses: this.subclasses.map(function(subclass) {
+            return subclass.extractInfo();
+        })
+      , fields: this.fields.reduce(function(result, field) {
+            var infos = field.extractInfo();
+            if (Array.isArray(infos))
+                result = result.concat(infos)
+            else
+                result.push(infos);
+            return result;
+        }, [])
+      , methods: this.methods.map(function(method) {
+            return method.extractInfo();
+        })
+    };
+};
+
+
 /**
  * Method in a class
  */
@@ -838,6 +876,15 @@ Method.prototype.dump = function(level) {
     return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
 }
 
+Method.prototype.extractInfo = function() {
+    return {
+        name: this.name
+      , returns: this.returnType
+      , args: this.args.extractInfo()
+    }
+};
+
+
 Method.prototype.extractReturnTypeInfo = function() {
     return new TypeInfo(this, Ast.TYPE, this.returnType);
 }
@@ -870,6 +917,11 @@ VarDefs.prototype.dump = function(level) {
     return indent(level) + '[Defs' + this.line
         + this.defs.dumpEach().join(',') + ']';
 }
+
+VarDefs.prototype.extractInfo = function() {
+    return this.defs.map(VarDef.prototype.extractInfo);
+};
+
 
 VarDefs.prototype.publish = function() {
     this.defs._publishEach();
@@ -936,6 +988,16 @@ VarDef.prototype.dump = function(level) {
         + init
         + "\n";
 }
+
+VarDef.prototype.extractInfo = function() {
+    return {
+        name: this.name
+      , type: this.type + (this.isArray ? '[]' : '')
+      , mods: this.modifiers
+      , javadoc: this.javadoc
+    }
+};
+
 
 VarDef.prototype.extractTypeInfo = function(word/*, line, col*/) {
     if (this.name == word) {
@@ -1121,6 +1183,13 @@ ArgumentsDef.prototype.dump = function() {
         return "[ARGD:@" + this.line + " (no-args)]";
     }
 }
+
+ArgumentsDef.prototype.extractInfo = function() {
+    return this.args.map(function(arg) {
+        return arg.extractInfo();
+    });
+};
+
 
 ArgumentsDef.prototype.publishEach = function() {
     this.args._publishEach();
