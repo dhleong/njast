@@ -1,6 +1,9 @@
 
 var util = require('util')
-  , path = require('path');
+  , path = require('path')
+  , fs = require('fs')
+  
+  , Ast = require('./ast');
 
 function ClassLoader() {
     
@@ -63,6 +66,19 @@ function SourceDirectoryClassLoader(dir) {
 }
 util.inherits(SourceDirectoryClassLoader, ClassLoader);
 
+ClassLoader.prototype.openClass = function(qualifiedName, callback) {
+    var dirs = this._getPath(qualifiedName);
+    var fileName = dirs[dirs.length - 1];
+    var filePath = path.join(this._root, fileName);
+    fs.readFile(filePath, function(err, buf) {
+        if (err) return callback(err);
+
+        var ast = new Ast(filePath, buf);
+        ast.parse(function() {
+            callback(null, ast.extractClass(qualifiedName));
+        });
+    });
+};
 
 
 /**
@@ -83,8 +99,10 @@ module.exports = {
         // find the root dir of the project
         var dir = path.dirname(sourceFilePath).split(path.sep);
         var srcIndex = dir.indexOf('src');
-        if (!~srcIndex)
-            return new SourceDirectoryClassLoader(sourceFilePath); // no apparent project root
+        if (!~srcIndex) {
+            // no apparent project root
+            return new SourceDirectoryClassLoader(sourceFilePath); 
+        }
 
         // TODO actually, compose this with any JarClassLoaders there,
         //  source dir for Android, etc.
