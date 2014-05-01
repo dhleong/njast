@@ -151,11 +151,12 @@ module.exports = {
      */
     fromSource: function(sourceFilePath) {
         // find the root dir of the project
-        var dir = path.dirname(sourceFilePath).split(path.sep);
+        var sourceDir = path.dirname(sourceFilePath);
+        var dir = sourceDir.split(path.sep);
         var srcIndex = dir.indexOf('src');
         if (!~srcIndex) {
             // no apparent project root
-            return _cached(new SourceDirectoryClassLoader(sourceFilePath)); 
+            return _cached(new SourceDirectoryClassLoader(sourceDir)); 
         }
 
         // TODO actually, compose this with any JarClassLoaders there,

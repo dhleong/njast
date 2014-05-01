@@ -1,6 +1,7 @@
 
 var Analyzer = require('./analyze')
-  , Ast = require('./ast');
+  , Ast = require('./ast')
+  , ClassLoader = require('./classloader');
 
 var CR = '\r'.charCodeAt(0);
 var NL = '\n'.charCodeAt(0);
@@ -8,6 +9,7 @@ var NL = '\n'.charCodeAt(0);
 function Suggestor(path, buffer) {
     this._path = path;
     this._buffer = buffer;
+    this._loader = ClassLoader.fromSource(path);
 }
 
 Suggestor.prototype.at = function(line, col) {
@@ -25,6 +27,7 @@ Suggestor.prototype.find = function(cb) {
     // locate the last . before the cursor
     var dot = line.substr(0, this._col).lastIndexOf('.');
 
+    var self = this;
     if (~dot) {
         // TODO if found, analyze preceding item:
         //          - if object: that object's methods, fields
@@ -39,8 +42,11 @@ Suggestor.prototype.find = function(cb) {
 
             switch (result.type) {
             case Ast.EXPRESSION:
+                var exprType = result.resolveExpressionType();
+                if (!exprType)
+                    return cb(new Error("Could not resolve type of " + result.name));
 
-                cb(undefined, result);
+                self._fromClass(exprType.name, ['methods', 'fields'], cb);
             }
         });
     } else {
@@ -90,6 +96,19 @@ Suggestor.prototype._extractLine = function() {
     }
 
 
+};
+
+Suggestor.prototype._fromClass = function(className, projection, cb) {
+    this._loader.openClass(className, function(err, klass) {
+        if (err) return cb(err);
+
+        var projected = projection.reduce(function(obj, field) {
+            obj[field] = klass[field];
+            return obj;
+        }, {});
+
+        cb(undefined, projected);
+    });
 };
 
 

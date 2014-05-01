@@ -67,12 +67,29 @@ describe("Foo.java", function() {
 });
 
 describe("Foo.java at 14,23", function() {
-    it("suggests", function() {
+    it("suggests", function(done) {
         suggestor
         .at(14, 23)
         .find(function(err, resolved) {
-            // // TODO up
-            console.log("reso", resolved);
+            should.not.exist(err);
+
+            resolved.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0]')
+                    .that.has.property('name').that.equals('doFancier');
+
+            resolved.methods.should.have.deep.property('[1]')
+                .with.property('name').that.equals('buz');
+            resolved.methods.should.have.deep.property('[2]')
+                .with.property('name').that.equals('bla');
+            resolved.methods.should.have.deep.property('[3]')
+                .with.property('name').that.equals('breaks');
+
+            resolved.should.have.property('fields')
+                .that.is.an('array')
+                .with.length(0);
+
+            done();
         });
     });
 });
