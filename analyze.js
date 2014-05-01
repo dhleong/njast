@@ -66,17 +66,18 @@ Analyzer.prototype.find = function(callback) {
         if (!node.contains(self._line))
             return; 
 
+        // console.log(self._line, node.dumpLine());
         var info = node.extractTypeInfo(self._word, 
             self._line, self._col);
         if (!info) {
-            //console.log('no info!', node.constructor.name);
-            //console.log(' -->', node.dump());
+            // console.log('no info!', node.constructor.name);
+            // console.log(' -->', node.dump());
             return;
         }
 
         self._ast.removeListener('statement', onStatement);
 
-        // console.log(self._line, info);
+        console.log(self._line, info);
         if (!info.resolved) {
             // resolve after we've parsed everything
             found = info;

@@ -54,8 +54,13 @@ class Foo {
                                // FIXME without "return," fails to parse
             }
 
-            Fail breaks() {
+            Fail breaks(Fancier other) {
                 other. // FIXME parses as other.return; keyword "return" should break off
+                return null;
+            }
+            
+            Fail method() {
+                doFancier(). // suggest from method result
                 return null;
             }
         }

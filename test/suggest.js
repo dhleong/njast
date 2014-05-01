@@ -64,6 +64,42 @@ describe("Foo.java", function() {
             done();
         });
     });
+
+    it.only("at 58,21: analyzes as var", function(done) {
+        an.at(58, 21)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('type')
+                .that.equals(Ast.EXPRESSION);
+            
+            resolved.should.have.property('name')
+                .that.equals('other');
+
+            // get the type!
+            var varType = resolved.resolveExpressionType();
+            should.exist(varType);
+            varType.should.have.property('name')
+                .that.equals('net.dhleong.njast.Foo$Fancy$Fancier');
+
+            done();
+        });
+    });
+
+    it("at 63,27: analyzes as method", function(done) {
+        an.at(63, 27)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('type')
+                .that.equals(Ast.EXPRESSION);
+            
+            resolved.should.have.property('name')
+                .that.equals('doFancier');
+
+            done();
+        });
+    });
 });
 
 describe("Foo.java at 14,23", function() {
