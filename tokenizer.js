@@ -217,6 +217,19 @@ Tokenizer.isModifier = function(token) {
     return MODIFIERS.indexOf(token) >= 0;
 }
 
+/** Static method */
+Tokenizer.isControl = function(token) {
+    return CONTROLS.indexOf(token) >= 0; // binary search?
+}
+
+/** Static method */
+Tokenizer.isReserved = function(word) {
+    return Tokenizer.isModifier(word)
+        || Tokenizer.isControl(word)
+        || ~PRIMITIVES.indexOf(word);
+};
+
+
 /** Skip non-tokens */
 Tokenizer.prototype._countBlank = function() {
 
@@ -328,7 +341,7 @@ Tokenizer.prototype.isAnnotation = function() {
 
 Tokenizer.prototype.isControl = function() {
     var name = this.peekName();
-    return CONTROLS.indexOf(name) >= 0; // binary search?
+    return Tokenizer.isControl(name);
 }
 
 Tokenizer.prototype.isModifier = function() {
@@ -455,8 +468,17 @@ Tokenizer.prototype.readName = function() {
 Tokenizer.prototype.readQualified = function() {
     var state = this._save();
     var name = this.readName();
+
+    var last = this._save();
     while (this._readToken(DOT)) {
-        name += '.' + this.readName();
+        var nextName = this.readName();
+        if (Tokenizer.isReserved(nextName)) {
+            this._restore(last);
+            break;
+        }
+
+        name += '.' + nextName;
+        last = this._save();
     }
 
     if (!name) {

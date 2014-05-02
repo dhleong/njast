@@ -1022,7 +1022,10 @@ VarDef.isStatement = function(tok) {
         return true;
 
     var type = tok.peekGeneric();
-    if (!type)
+    if (!type || Tokenizer.isControl(type))
+        return false;
+
+    if (tok.peekDot(type.length))
         return false;
 
     if (tok.peekParenOpen(type.length))
@@ -1032,7 +1035,8 @@ VarDef.isStatement = function(tok) {
             && tok.peekBracketClose(type.length+1))
         return true;
 
-    return tok.peekName(type.length);
+    var peeked = tok.peekName(type.length);
+    return peeked && !Tokenizer.isControl(peeked);
 }
 
 /**
@@ -1528,9 +1532,10 @@ Statement.read = function(prev, tok) {
         // some sort of expression
         var expr = Expression.read(prev, tok); // jshint ignore:line
         tok.readSemicolon(); // may or may not be, here
-        if (expr)
+        if (expr) {
             _log("Statement->expr", expr.dump());
-        expr.publish('statement');
+            expr.publish('statement');
+        }
         return expr;
     }
 }
@@ -1640,6 +1645,7 @@ Expression.read = function(prev, tok) {
 
         if (tok.readDot()) {
             // support chained method calls, eg: Foo.get().calculate().stuff();
+            //_log(">> CHAINED FROM", expr.dump());
             //_log(">> CHAINED FROM", expr.dump());
             var chain = new ChainExpression(prev, tok, expr, '.'); // jshint ignore:line
             //_log("<< CHAINED INTO", chain.dump());
