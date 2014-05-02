@@ -193,6 +193,11 @@ function Tokenizer(buffer) {
     this._fp = buffer;
     this._start = buffer.offset;
     this._lineno = 1;
+
+    // line i starts at offset this._lines[i]
+    //  the first 0 just prevents line 0,
+    //  the second is the actual start of line 1
+    this._lines = [0, 0];
     
     this._lastComment = null;
 }
@@ -261,10 +266,12 @@ Tokenizer.prototype._countBlank = function() {
         }
 
         if (token == NL) {
+            this._recordLine(off);
             this._lineno++;
 
         } else if (token == CR ) {
             if (nextToken != NL) { // \r\n to end a line
+                this._recordLine(off);
                 this._lineno++;      // just \r 
             } else {
                 off++; // \r\n... skip next
@@ -276,6 +283,16 @@ Tokenizer.prototype._countBlank = function() {
 
     return false;
 }
+
+Tokenizer.prototype._recordLine = function(offset) {
+    offset++; // skip past the newline
+    var lastLine = this._lines.length - 1;
+    var lastOffset = this._lines[lastLine];
+    if (offset > lastOffset) {
+        this._lines.push(offset);
+    }
+};
+
 
 Tokenizer.prototype._peek = function(offset) {
     offset = offset 
@@ -332,7 +349,12 @@ Tokenizer.prototype.getLastComment = function() {
 }
 
 Tokenizer.prototype.getLine = function() {
-    return this._lineno;
+    // return this._lineno;
+    var line = this._lines.length - 1;
+    while (this._lines[line] > this._fp.offset)
+        line--;
+
+    return line;
 }
 
 Tokenizer.prototype.isAnnotation = function() {

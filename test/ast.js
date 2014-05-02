@@ -17,6 +17,7 @@ beforeEach(function(done) {
         ast = new Ast(PATH, b);
         ast.parse(function() {
             console.log(ast.qualifieds['net.dhleong.njast.Foo$Fancy$Fancier'].dump());
+            console.log(ast.tok._lines);
             done();
         });
     });
