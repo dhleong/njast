@@ -16,7 +16,7 @@ beforeEach(function(done) {
         buf = b;
         ast = new Ast(PATH, b);
         ast.parse(function() {
-            console.log(ast.dump());
+            console.log(ast.qualifieds['net.dhleong.njast.Foo$Fancy$Fancier'].dump());
             done();
         });
     });

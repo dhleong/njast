@@ -349,6 +349,11 @@ Tokenizer.prototype.isModifier = function() {
     return Tokenizer.isModifier(name);
 }
 
+Tokenizer.prototype.isReserved = function() {
+    var name = this.peekName();
+    return Tokenizer.isReserved(name);
+}
+
 // util methods to read specific tokens
 var _doRead = function(token) { return function() { return this._readToken(token); } };
 Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);

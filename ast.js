@@ -1643,7 +1643,8 @@ Expression.read = function(prev, tok) {
 
         var expr = new Expression(prev, tok); // jshint ignore:line
 
-        if (tok.readDot()) {
+        if (tok.readDot() && !tok.isReserved()) {
+
             // support chained method calls, eg: Foo.get().calculate().stuff();
             //_log(">> CHAINED FROM", expr.dump());
             //_log(">> CHAINED FROM", expr.dump());
