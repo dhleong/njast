@@ -271,7 +271,7 @@ function SimpleNode(prev, tok) {
         throw Error("Root is wrong!" + this._root.constructor.name);
 
     this.tok = tok;
-    this.line = tok.getLine();
+    this.line = tok.getLine(true);
 }
 
 SimpleNode.prototype.contains = function(lineNo) {

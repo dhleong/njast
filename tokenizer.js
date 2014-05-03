@@ -348,11 +348,22 @@ Tokenizer.prototype.getLastComment = function() {
     return this._lastComment;
 }
 
-Tokenizer.prototype.getLine = function() {
+Tokenizer.prototype.getLine = function(skipBlank) {
     // return this._lineno;
+    var state;
+    if (skipBlank) {
+        state = this._save();
+        this._countBlank();
+    }
+
     var line = this._lines.length - 1;
-    while (this._lines[line] > this._fp.offset)
+    var offset = this._fp.offset - this._start;
+    while (this._lines[line] > offset)
         line--;
+
+    if (skipBlank) {
+        this._restore(state);
+    }
 
     return line;
 }
