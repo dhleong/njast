@@ -77,7 +77,7 @@ Analyzer.prototype.find = function(callback) {
 
         self._ast.removeListener('statement', onStatement);
 
-        console.log(self._line, info);
+        // console.log(self._line, info);
         if (!info.resolved) {
             // resolve after we've parsed everything
             found = info;
@@ -200,6 +200,7 @@ Analyzer.prototype._resolve = function(info, callback) {
 Analyzer.prototype.resolve = function(info, callback) {
 
     // console.log(JSON.stringify(info, null, '  '));
+    // console.log("Resolve", info.name, info.type, info.container);
 
     // climb AST to figure out the containing
     //  type for the method call (if necessary)
@@ -210,7 +211,8 @@ Analyzer.prototype.resolve = function(info, callback) {
         if (resolved.resolved) {
             callback(null, resolved);
         } else {
-            // console.log("Unresolved!", info.name, resolved);
+            info._node = null;
+            console.log("Unresolved!", info.name, resolved);
             callback({message:"Unresolved"});
         }
     });

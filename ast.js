@@ -124,7 +124,11 @@ function Ast(path, buffer) {
     //  so we can replay them later without
     //  having to re-parse
     this.on('class', saveQualified)
-        .on('method', saveQualified);
+        .on('method', saveQualified)
+        .on('toplevel', function(toplevel) {
+            saveQualified(toplevel);
+            self.toplevel = toplevel;
+        });
 }
 util.inherits(Ast, events.EventEmitter);
 
@@ -224,6 +228,9 @@ Ast.prototype.resolveType = function(type) {
     var full = this._root.namedImports[type];
     if (full)
         return full.path;
+
+    if (type in this.qualifieds)
+        return type; // already fully-qualified
 
     if (!this._parsed)
         return null;
@@ -391,6 +398,25 @@ ScopeLike.prototype.getVar = function(varName) {
     }
 };
 
+/**
+ * implement this method to return an array
+ * of VarDefs to use the default functionality
+ */
+ScopeLike.prototype._getMethods = undefined;
+
+ScopeLike.prototype.getMethod = function(methodName) {
+    if (!this._getMethods)
+        throw new Error(this.constructor.name 
+            + " does not implement getMethod! Cannot find " + methodName);
+
+    var methods = this._getMethods();
+    var len = methods.length;
+    for (var i=0; i < len; i++) {
+        var m = methods[i];
+        if (m.name == methodName)
+            return m;
+    }
+};
 
 
 /**
@@ -544,7 +570,7 @@ function Class(prev, tok, modifiers, javadoc) {
                            + '$' + this.simpleName;
     }
 
-    this.body = new ClassBody(this, tok);
+    this.body = new ClassBody(this, tok, this.qualifiedName);
 
     this.end();
     _log("End ClassBody", this.dumpLine());
@@ -648,13 +674,14 @@ Interface.prototype.extractInfo = function() {
 /**
  * The body of a class (extracted for anonymous classes!)
  */
-function ClassBody(prev, tok) {
+function ClassBody(prev, tok, qualifiedName) {
     ScopeLike.call(this, prev, tok);
 
     this.subclasses = [];
     this.blocks = [];
     this.fields = [];
     this.methods = [];
+    this.qualifiedName = qualifiedName; // if provided, the qn of our class
 
     tok.expect(true, tok.readBlockOpen);
     var _javadoc = null;
@@ -782,6 +809,11 @@ ClassBody.prototype._getVars = function() {
     return this.fields;
 };
 
+ClassBody.prototype._getMethods = function() {
+    return this.methods;
+};
+
+
 
 ClassBody.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
@@ -816,7 +848,7 @@ ClassBody.prototype.extractInfo = function() {
  * Method in a class
  */
 function Method(prev, tok, modifiers, returnType, name) {
-    BlockLike.call(this, prev, tok);
+    ScopeLike.call(this, prev, tok);
 
     this.modifiers = modifiers;
     
@@ -856,7 +888,7 @@ function Method(prev, tok, modifiers, returnType, name) {
         this.body.publishEach();
     }
 }
-util.inherits(Method, BlockLike);
+util.inherits(Method, ScopeLike);
 
 Method.prototype.dump = function(level) {
     var nextLevel = level + INDENT_LEVEL;
@@ -874,6 +906,14 @@ Method.prototype.dump = function(level) {
         buf += this.body.dump(nextLevel);
 
     return buf + "\n" + indent(level) + "] // END " + this.name + "@" + this.line_end;
+}
+
+Method.prototype._getMethods = function() {
+    return [];
+}
+
+Method.prototype._getVars = function() {
+    return this.args.args;
 }
 
 Method.prototype.extractInfo = function() {
@@ -1344,7 +1384,11 @@ BlockStatements.prototype.dump = function(level) {
     return dumpArray("Statements", this.statements, level);
 }
 
-ScopeLike.prototype._getVars = function() {
+BlockStatements.prototype._getMethods = function() {
+    return [];
+}
+
+BlockStatements.prototype._getVars = function() {
     return this.statements.filter(function(statement) {
         return statement instanceof VarDefs;
     }).map(function(defs) {
@@ -1694,6 +1738,21 @@ var _extractMethodInfo = function(self, type, word) {
             self.value.length - word.length - 1);
         container = new TypeInfo(self, Ast.EXPRESSION, containerType);
     }
+
+    if (!container) {
+        // climb scopes looking for method
+        var scope = self.getScope();
+        var def = null;
+        while (scope && !(def = scope.getMethod(word))) {
+            scope = scope.getScope();
+        }
+        
+        if (def && scope.qualifiedName) {
+            container = new TypeInfo(scope, Ast.TYPE, scope.qualifiedName);
+            container.resolved = false; // forces us to resolve to return type
+        }
+    }
+
     return new TypeInfo(self, type, word, container); 
 }
 

@@ -65,7 +65,7 @@ describe("Foo.java", function() {
         });
     });
 
-    it.only("at 58,21: analyzes as var", function(done) {
+    it("at 58,21: analyzes as expression", function(done) {
         an.at(58, 21)
         .find(function(err, resolved) {
             should.not.exist(err);
@@ -86,16 +86,20 @@ describe("Foo.java", function() {
         });
     });
 
-    it("at 63,27: analyzes as method", function(done) {
+    it("at 63,27: analyzes as method's return type", function(done) {
         an.at(63, 27)
         .find(function(err, resolved) {
             should.not.exist(err);
 
+            // console.log(resolved);
+
             resolved.should.have.property('type')
-                .that.equals(Ast.EXPRESSION);
+                .that.equals(Ast.TYPE);
             
             resolved.should.have.property('name')
-                .that.equals('doFancier');
+                .that.equals('net.dhleong.njast.Foo$Fancy');
+
+            // TODO should *probably* indicate that it was returned by a method...
 
             done();
         });
