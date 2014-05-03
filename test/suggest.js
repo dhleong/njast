@@ -133,3 +133,21 @@ describe("Foo.java at 14,23", function() {
         });
     });
 });
+
+
+describe("Foo.java at 63,29", function() {
+    it.only("suggests", function(done) {
+        suggestor
+        .at(63, 29)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('methods')
+                .that.is.an('array').of.length(1)
+                .with.deep.property('[0]')
+                    .that.has.property('name').that.equals('biz');
+
+            done();
+        });
+    });
+});

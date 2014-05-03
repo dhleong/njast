@@ -47,6 +47,14 @@ Suggestor.prototype.find = function(cb) {
                     return cb(new Error("Could not resolve type of " + result.name));
 
                 self._fromClass(exprType.name, ['methods', 'fields'], cb);
+                break;
+
+            case Ast.TYPE:
+                // FIXME check if this type is the return value
+                //  of a method call
+                self._fromClass(result.name, ['methods', 'fields'], cb);
+                // FIXME else, only STATIC methods, fields, subclasses
+                break;
             }
         });
     } else {
