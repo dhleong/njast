@@ -1,0 +1,1 @@
+call njast#Enable()
