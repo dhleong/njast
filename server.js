@@ -3,11 +3,19 @@
 var express = require('express');
 
 // --------------------------------------------------------------------------------
+// configs
+// --------------------------------------------------------------------------------
+
+var HTTP_PORT; // undefined picks a random port
+HTTP_PORT = 3000; // for testing convenience
+
+// --------------------------------------------------------------------------------
 // prepare express
 // --------------------------------------------------------------------------------
 
 var app = express();
 app.configure(function() {
+    app.use(express.bodyParser());
     app.use(app.router);
 });
 
@@ -22,7 +30,7 @@ app.post('/suggest', require('./controllers/suggest'));
 // --------------------------------------------------------------------------------
 
 var server = require('http').createServer(app);
-server.listen()
+server.listen(HTTP_PORT)
 .on('listening', function() {
     console.log("Listening on port " + server.address().port);
 });
