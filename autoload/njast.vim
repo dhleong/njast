@@ -180,19 +180,37 @@ class Njast(object):
         """Formats suggestions by types"""
         @staticmethod
         def fields(item):
+            info = item['mods'] + \
+                    ' ' + item['type'] + \
+                    ' ' + item['name']
+            if item.has_key('javadoc'):
+                info += '\n\n' + item['javadoc']
+                
             return {
                 'word': item['name'],
-                'menu': 'field: ' + item['type'],
-                # 'info': info
+                'menu': 'field: ' + item['type'] + ' ' + item['name'],
+                'info': info
             }
 
         @staticmethod
         def methods(item):
-            # TODO arguments
+            info = item['mods'] + \
+                    ' ' + item['returns'] + \
+                    ' ' + item['name']
+
+            # arguments
+            info += '('
+            info += ', '.join([ arg['type'] + ' ' + arg['name'] \
+                        for arg in item['args'] ])
+            info += ')'
+
+            if item.has_key('javadoc'):
+                info += '\n\n' + item['javadoc']
+
             return {
                 'word': item['name'],
-                'menu': 'method: ->' + item['returns'],
-                # 'info': info
+                'menu': 'method: ' + item['qualified'],
+                'info': info
             }
 
 # generate classmethod shortcuts

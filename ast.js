@@ -20,6 +20,12 @@ function indent(level) {
     return buf;
 }
 
+function _stringifyModifiers(modifiers) {
+    return modifiers.filter(function(mod) {
+        return typeof(mod) == 'string';
+    }).join(' ');
+}
+
 /** 
  * Returns the result of calling dump() 
  * on the obj, if possible, else "defaultValue"
@@ -919,6 +925,9 @@ Method.prototype._getVars = function() {
 Method.prototype.extractInfo = function() {
     return {
         name: this.name
+      , qualified: this.qualifiedName
+      , javadoc: this.javadoc
+      , mods: _stringifyModifiers(this.modifiers)
       , returns: this.returnType
       , args: this.args.extractInfo()
     }
@@ -1033,7 +1042,7 @@ VarDef.prototype.extractInfo = function() {
     return {
         name: this.name
       , type: this.type + (this.isArray ? '[]' : '')
-      , mods: this.modifiers
+      , mods: _stringifyModifiers(this.modifiers)
       , javadoc: this.javadoc
     }
 };
