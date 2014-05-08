@@ -43,18 +43,10 @@ class Njast(object):
             # completions.append({"word": rec["name"],
             #                     "menu": tern_asCompletionIcon(rec.get("type")),
             #                     "info": tern_typeDoc(rec) })
+            formatter = getattr(Njast.SuggestFormat, type)
             for entry in entries:
-                info = '?'
-                if entry.has_key('returns'):
-                    info = entry['returns']
-                elif entry.has_key('type'):
-                    info = entry['type']
 
-                completions.append({
-                    'word': entry['name'],
-                    'menu': '(?)',
-                    'info': info
-                })
+                completions.append(formatter(entry))
 
         vim.command("let b:njastLastCompletion = " + json.dumps(completions))
         start, end = (data["start"]["ch"], data["end"]["ch"])
@@ -174,7 +166,7 @@ class Njast(object):
     @classmethod
     def get(cls):
         """Singleton accessor
-        :returns: @todo
+        :returns: the global Njast instance
 
         """
         if cls._instance is not None:
@@ -184,8 +176,27 @@ class Njast(object):
         cls._instance = newInstance
         return newInstance
 
+    class SuggestFormat:
+        """Formats suggestions by types"""
+        @staticmethod
+        def fields(item):
+            return {
+                'word': item['name'],
+                'menu': 'field: ' + item['type'],
+                # 'info': info
+            }
+
+        @staticmethod
+        def methods(item):
+            # TODO arguments
+            return {
+                'word': item['name'],
+                'menu': 'method: ->' + item['returns'],
+                # 'info': info
+            }
+
 # generate classmethod shortcuts
-def gen_method(name):
+def _gen_method(name):
     def method(cls, *args):
         inst = cls.get()
         return getattr(inst, name)(*args)
@@ -193,7 +204,7 @@ def gen_method(name):
     
 SHORTCUTS = ['stop', 'run', 'ensureCompletionCached']
 for methodName in SHORTCUTS:
-    method = gen_method('_' + methodName)
+    method = _gen_method('_' + methodName)
 
     setattr(Njast, methodName, classmethod(method))
 
