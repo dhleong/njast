@@ -1074,6 +1074,9 @@ VarDef.isStatement = function(tok) {
     if (!type || Tokenizer.isControl(type))
         return false;
 
+    if (tok.peekBlockClose())
+        return false;
+
     if (tok.peekDot(type.length))
         return false;
 

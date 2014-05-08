@@ -51,11 +51,11 @@ class Foo {
             void bla() {
                 Fancier other = new Fancier();
                 return other.  // also for testing
-                               // FIXME without "return," fails to parse
+                               // parses, now :)
             }
 
             Fail breaks(Fancier other) {
-                other. // FIXME parses as other.return; keyword "return" should break off
+                other. 
                 return null;
             }
             
@@ -63,7 +63,15 @@ class Foo {
                 doFancier(). // suggest from method result
                 return null;
             }
+
+            Fail method() {
+                Foo.this. // reference from inner class
+                return null;
+            }
         }
     }
 
+    void fooMethod() {
+        this.field1. // also for suggestions; tests "this" references AND handling trailing . w/o return
+    }
 }
