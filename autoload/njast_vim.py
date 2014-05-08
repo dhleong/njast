@@ -28,8 +28,12 @@ class Njast(object):
             return
 
         data = self._run('suggest', [curRow, curCol])
-        print data
-        if data is None: return
+        if data is None: 
+            # cancel silently, but stay in complete mode;
+            #   hopefully ycm will work
+            vim.command("let b:njastLastCompletionPos.start = -2")
+            vim.command("let b:njastLastCompletion = []")
+            return
 
         completions = []
         for type, entries in data["results"].iteritems():
