@@ -52,6 +52,7 @@ Suggestor.prototype.find = function(cb) {
             case Ast.TYPE:
                 // FIXME check if this type is the return value
                 //  of a method call
+                console.log(result);
                 self._fromClass(result.name, ['methods', 'fields'], cb);
                 // FIXME else, only STATIC methods, fields, subclasses
                 break;

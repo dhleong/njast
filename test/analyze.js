@@ -1,8 +1,9 @@
-#!/usr/bin/env nodeunit
+#!/usr/bin/env mocha
 
 var fs = require('fs')
-    , Ast = require('../ast')
-    , Analyzer = require('../analyze');
+  , should = require('chai').should()
+  , Ast = require('../ast')
+  , Analyzer = require('../analyze');
 
 
 /* jshint unused:false */
@@ -18,113 +19,111 @@ function stringify(obj) {
 var PATH = "./Foo.java";
 var an;
 
-module.exports = {
+before(function(done) {
+    fs.readFile(PATH, function(err, buf) {
 
-    setUp: function(callback) {
-        
-        fs.readFile(PATH, function(err, buf) {
+        an = Analyzer.of(PATH, buf);
+        done();
+    });
 
-            an = Analyzer.of(PATH, buf);
-            callback();
-        });
+});
 
-    },
+describe("Analyzing Foo.java at", function() {
 
-    out: function(test) {
+    it("21, 31 finds out: int", function(done) {
         
         an.word("out")
         .at(21, 31)
         .find(function(err, type) {
-            test.ifError(err);
+            should.not.exist(err);
 
-            test.equals(type.name, "int");
-            test.equals(type.type, Ast.VARIABLE);
+            type.name.should.equal('int');
+            type.type.should.equal(Ast.VARIABLE);
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    arg3: function(test) {
+    it("27, 43 finds arg3: Boring", function(done) {
         
         an.word("arg3")
         .at(27, 43)
         .find(function(err, type) {
-            test.ifError(err);
+            should.not.exist(err);
 
-            test.equals(type.name, "net.dhleong.njast.Boring");
-            test.equals(type.type, Ast.VARIABLE);
+            type.name.should.equal("net.dhleong.njast.Boring");
+            type.type.should.equal(Ast.VARIABLE);
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    prepare: function(test) {
+    it("23, 28 finds prepare: method -> Fanciest", function(done) {
         an.word("prepare")
         .at(23, 28)
         .find(function(err, type) {
-            test.ifError(err);
+            should.not.exist(err);
 
-            if (!err) {
-                test.equals(type.name, "prepare");
-                test.equals(type.type, Ast.METHOD);
+            type.name.should.equal('prepare');
+            type.type.should.equal(Ast.METHOD);
 
-                var fanciest = type.container;
-                test.equals(fanciest.name, 'net.dhleong.njast.util.Fanciest');
-                test.equals(fanciest.type, Ast.TYPE);
-            }
+            type.should.have.property('container')
+                .with.property('name')
+                    .that.equals('net.dhleong.njast.util.Fanciest');
+            type.should.have.property('container')
+                .with.property('type')
+                    .that.equals(Ast.TYPE);
 
-            test.done();
+            done();
         });
         
-    },
+    });
     
 
-    doBar: function(test) {
+    it("26, 44 finds doBar: method", function(done) {
 
         an.word("doBar")
         .at(26, 44)
         .find(function(err, type) {
-            test.ifError(err);
+            should.not.exist(err);
 
-            if (!err) {
-                // TODO It seems that java bytecode separates
-                //  paths with '/', separates fields and methods
-                //  with '.', and nested classes with '$'. 
-                // Their methods, of course, can be differentiated
-                //  from fields by having :(ARGS;)RETURN; vs fields
-                //  which are simply :TYPE;
+            // TODO It seems that java bytecode separates
+            //  paths with '/', separates fields and methods
+            //  with '.', and nested classes with '$'. 
+            // Their methods, of course, can be differentiated
+            //  from fields by having :(ARGS;)RETURN; vs fields
+            //  which are simply :TYPE;
 
-                // the main thing
-                test.equals(type.name, "net.dhleong.njast.Bar#doBar");
-                test.equals(type.type, Ast.METHOD);
+            // the main thing
+            type.name.should.equal("net.dhleong.njast.Bar#doBar");
+            type.type.should.equal(Ast.METHOD);
 
-                // well, we resolve this anyway,
-                //  so it doesn't hurt to keep it (?)
-                var biz = type.container;
-                test.equals(biz.name, 'biz');
-                test.equals(biz.type, Ast.METHOD_CALL);
+//             // well, we resolve this anyway,
+//             //  so it doesn't hurt to keep it (?)
+//             var biz = type.container;
+//             biz.name.should.equal('biz');
+//             biz.type.should.equal(Ast.METHOD_CALL);
+//
+//             var baz = biz.container;
+//             baz.name.should.equal('baz');
+//             baz.type.should.equal(Ast.METHOD_CALL);
+//
+//             var buz = baz.container;
+//             buz.name.should.equal('buz');
+//             buz.type.should.equal(Ast.METHOD_CALL);
+//
+//             var fancier = buz.container;
+//             fancier.name.should.equal(
+//                 'net.dhleong.njast.Foo$Fancy$Fancier');
+//             fancier.type.should.equal(Ast.TYPE);
 
-                var baz = biz.container;
-                test.equals(baz.name, 'baz');
-                test.equals(baz.type, Ast.METHOD_CALL);
+            // the real trick!
+            var bar = type.owner;
+            bar.name.should.equal('net.dhleong.njast.Bar');
+            bar.type.should.equal(Ast.TYPE);
 
-                var buz = baz.container;
-                test.equals(buz.name, 'buz');
-                test.equals(buz.type, Ast.METHOD_CALL);
-
-                var fancier = buz.container;
-                test.equals(fancier.name, 
-                    'net.dhleong.njast.Foo$Fancy$Fancier');
-                test.equals(fancier.type, Ast.TYPE);
-
-                // the real trick!
-                var bar = type.owner;
-                test.equals(bar.name, 'net.dhleong.njast.Bar');
-                test.equals(bar.type, Ast.TYPE);
-            }
-
-            test.done();
+            done();
         });
-    },
+    });
 
-}
+});

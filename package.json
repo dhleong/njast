@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "author": "Daniel Leong <me@dhleong.net>",
     "scripts": {
-        "test": "nodeunit ./test/"
+        "test": "cd test && mocha *.js"
     },
     "dependencies": {
         "async"   : ">=0.2.10",
