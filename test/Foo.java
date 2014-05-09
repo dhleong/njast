@@ -71,7 +71,11 @@ class Foo {
         }
     }
 
-    void fooMethod() {
+    void fooFieldMethod() {
         this.field1. // also for suggestions; tests "this" references AND handling trailing . w/o return
+    }
+
+    void fooMethod() {
+        this. // moar suggestions
     }
 }

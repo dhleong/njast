@@ -135,8 +135,8 @@ describe("Foo.java at 14,23", function() {
 });
 
 
-describe("Foo.java at 63,29", function() {
-    it.only("suggests", function(done) {
+describe("Suggestions in Foo.java at ", function() {
+    it("63, 29: doFancier().", function(done) {
         suggestor
         .at(63, 29)
         .find(function(err, resolved) {
@@ -150,4 +150,11 @@ describe("Foo.java at 63,29", function() {
             done();
         });
     });
+
+    it("68, 26: Foo.this.");
+
+    it("75, 21: this.field1.");
+
+    it("79, 14: this.");
 });
+

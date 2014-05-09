@@ -751,7 +751,7 @@ function ClassBody(prev, tok, qualifiedName) {
 
             tok._countBlank();
             //_log('crazy=', tok._read(10));
-            tok._rewindLastSkip();
+            // tok._rewindLastSkip();
             break; // TODO ?
 
         } else if ("class" == token) {
@@ -1070,24 +1070,36 @@ VarDef.isStatement = function(tok) {
     if (tok.isModifier()) 
         return true;
 
-    var type = tok.peekGeneric();
-    if (!type || Tokenizer.isControl(type))
+    var before = tok._save(); // all the hacks
+    var type = tok.readGeneric();
+    if (!type || Tokenizer.isControl(type)) {
+        tok._restore(before);
         return false;
+    }
 
-    if (tok.peekBlockClose())
+    if (tok.peekBlockClose()) {
+        tok._restore(before);
         return false;
+    }
 
-    if (tok.peekDot(type.length))
+    if (tok.peekDot()) {
+        tok._restore(before);
         return false;
+    }
 
-    if (tok.peekParenOpen(type.length))
+    if (tok.peekParenOpen()) {
+        tok._restore(before);
         return false;
+    }
 
-    if (tok.peekBracketOpen(type.length)
-            && tok.peekBracketClose(type.length+1))
+    if (tok.peekBracketOpen()
+            && tok.peekBracketClose(1)) {
+        tok._restore(before);
         return true;
+    }
 
-    var peeked = tok.peekName(type.length);
+    var peeked = tok.peekName();
+    tok._restore(before);
     return peeked && !Tokenizer.isControl(peeked);
 }
 

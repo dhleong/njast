@@ -261,7 +261,7 @@ Tokenizer.prototype._countBlank = function() {
             var skipped = off - base;
             this._fp.offset = off + this._start;
             this._lastComment = Commentor.value;
-            //console.log("! Counted Blank @", this._lineno, "skipped=", skipped, "token=", String.fromCharCode(token));
+            // console.log("! Counted Blank @", this._lineno, "skipped=", skipped, "token=", String.fromCharCode(token), String.fromCharCode(nextToken));
             return skipped; // also return bytes skipped
         }
 
