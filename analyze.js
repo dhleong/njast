@@ -28,6 +28,8 @@ Analyzer.prototype.find = function(callback) {
     }
 
     var found = false;
+    var _word = this._word;
+    this._word = undefined; // clear, in case it's not provided next time
 
     var self = this;
     var onVarDef, onMethod, onStatement;
@@ -36,10 +38,10 @@ Analyzer.prototype.find = function(callback) {
             return;
 
         //console.log(node.name);
-        if (node.name == self._word) {
+        if (node.name == _word) {
             self._ast.removeListener('vardef', onVarDef);
 
-            var info = node.extractTypeInfo(self._word,
+            var info = node.extractTypeInfo(_word,
                 self._line, self._col);
             if (info.resolved) {
                 found = true;
@@ -56,7 +58,7 @@ Analyzer.prototype.find = function(callback) {
     };
 
     onMethod = function(node) {
-        if (node.name == self._word) {
+        if (node.name == _word) {
             // TODO remove
             console.log("method on", node.dumpLine());
         }
@@ -67,7 +69,7 @@ Analyzer.prototype.find = function(callback) {
             return; 
 
         // console.log(self._line, node.dumpLine());
-        var info = node.extractTypeInfo(self._word, 
+        var info = node.extractTypeInfo(_word, 
             self._line, self._col);
         if (!info) {
             // console.log('no info!', node.constructor.name);
@@ -99,7 +101,7 @@ Analyzer.prototype.find = function(callback) {
         //self._ast.removeListener('method', onMethod);
         self._ast.removeListener('statement', onStatement);
 
-        // console.log("end", self._line, self._word, found);
+        // console.log("end", self._line, _word, found);
         if (!found) {
             callback({message:"Couldn't find"});
         } else if (found !== true) {

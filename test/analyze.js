@@ -126,4 +126,16 @@ describe("Analyzing Foo.java at", function() {
         });
     });
 
+    it("68, 26: Foo.this. <- Fancy", function(done) {
+        an.at(68, 26)
+        .find(function(err, type) {
+            should.not.exist(err);
+
+            console.log(type);
+            type.type.should.equal(Ast.TYPE);
+            type.name.should.equal('net.dhleong.njast.Foo$Fancy');
+
+            done();
+        });
+    });
 });

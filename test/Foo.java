@@ -65,7 +65,7 @@ class Foo {
             }
 
             Fail method() {
-                Foo.this. // reference from inner class
+                Fancy.this. // reference from inner class
                 return null;
             }
         }

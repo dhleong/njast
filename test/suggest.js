@@ -151,16 +151,16 @@ describe("Suggestions in Foo.java at ", function() {
         });
     });
 
-    it("68, 26: Foo.this.", function(done) {
+    it("68, 28: Fancy.this.", function(done) {
         suggestor
-        .at(68, 26)
+        .at(68, 28)
         .find(function(err, resolved) {
             should.not.exist(err);
 
             resolved.should.have.property('methods')
                 .that.is.an('array').of.length(3)
                 .with.deep.property('[0]')
-                    .that.has.property('name').that.equals('baz');
+                    .that.has.property('name').that.equals('biz');
 
             done();
         });
