@@ -131,7 +131,6 @@ describe("Analyzing Foo.java at", function() {
         .find(function(err, type) {
             should.not.exist(err);
 
-            console.log(type);
             type.type.should.equal(Ast.TYPE);
             type.name.should.equal('net.dhleong.njast.Foo$Fancy');
 

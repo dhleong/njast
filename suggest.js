@@ -10,6 +10,8 @@ function Suggestor(path, buffer) {
     this._path = path;
     this._buffer = buffer;
     this._loader = ClassLoader.fromSource(path);
+
+    this._analyzer = Analyzer.of(this._path, this._buffer)
 }
 
 Suggestor.prototype.at = function(line, col) {
@@ -34,7 +36,7 @@ Suggestor.prototype.find = function(cb) {
         //          - if class: static methods, subclasses
         //          - if nothing: recurse to previous line?
         //          - else: assume "this" object's methods, fields
-        Analyzer.of(this._path, this._buffer)
+        this._analyzer
         .at(this._line, dot-1)
         .find(function(err, result) {
 
@@ -52,7 +54,7 @@ Suggestor.prototype.find = function(cb) {
             case Ast.TYPE:
                 // FIXME check if this type is the return value
                 //  of a method call
-                console.log(result);
+                // console.log(result);
                 self._fromClass(result.name, ['methods', 'fields'], cb);
                 // FIXME else, only STATIC methods, fields, subclasses
                 break;
@@ -61,6 +63,7 @@ Suggestor.prototype.find = function(cb) {
     } else {
         // TODO else, suggest fields, local methods, classnames
 
+        console.log("UNEXPECTED 2: " + line);
         cb(2);
     }
 };
@@ -115,6 +118,12 @@ Suggestor.prototype._fromClass = function(className, projection, cb) {
             obj[field] = klass[field];
             return obj;
         }, {});
+
+        if ('methods' in projected) {
+            projected.methods = projected.methods.filter(function(method) {
+                return method.name != '[constructor]';
+            });
+        }
 
         cb(undefined, projected);
     });

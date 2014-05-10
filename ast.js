@@ -186,7 +186,7 @@ Ast.prototype.parse = function(callback) {
         this._replay = [];
         this._root.parse();
         this._parsed = true;
-        this._fp.offset = 0; // reset buffer
+        this.tok.reset(); // reset buffer
     }
 
     if (callback)
@@ -293,6 +293,15 @@ SimpleNode.prototype.contains = function(lineNo) {
 
 SimpleNode.prototype.extractTypeInfo = function(/*word, line, col*/) {
     return undefined;
+}
+
+SimpleNode.prototype.getContainingClass = function() {
+    var parent = this.getParent();
+    while (parent && !(parent instanceof Class)) {
+        parent = parent.getParent();
+    }
+
+    return parent;
 }
 
 SimpleNode.prototype.getLocalScope = function() {
@@ -1788,9 +1797,30 @@ Expression.prototype.extractTypeInfo = function(word/*, line, col*/) {
             var val = this.value.trim();
             if (val.endsWith('.')) 
                 val = val.substr(0, val.length - 1);
-            var type = val.charAt(0) == val.charAt(0).toUpperCase()
-                ? Ast.TYPE
-                : Ast.EXPRESSION;
+
+            var type;
+            if (val == 'this') {
+                // ref to *this* class
+                type = Ast.TYPE;
+                val = this.getContainingClass().qualifiedName;
+            } else if (val.endsWith('.this')) {
+                // Ref to outer class
+                type = Ast.TYPE;
+
+                var expectedName = val.substr(0, val.lastIndexOf('.'));
+                val = this.getContainingClass();
+                while (val && val.name != expectedName)
+                    val = val.getContainingClass();
+
+                if (val)
+                    val = val.qualifiedName;
+            } else {
+
+                type = val.charAt(0) == val.charAt(0).toUpperCase()
+                    ? Ast.TYPE
+                    : Ast.EXPRESSION;
+            }
+
             return new TypeInfo(this, type, val);
         } else if (this.right instanceof Arguments) {
             // TODO container?

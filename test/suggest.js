@@ -106,8 +106,8 @@ describe("Foo.java", function() {
     });
 });
 
-describe("Foo.java at 14,23", function() {
-    it("suggests", function(done) {
+describe("Suggestions in Foo.java at", function() {
+    it("14, 23: field1.", function(done) {
         suggestor
         .at(14, 23)
         .find(function(err, resolved) {
@@ -132,10 +132,7 @@ describe("Foo.java at 14,23", function() {
             done();
         });
     });
-});
 
-
-describe("Suggestions in Foo.java at ", function() {
     it("63, 29: doFancier().", function(done) {
         suggestor
         .at(63, 29)
@@ -158,7 +155,7 @@ describe("Suggestions in Foo.java at ", function() {
             should.not.exist(err);
 
             resolved.should.have.property('methods')
-                .that.is.an('array').of.length(3)
+                .that.is.an('array').of.length(1)
                 .with.deep.property('[0]')
                     .that.has.property('name').that.equals('biz');
 
@@ -166,8 +163,26 @@ describe("Suggestions in Foo.java at ", function() {
         });
     });
 
-    it("75, 21: this.field1.");
+    it("79, 14: this.", function(done) {
+        suggestor
+        .at(79, 14)
+        .find(function(err, resolved) {
+            should.not.exist(err);
 
-    it("79, 14: this.");
+            resolved.should.have.property('methods')
+                .that.is.an('array').of.length(4)
+                .with.deep.property('[0]')
+                    .that.has.property('name').that.equals('baz');
+
+            resolved.should.have.property('fields')
+                .that.is.an('array').of.length(1)
+                .with.deep.property('[0]')
+                    .that.has.property('name').that.equals('field1');
+
+            done();
+        });
+    });
+
+    it("75, 21: this.field1.");
 });
 

@@ -387,6 +387,11 @@ Tokenizer.prototype.isReserved = function() {
     return Tokenizer.isReserved(name);
 }
 
+Tokenizer.prototype.reset = function() {
+    this._fp.offset = this._start;
+};
+
+
 // util methods to read specific tokens
 var _doRead = function(token) { return function() { return this._readToken(token); } };
 Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);
