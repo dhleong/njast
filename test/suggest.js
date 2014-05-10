@@ -183,6 +183,22 @@ describe("Suggestions in Foo.java at", function() {
         });
     });
 
-    it("75, 21: this.field1.");
+    it("75, 21: this.field1.", function(done) {
+        suggestor
+        .at(75, 21)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0]')
+                    .that.has.property('name').that.equals('doFancier');
+
+            done();
+        });
+    });
+
+    // oh boy.
+    it("43, 40: Foo.this.field1.");
 });
 

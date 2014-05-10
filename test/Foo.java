@@ -40,7 +40,7 @@ class Foo {
              * Turns a Boring into a Fancy
              */
             Fancy doFancier(Boring arg) {
-                return null; // whatever
+                return Foo.this.field1. // new test; should suggest doFancier or method
             }
 
             /** Buzzes */
@@ -64,7 +64,7 @@ class Foo {
                 return null;
             }
 
-            Fail method() {
+            Fancy method() {
                 Fancy.this. // reference from inner class
                 return null;
             }
