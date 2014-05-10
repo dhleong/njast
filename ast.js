@@ -1816,6 +1816,11 @@ Expression.prototype.extractTypeInfo = function(word/*, line, col*/) {
                     val = val.qualifiedName;
             } else {
 
+                if (val.indexOf('this.') === 0) {
+                    // unnecessary this. ref
+                    val = val.substr('this.'.length);
+                }
+            
                 type = val.charAt(0) == val.charAt(0).toUpperCase()
                     ? Ast.TYPE
                     : Ast.EXPRESSION;

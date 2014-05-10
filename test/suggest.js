@@ -2,7 +2,8 @@
 //--reporter nyan
 
 var fs = require('fs')
-  , should = require('chai').should()
+  , chai = require('chai')
+  , should = chai.should()
   , Ast = require('../ast')
   , Analyzer = require('../analyze')
   , Suggestor = require('../suggest')
@@ -10,6 +11,32 @@ var fs = require('fs')
   , PATH = 'Foo.java'
 
   , buf, an, suggestor;
+
+
+chai.use(function(_chai, utils) {
+    utils.addProperty(chai.Assertion.prototype, 'field1', function() {
+        var obj = utils.flag(this, 'object');
+        new chai.Assertion(obj).to.have.property('methods')
+            .that.is.an('array')
+            .with.deep.property('[0]')
+                .that.has.property('name').that.equals('doFancier');
+
+        new chai.Assertion(obj).to.have.property('methods')
+            .with.deep.property('[1]')
+                .with.property('name').that.equals('buz');
+        new chai.Assertion(obj).to.have.property('methods')
+            .with.deep.property('[2]')
+                .with.property('name').that.equals('bla');
+        new chai.Assertion(obj).to.have.property('methods')
+            .with.deep.property('[3]')
+                .with.property('name').that.equals('breaks');
+
+        new chai.Assertion(obj).to.have.property('fields')
+            .that.is.an('array')
+            .with.length(0);
+
+    });
+});
 
 
 before(function(done) {
@@ -113,21 +140,7 @@ describe("Suggestions in Foo.java at", function() {
         .find(function(err, resolved) {
             should.not.exist(err);
 
-            resolved.should.have.property('methods')
-                .that.is.an('array')
-                .with.deep.property('[0]')
-                    .that.has.property('name').that.equals('doFancier');
-
-            resolved.methods.should.have.deep.property('[1]')
-                .with.property('name').that.equals('buz');
-            resolved.methods.should.have.deep.property('[2]')
-                .with.property('name').that.equals('bla');
-            resolved.methods.should.have.deep.property('[3]')
-                .with.property('name').that.equals('breaks');
-
-            resolved.should.have.property('fields')
-                .that.is.an('array')
-                .with.length(0);
+            resolved.should.be.field1;
 
             done();
         });
@@ -189,16 +202,24 @@ describe("Suggestions in Foo.java at", function() {
         .find(function(err, resolved) {
             should.not.exist(err);
 
-            resolved.should.have.property('methods')
-                .that.is.an('array')
-                .with.deep.property('[0]')
-                    .that.has.property('name').that.equals('doFancier');
+            resolved.should.be.field1;
 
             done();
         });
     });
 
     // oh boy.
-    it("43, 40: Foo.this.field1.");
+    it("43, 40: Foo.this.field1.", function(done) {
+        suggestor
+        .at(43, 40)
+        .find(function(err, resolved) {
+            
+            should.not.exist(err);
+
+            resolved.should.be.field1;
+
+            done();
+        });
+    });
 });
 
