@@ -138,7 +138,7 @@ describe("Analyzing Foo.java at", function() {
         });
     });
 
-    it.only("43, 40: Foo.this.field1. <- ", function(done) {
+    it("43, 40: Foo.this.field1. <- ", function(done) {
         an.at(43, 40)
         .find(function(err, resolved) {
             should.not.exist(err);
