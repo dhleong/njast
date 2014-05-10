@@ -131,6 +131,7 @@ function Ast(path, buffer) {
     //  having to re-parse
     this.on('class', saveQualified)
         .on('method', saveQualified)
+        .on('field', saveQualified)
         .on('toplevel', function(toplevel) {
             saveQualified(toplevel);
             self.toplevel = toplevel;
@@ -812,6 +813,10 @@ ClassBody.prototype._parseFieldOrMethod = function(tok, modifiers) {
         // TODO should this be VarDefs ?
         var field = new VarDef(this, tok, type, name);
         field.modifiers = modifiers;
+        field.qualifiedName = this.qualifiedName + '#' + name;
+
+        // publish fields explicitly
+        field.publish('field');
         return field;
     } else {
         //_log("method! type=", type, 'name=', name, tok.getLine());
@@ -1789,6 +1794,10 @@ var _extractMethodInfo = function(self, type, word) {
     return new TypeInfo(self, type, word, container); 
 }
 
+/**
+ * FIXME This method would be so much more straightforward
+ *  if we did a proper AST....
+ */
 Expression.prototype.extractTypeInfo = function(word/*, line, col*/) {
     if (!word) {
         if (!this.right) {
@@ -1803,17 +1812,37 @@ Expression.prototype.extractTypeInfo = function(word/*, line, col*/) {
                 // ref to *this* class
                 type = Ast.TYPE;
                 val = this.getContainingClass().qualifiedName;
-            } else if (val.endsWith('.this')) {
+            } else if (val.endsWith('.this')
+                    || ~val.indexOf('.this.')) {
                 // Ref to outer class
                 type = Ast.TYPE;
 
-                var expectedName = val.substr(0, val.lastIndexOf('.'));
+                var expectedName = val.substr(0, val.lastIndexOf('.this'));
+                var srcVal = val;
                 val = this.getContainingClass();
                 while (val && val.name != expectedName)
                     val = val.getContainingClass();
 
-                if (val)
+                if (val) {
                     val = val.qualifiedName;
+
+                    // this is ugly. let's do a proper AST, please?
+                    var thisRef = srcVal.indexOf('.this.');
+                    if (~thisRef) {
+                        var fom = srcVal.substr(thisRef + '.this.'.length);
+                        val += '#' + fom;
+
+                        var qualifieds = this.getRoot().qualifieds;
+                        if (val in qualifieds) {
+                            var field = this.getRoot().qualifieds[val];
+                            val = field.type;
+                        } else {
+                            // couldn't find qualified field? nonsense.
+                            // Oh well, just be a VARIABLE
+                            type = Ast.VARIABLE;
+                        }
+                    }
+                }
             } else {
 
                 if (val.indexOf('this.') === 0) {

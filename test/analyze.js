@@ -137,4 +137,16 @@ describe("Analyzing Foo.java at", function() {
             done();
         });
     });
+
+    it.only("43, 40: Foo.this.field1. <- ", function(done) {
+        an.at(43, 40)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.name.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+            resolved.type.should.equal(Ast.TYPE);
+
+            done();
+        });
+    });
 });
