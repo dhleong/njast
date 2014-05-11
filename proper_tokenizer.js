@@ -79,7 +79,7 @@ var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract'
                  'volatile', 'transient', 'native', 'strictfp'];
 // var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
 //                 'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
-// var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
+var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
 
 /**
  * Tokenizer constructor
@@ -220,6 +220,8 @@ Tokenizer.prototype.readQuote      = _doRead(QUOTE);
 Tokenizer.prototype.readQuestion   = _doRead(QUESTION);
 Tokenizer.prototype.readBracketOpen  = _doRead(BRACKET_OPEN);
 Tokenizer.prototype.readBracketClose = _doRead(BRACKET_CLOSE);
+Tokenizer.prototype.readGenericOpen  = _doRead(GENERIC_OPEN);
+Tokenizer.prototype.readGenericClose = _doRead(GENERIC_CLOSE);
 
 // util methods to expect specific tokens
 var _doExpect = function(token) { 
@@ -317,7 +319,7 @@ Tokenizer.prototype.raise = function(expecting) {
                  + this._line + ',' + this._col;
     
     if (expecting) {
-        message += '; peek=' + this._peekChar()
+        message += '; peek=' + String.fromCharCode(this._peekChar())
                  + '; Expecting=' + expecting;
     }
 
@@ -352,6 +354,13 @@ Tokenizer.prototype._error = function(message, withPos) {
 /** Static method */
 Tokenizer.isModifier = function(token) {
     return MODIFIERS.indexOf(token) >= 0;
+}
+
+/**
+ * Check if the type name is a primitive type
+ */
+Tokenizer.isPrimitive = function(type) {
+    return PRIMITIVES.indexOf(type) >= 0;
 }
 
 function isIdentifier(existing, charCode) {

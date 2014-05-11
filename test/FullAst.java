@@ -17,11 +17,11 @@ interface SomeInterface {
 }
 
 ;
-
-enum SomeEnum {
-}
-
-;
-
-@interface SomeAnnotation {
-}
+// TODO
+// enum SomeEnum {
+// }
+//
+// ;
+//
+// @interface SomeAnnotation {
+// }

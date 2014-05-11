@@ -9,7 +9,7 @@ function Ast(path, buffer) {
     this.tok = new Tokenizer(path, buffer);
     this._root; // filled via parse()
 
-    this.toplevel;
+    this.toplevel = [];
     this.qualifieds = {};
 
     var self = this;
@@ -17,7 +17,7 @@ function Ast(path, buffer) {
         self.qualifieds[node.qualifiedName] = node;
     })
     .on('toplevel', function(node) {
-        self.toplevel = node;
+        self.toplevel.push(node);
     });
 }
 util.inherits(Ast, events.EventEmitter);
@@ -37,7 +37,7 @@ Ast.prototype.getPackage = function() {
 /**
  * Superclass for simple things
  */
-function SimpleNode(prev, tok) {
+function SimpleNode(prev) {
     this._prev = prev;
     this._root = prev._root;
     if (!this._root) {
@@ -46,8 +46,8 @@ function SimpleNode(prev, tok) {
     if (!(this._root instanceof Ast))
         throw Error("Root is wrong!" + this._root.constructor.name);
 
-    this.tok = tok;
-    this.start = tok.getPos();
+    this.tok = prev.tok;
+    this.start = prev.tok.getPos();
 }
 
 /** Call at the end of parsing */
@@ -78,17 +78,30 @@ SimpleNode.prototype.publish = function(type) {
         this._root.emit('qualified', this);
 }
 
+SimpleNode.prototype._qualify = function(separator) {
+
+    if (this.getParent() instanceof CompilationUnit) {
+        this.qualifiedName = this.getParent().package + '.' + this.name;
+        this.getRoot().emit('toplevel', this);
+    } else {
+        // parent is a ClassBody; grandparent is a Class/Interface
+        this.qualifiedName = this.getParent().getParent().qualifiedName
+                           + separator + this.name;
+    }
+}
+
 /**
  * Root AST node of a java file
  */
-function CompilationUnit(ast, tok, package) {
-    SimpleNode.call(this, ast, tok);
+function CompilationUnit(ast, package) {
+    SimpleNode.call(this, ast);
 
     this.package = package;
 
     this.imports = [];
     this.types = [];
 
+    var tok = this.tok;
     tok.expectSemicolon();
 
     // imports
@@ -111,7 +124,7 @@ function CompilationUnit(ast, tok, package) {
 
     // TypeDeclarations
     var type;
-    while ((type = TypeDeclaration.read(this, tok))) {
+    while ((type = TypeDeclaration.read(this))) {
         this.types.push(type);
     }
 
@@ -119,11 +132,11 @@ function CompilationUnit(ast, tok, package) {
 }
 util.inherits(CompilationUnit, SimpleNode);
 
-CompilationUnit.read = function(ast, tok) {
-    if (tok.readString("package")) {
-        return new CompilationUnit(ast, tok, tok.readQualified());
+CompilationUnit.read = function(ast) {
+    if (ast.tok.readString("package")) {
+        return new CompilationUnit(ast, ast.tok.readQualified());
     } else {
-        return new CompilationUnit(ast, tok, "default");
+        return new CompilationUnit(ast, "default");
     }
 };
 
@@ -131,19 +144,21 @@ CompilationUnit.read = function(ast, tok) {
  * Factory for TypeDeclarations
  */
 var TypeDeclaration = {
-    read: function(prev, tok) {
+    read: function(prev) {
+        var tok = prev.tok;
+
         // it can be just a semicolon
         while (tok.readSemicolon()) 
             continue;
 
         // class or interface decl
-        var mods = Modifiers.read(prev, tok);
+        var mods = Modifiers.read(prev);
         if (tok.readString("class")) {
-            return new ClassDeclaration(prev, tok, mods);
+            return new Class(prev, mods);
         } else if (tok.readString("enum")) {
             tok.raiseUnsupported("enum");
         } else if (tok.readString("interface")) {
-            tok.raiseUnsupported("interface");
+            return new Interface(prev, mods);
         } else if (tok.readAt()) {
             // TODO annotation
             tok.expectAt();
@@ -155,34 +170,118 @@ var TypeDeclaration = {
 /**
  * A Java class declaration
  */
-function ClassDeclaration(prev, tok, mods) {
-    SimpleNode.call(this, prev, tok);
+function Class(prev, mods) {
+    SimpleNode.call(this, prev);
     
     this.mods = mods;
 
+    var tok = this.tok;
     this.name = tok.readIdentifier();
+    this._qualify('$');
 
-    if (this.getParent() instanceof CompilationUnit) {
-        this.qualifiedName = this.getParent().package + '.' + this.name;
-        this.getRoot().emit('toplevel', this);
-    } else {
-        // parent is a ClassBody; grandparent is a Class/Interface
-        this.qualifiedName = this.getParent().getParent().qualifiedName
-                           + '$' + this.name;
+    this.typeParams = TypeParameters.read(prev);
+
+    if (tok.readString('extends')) {
+        this.extends = Type.read(prev);
+    }
+    if (tok.readString('implements')) {
+        this.implements = [];
+        do {
+            this.implements.push(Type.read(prev));
+        } while(tok.readComma());
+    }
+
+    // body
+    this.body = new ClassBody(prev);
+
+    this._end();
+}
+util.inherits(Class, SimpleNode);
+
+/**
+ * A Java class declaration
+ */
+function Interface(prev, mods) {
+    SimpleNode.call(this, prev);
+
+    this.mods = mods;
+
+    var tok = this.tok;
+    this.name = tok.readIdentifier();
+    this._qualify('$');
+
+    this.typeParams = TypeParameters.read(prev);
+    
+    if (tok.readString('extends')) {
+        this.extends = [];
+        do {
+            this.extends.push(Type.read(prev));
+        } while(tok.readComma());
+    }
+
+    // TODO technically this should be InterfaceBody,
+    //  since all methods should be declared as if abstract,
+    //  but for now... this is sufficient
+    this.body = new ClassBody(prev);
+
+    this._end();
+}
+util.inherits(Interface, SimpleNode);
+
+
+/**
+ * 
+ */
+function ClassBody(prev) {
+    SimpleNode.call(this, prev);
+
+    // shorcut indexes of declared things
+    this.subclasses = [];
+    this.blocks = [];
+    this.fields = [];
+    this.methods = [];
+
+    // ALL child elements, in parse-order
+    this.kids = [];
+    
+    // TODO statements
+    var tok = this.tok;
+    tok.expectBlockOpen();
+    while (!tok.readBlockClose()) {
+        var el = this._readDeclaration();
+        if (!el) continue;
+
+        this.kids.push(el);
+
+        // TODO push onto index by type
     }
 
     this._end();
 }
-util.inherits(ClassDeclaration, SimpleNode);
+util.inherits(ClassBody, SimpleNode);
+
+ClassBody.prototype._readDeclaration = function() {
+    var tok = this.tok;
+    if (tok.readSemicolon())
+        return;
+
+    // TODO
+    var mods = Modifiers.read(this);
+    if (tok.peekBracketOpen()) {
+        mods.length; // FIXME
+    }
+};
+
 
 /**
  * Modifiers list
  */
-function Modifiers(prev, tok) {
-    SimpleNode.call(this, prev, tok);
+function Modifiers(prev) {
+    SimpleNode.call(this, prev);
 
     this.kids = [];
 
+    var tok = this.tok;
     while (!tok.isEof()) {
         // TODO annotations
         if (tok.readAt())
@@ -199,8 +298,9 @@ function Modifiers(prev, tok) {
 }
 util.inherits(Modifiers, SimpleNode);
 
-Modifiers.read = function(prev, tok) {
+Modifiers.read = function(prev) {
     // TODO annotations
+    var tok = prev.tok;
     if (tok.readAt())
         tok.raiseUnsupported("annotations");
 
@@ -208,10 +308,70 @@ Modifiers.read = function(prev, tok) {
     if (!Tokenizer.isModifier(ident)) 
         return;
 
-    return new Modifiers(prev, tok);
+    return new Modifiers(prev);
+}
+
+/**
+ * Factory for Types
+ */
+var Type = {
+    read: function(prev) {
+        var ident = prev.tok.readIdentifier();
+        if (Tokenizer.isPrimitive(ident))
+            return new BasicType(prev, ident);
+
+        return new ReferenceType(prev, ident);
+    }
+}
+
+function BasicType(prev, ident) {
+    SimpleNode.call(this, prev);
+
+    this.name = ident;
+
+    this._end();
+}
+util.inherits(BasicType, SimpleNode);
+
+function ReferenceType(prev, ident) {
+    SimpleNode.call(this, prev);
+
+    this.name = ident;
+    this.simpleName = this.name; // Simple name will drop all TypeArguments
+
+    // TODO <TypeArgs> . etc.
+    var tok = this.tok;
+    if (tok.readGenericOpen())
+        tok.raiseUnsupported('type arguments');
+    if (tok.readDot())
+        tok.raiseUnsupported('Type.OtherType');
+
+    this._end();
+}
+util.inherits(ReferenceType, SimpleNode);
+
+
+function TypeParameters(prev) {
+    SimpleNode.call(this, prev);
+
+    this._end();
+}
+util.inherits(Modifiers, SimpleNode);
+
+TypeParameters.read = function(prev) {
+    var tok = prev.tok;
+    if (!tok.readGenericOpen())
+        return;
+
+    // TODO
+    tok.raiseUnsupported("TypeParameters");
+    return new TypeParameters(prev);
 }
 
 
+/**
+ * Exports
+ */
 module.exports = {
     parseFile: function(path, buffer, callback) {
         var ast = new Ast(path, buffer);

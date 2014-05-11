@@ -72,23 +72,42 @@ describe("Parse of", function() {
         });
 
         it("has FullAst class", function() {
-            ast.should.have.property('qualifieds')
-                .with.key('net.dhleong.njast.FullAst');
+            ast.qualifieds.should.contain.key('net.dhleong.njast.FullAst'); 
             ast.should.have.property('toplevel')
-                .and.with.property('qualifiedName')
-                    .that.equals('net.dhleong.njast.FullAst');
+                .that.is.an('array')
+                .with.deep.property('[0]')
+                    .that.has.property('qualifiedName')
+                        .that.equals('net.dhleong.njast.FullAst');
         });
 
-        describe("handles ClassDeclarations", function() {
-            it("Extends FullBase");
-            it("Implements FullInterface");
+        describe("and handles ClassDeclarations: ", function() {
+
+            // TODO
+            it("Has TypeParameters");
+
+            it("Extends FullBase", function() {
+                ast.toplevel[0].should.have.property('extends')
+                    .with.property('name')
+                        .that.equals('FullBase');
+            });
+
+            it("Implements FullInterface", function() {
+                ast.toplevel[0].should.have.property('implements')
+                    .with.deep.property('[0]')
+                        .that.has.property('name')
+                            .that.equals('FullInterface');
+            });
         });
 
         // TODO
-        it("has SomeInterface"/*, function() {
-            ast.should.have.property('qualifieds')
-                .with.key('net.dhleong.njast.SomeInterface');
-        }*/);
+        it("has SomeInterface", function() {
+            ast.qualifieds.should.contain.key('net.dhleong.njast.SomeInterface');
+            ast.should.have.property('toplevel')
+                .that.is.an('array')
+                .with.deep.property('[1]')
+                    .that.has.property('qualifiedName')
+                        .that.equals('net.dhleong.njast.SomeInterface');
+        });
         it("has SomeEnum");
         it("has SomeAnnotation");
     });
