@@ -29,7 +29,23 @@ function CompilationUnit(tok, package) {
 
     tok.expectSemicolon();
 
-    // TODO imports
+    // imports
+    while (tok.readString("import")) {
+        var static = tok.readString("static");
+
+        var path = tok.readQualified();
+        var star = tok.readStar()
+
+        if (path) {
+            this.imports.push({
+                static: static,
+                path: path,
+                star: star
+            });
+        }
+
+        tok.expectSemicolon();
+    }
 }
 
 CompilationUnit.read = function(tok) {

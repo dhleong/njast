@@ -149,8 +149,10 @@ Tokenizer.prototype._skipBlank = function() {
 
 
 /** Restore to position state */
-Tokenizer.prototype._restore = function(/* state */) {
-    // TODO
+Tokenizer.prototype._restore = function(state) {
+    this._pos = state.pos;
+    this._col = state.col;
+    this._line = state.line;
 };
 
 Tokenizer.prototype._peekChar = function() {

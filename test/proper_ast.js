@@ -5,7 +5,7 @@ var fs = require('fs')
   , should = require('chai').should()
   , parseFile = require('../proper_ast').parseFile
 
-  , PATH = 'Foo.java'
+  , PATH = 'FullAst.java'
 
   , buf, ast;
 
@@ -27,6 +27,22 @@ describe("Full Parse of", function() {
         
         it("is in the right package", function() {
             ast.getPackage().should.equal('net.dhleong.njast');
+        });
+
+        // TODO
+        it("handles static import");
+        it("handles simple import.*");
+
+        it("handles simple import", function() {
+
+            ast.should.have.property('_root')
+                .with.property('imports')
+                .that.is.an('array')
+                .and.to.contain({  // doesn't have "contains" :(
+                    static: false, 
+                    star: false,
+                    path: 'net.dhleong.njast.subpackage.Imported'
+                });
         });
     });
 
