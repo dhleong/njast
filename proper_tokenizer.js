@@ -75,8 +75,8 @@ var MATH = [
     GENERIC_OPEN, GENERIC_CLOSE
 ]
 
-// var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
-//                  'volatile', 'transient', 'native', 'strictfp'];
+var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
+                 'volatile', 'transient', 'native', 'strictfp'];
 // var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
 //                 'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
 // var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
@@ -99,16 +99,12 @@ function Tokenizer(path, buffer) {
 
 /** 
  * Prepare to do some reading; skips whitespace, consumes comments.
- *  Unlike _save(), this returns the position AFTER the whitespace
+ *  Unlike save(), this returns the position AFTER the whitespace
  *  to prevent redundant parsing. 
  */
 Tokenizer.prototype._prepare = function() {
     this._skipBlank();
-    return {
-        pos: this._pos
-      , col: this._col
-      , line: this._line
-    };
+    return this.save();
 };
 
 Tokenizer.prototype._skipBlank = function() {
@@ -149,10 +145,19 @@ Tokenizer.prototype._skipBlank = function() {
 
 
 /** Restore to position state */
-Tokenizer.prototype._restore = function(state) {
+Tokenizer.prototype.restore = function(state) {
     this._pos = state.pos;
     this._col = state.col;
     this._line = state.line;
+};
+
+/** Save current state */
+Tokenizer.prototype.save = function() {
+    return {
+        pos: this._pos
+      , col: this._col
+      , line: this._line
+    }
 };
 
 Tokenizer.prototype._peekChar = function() {
@@ -180,7 +185,7 @@ Tokenizer.prototype.readString = function(expected) {
         // if (r)
         //     console.log(r.charAt(i), expected.charAt(i));
         if (r != expected.charCodeAt(i)) {
-            this._restore(state);
+            this.restore(state);
             return false;
         }
     }
@@ -243,7 +248,6 @@ Tokenizer.prototype.expectBracketOpen  = _doExpect(BRACKET_OPEN);
 Tokenizer.prototype.expectBracketClose = _doExpect(BRACKET_CLOSE);
 
 
-
 Tokenizer.prototype.readIdentifier = function() {
     this._prepare();
 
@@ -264,6 +268,17 @@ Tokenizer.prototype.readIdentifier = function() {
     return ident.length ? ident : undefined;
 };
 
+var _peekMethod = function(readType) {
+    var method = Tokenizer.prototype['read' + readType];
+    return function() {
+        var state = this._prepare();
+        var ident = method.call(this, arguments);
+        this.restore(state);
+        return ident;
+    }
+};
+Tokenizer.prototype.peekIdentifier = _peekMethod('Identifier');
+
 Tokenizer.prototype.readQualified = function() {
     var ident = this.readIdentifier();
     if (!ident)
@@ -282,6 +297,20 @@ Tokenizer.prototype.readQualified = function() {
  * Util methods
  */
 
+/** Return TRUE if we've reached EOF */
+Tokenizer.prototype.isEof = function() {
+    return this._pos >= this._fp.length;
+};
+
+
+Tokenizer.prototype.getPos = function() {
+    return {
+        line: this._line
+      , ch: this._col
+    }
+};
+
+
 /** Raise a parse exception */
 Tokenizer.prototype.raise = function(expecting) {
     var message = 'Error parsing input @' 
@@ -292,19 +321,38 @@ Tokenizer.prototype.raise = function(expecting) {
                  + '; Expecting=' + expecting;
     }
 
+    var err = this._error(message);
+    if (this._strict)
+        throw err;
+};
+
+/** Always throws an error; it's not clear how to skip past an unsupported feature  */
+Tokenizer.prototype.raiseUnsupported = function(feature) {
+    throw this._error('Encountered unsupported feature ' + feature, true);
+}
+
+Tokenizer.prototype._error = function(message, withPos) {
+
+    if (withPos)
+        message += ' @' + this._line + ',' + this._col;
+    
     var err = new Error(message);
     err.line = this._line;
     err.col = this._line;
-
     this.errors.push(err);
-    if (this._strict)
-        throw err;
+
+    return err;
 };
 
 
 /*
  * Util functions
  */
+
+/** Static method */
+Tokenizer.isModifier = function(token) {
+    return MODIFIERS.indexOf(token) >= 0;
+}
 
 function isIdentifier(existing, charCode) {
     if (!charCode)

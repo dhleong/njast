@@ -9,7 +9,33 @@ var fs = require('fs')
 
   , buf, ast;
 
-describe("Full Parse of", function() {
+/* 
+ * Trim the size of the stacktrace for easier viewing as we debug */
+/* jshint ignore:start 
+ */
+console.oldError = console.error;
+console.error = function () {
+    if (typeof arguments.stack !== 'undefined') {
+        console.oldError.call(console, arguments.stack);
+    } else {
+        var oldStack = arguments[4];
+        if (typeof oldStack !== 'undefined') {
+            arguments[4] = oldStack.substr(0, 
+                oldStack.indexOf('\n'));
+            var at = oldStack.indexOf('at');
+            if (~at) {
+                arguments[4] += '\n';
+                for (var i=0; i < at; i++)
+                    arguments[4] += ' ';
+                arguments[4] += '...';
+            }
+        }
+        console.oldError.apply(console, arguments);
+    }
+};
+/* jshint ignore:end */
+
+describe("Parse of", function() {
     beforeEach(function(done) {
         fs.readFile(PATH, function(err, b) {
 
@@ -44,6 +70,27 @@ describe("Full Parse of", function() {
                     path: 'net.dhleong.njast.subpackage.Imported'
                 });
         });
+
+        it("has FullAst class", function() {
+            ast.should.have.property('qualifieds')
+                .with.key('net.dhleong.njast.FullAst');
+            ast.should.have.property('toplevel')
+                .and.with.property('qualifiedName')
+                    .that.equals('net.dhleong.njast.FullAst');
+        });
+
+        describe("handles ClassDeclarations", function() {
+            it("Extends FullBase");
+            it("Implements FullInterface");
+        });
+
+        // TODO
+        it("has SomeInterface"/*, function() {
+            ast.should.have.property('qualifieds')
+                .with.key('net.dhleong.njast.SomeInterface');
+        }*/);
+        it("has SomeEnum");
+        it("has SomeAnnotation");
     });
 
 });
