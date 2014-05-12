@@ -25,6 +25,8 @@ public class FullAst
     void simpleMethod() { /* nop */ }
 
     FullAst fluidMethod(int arg1, final int arg2) throws Exception { 
+        int local1;
+        int group1, group2;
         // TODO body
     }
 }

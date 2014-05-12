@@ -80,12 +80,23 @@ SimpleNode.prototype.publish = function(type) {
 
 SimpleNode.prototype._qualify = function(separator) {
 
-    if (this.getParent() instanceof CompilationUnit) {
+    var parent = this.getParent();
+    if (parent instanceof CompilationUnit) {
         this.qualifiedName = this.getParent().package + '.' + this.name;
         this.getRoot().emit('toplevel', this);
+    } else if (parent instanceof Block) {
+        // TODO
+        // Apparently classes can be declared inside a block.
+        // This is called a Local Class.
+        // They are qualified as OuterClass$(declNumber?)ClassName.
+        // Note the lack of $ between declNumber and ClassName.
+        // declNumber is the 1-indexed appearance of ClassName
+        // within OuterClass (since you could declare a class of
+        // the same name in another block).
+        this.tok.raiseUnsupported("qualified declarations in Blocks");
     } else {
         // parent is a ClassBody; grandparent is a Class/Interface
-        this.qualifiedName = this.getParent().getParent().qualifiedName
+        this.qualifiedName = parent.getParent().qualifiedName
                            + separator + this.name;
     }
 }
@@ -209,7 +220,7 @@ CompilationUnit.read = function(ast) {
  * Factory for TypeDeclarations
  */
 var TypeDeclaration = {
-    read: function(prev) {
+    read: function(prev, modifiers) {
         var tok = prev.tok;
 
         // it can be just a semicolon
@@ -217,7 +228,10 @@ var TypeDeclaration = {
             continue;
 
         // class or interface decl
-        var mods = Modifiers.read(prev);
+        var state = tok.save();
+        var mods = modifiers
+            ? modifiers // use ones we already found
+            : Modifiers.read(prev);
         if (tok.readString("class")) {
             return new Class(prev, mods);
         } else if (tok.readString("enum")) {
@@ -229,6 +243,7 @@ var TypeDeclaration = {
             tok.expectAt();
             tok.raiseUnsupported("annotation declaration");
         }
+        tok.restore(state); // could be something else with mods
     }
 }
 
@@ -401,12 +416,16 @@ function Method(prev, mods, type, typeParams, name) {
     }
 
     this.body = Block.read(this);
-    if (!this.body)
+    if (!this.body) {
         this.expectSemicolon();
+
+        // TODO enforce abstract?
+    }
 
     this._end();
 }
 util.inherits(Method, SimpleNode);
+
 
 function FieldDecl(prev, mods, type, typeParams, name) {
     VariableDeclNode.call(this, prev);
@@ -416,16 +435,6 @@ function FieldDecl(prev, mods, type, typeParams, name) {
     this.mods = mods;
     this.type = type;
     this.typeParams = typeParams;
-    // this.name = name;
-    // this._qualify('#');
-
-    // var tok = this.tok;
-    // if (tok.readEquals()) {
-    //     // TODO
-    //     tok.raiseUnsupported("field initialization");
-    // }
-
-    // tok.expectSemicolon();
 
     this._readDeclarations(name);
 
@@ -446,8 +455,9 @@ function Block(prev) {
     var tok = this.tok;
     tok.expectBlockOpen();
     while (!tok.readBlockClose()) {
-        // TODO block statement
-        tok.readIdentifier();
+        var stmt = BlockStatement.read(this);
+        if (stmt)
+            this.kids.push(stmt);
     }
 
     this._end();
@@ -460,6 +470,34 @@ Block.read = function(prev) {
 
     return new Block(prev);
 }
+
+/**
+ * Factory for BlockStatements
+ */
+var BlockStatement = {
+    read: function(prev) {
+        var mods = Modifiers.read(prev);
+        var classOrInterface = TypeDeclaration.read(prev, mods);
+        if (classOrInterface)
+            return classOrInterface;
+
+        var tok = prev.tok;
+        var state = tok.save();
+        var type = Type.read(prev);
+        if (type) {
+            var name = tok.readIdentifier();
+            if (name && !Tokenizer.isReserved(name)) {
+                tok.raiseUnsupported("local variable decl");
+            }
+        }
+
+        // wasn't a variable decl; start over
+        tok.restore(state);
+
+        tok.raiseUnsupported("other block statements");
+    }
+}
+
 
 /**
  * Params decl for methods

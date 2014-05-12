@@ -178,6 +178,11 @@ describe("Parse of", function() {
                             .that.has.property('name')
                                 .that.equals('Exception');
             });
+
+            it("Has local variable declarations in fluidMethod");
+
+            // TODO
+            it("Has local classes in fluidMethod");
         });
 
         // TODO
