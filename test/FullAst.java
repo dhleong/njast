@@ -5,6 +5,9 @@ import net.dhleong.njast.subpackage.Imported;
 import net.dhleong.njast.subpackage.FullBase;
 import net.dhleong.njast.subpackage.FullInterface;
 
+/** 
+ * Javadoc for FullAst class 
+ */
 public class FullAst 
         extends FullBase
         implements FullInterface {
@@ -18,6 +21,8 @@ public class FullAst
     // /** Initialized */
     // Imported field2 = new Imported();
 
+    /** simple method that needs nothing and does nothing */
+    void simpleMethod() { /* nop */ }
 }
 
 ;

@@ -317,6 +317,8 @@ function ClassBody(prev) {
         // TODO push onto index by type
         if (el instanceof FieldDecl) {
             el.kids.forEach(addToFields);
+        } else if (el instanceof Method) {
+            this.methods.push(el);
         }
     }
 
@@ -364,12 +366,38 @@ ClassBody.prototype._readMember = function(mods) {
     var ident = tok.readIdentifier();
 
     if (tok.peekParenOpen()) {
-        // TODO
-        tok.raiseUnsupported("method");
+        return new Method(this, mods, type, typeParams, ident);
     }
 
     return new FieldDecl(this, mods, type, typeParams, ident);
 };
+
+function Method(prev, mods, type, typeParams, name) {
+    SimpleNode.call(this, prev);
+
+    if (mods)
+        this.start = mods.start;
+    else
+        this.start = type.start;
+    this.mods = mods;
+    this.returns = type;
+    this.name = name;
+    this._qualify('#');
+
+    this.params = new FormalParameters(this);
+
+    if (this.tok.readString("throws")) {
+        // TODO throws decl
+        this.raiseUnsupported("throws decl");
+    }
+
+    this.body = Block.read(this);
+    if (!this.body)
+        this.expectSemicolon();
+
+    this._end();
+}
+util.inherits(Method, SimpleNode);
 
 function FieldDecl(prev, mods, type, typeParams, name) {
     VariableDeclNode.call(this, prev);
@@ -407,7 +435,7 @@ function Block(prev) {
     this.kids = [];
 
     var tok = this.tok;
-    this.expectBlockOpen();
+    tok.expectBlockOpen();
     while (!tok.readBlockClose()) {
         // TODO block statement
         tok.readIdentifier();
@@ -423,6 +451,22 @@ Block.read = function(prev) {
 
     return new Block(prev);
 }
+
+/**
+ * Params decl for methods
+ */
+function FormalParameters(prev) {
+    SimpleNode.call(this, prev);
+
+    this.tok.expectParenOpen();
+
+    while (!this.tok.readParenClose()) {
+        this.tok.raiseUnsupported('Method args decl');
+    }
+
+    this._end();
+}
+util.inherits(FormalParameters, SimpleNode);
 
 /**
  * Modifiers list

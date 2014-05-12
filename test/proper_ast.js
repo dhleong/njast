@@ -135,6 +135,17 @@ describe("Parse of", function() {
 
             // TODO requires parsing expressions
             it("Has initialized field2");
+
+            it("Has static block");
+            it("Has normal block");
+
+            it("Has simpleMethod", function() {
+                fullast.body.should.have.property('methods')
+                    .that.is.an('array')
+                        .with.deep.property('[0]')
+                            .that.has.property('name')
+                                .that.equals('simpleMethod');
+            });
         });
 
         // TODO
