@@ -23,6 +23,10 @@ public class FullAst
 
     /** simple method that needs nothing and does nothing */
     void simpleMethod() { /* nop */ }
+
+    FullAst fluidMethod(int arg1, final int arg2) throws Exception { 
+        // TODO body
+    }
 }
 
 ;

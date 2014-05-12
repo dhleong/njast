@@ -146,6 +146,38 @@ describe("Parse of", function() {
                             .that.has.property('name')
                                 .that.equals('simpleMethod');
             });
+
+            it("Has fluidMethod", function() {
+                var fluidMethod = fullast.body.methods[1];
+                should.exist(fluidMethod);
+                fluidMethod.should.have.property('name')
+                    .that.equals('fluidMethod');
+
+                fluidMethod.should.have.property('params')
+                    .with.deep.property('constructor.name')
+                        .that.equals('FormalParameters');
+                fluidMethod.params.kids.should.be.an('array')
+                    .of.length(2);
+
+                var params = fluidMethod.params.kids;
+                params[0].should.have.property('name')
+                    .that.equals('arg1');
+                params[0].should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('int');
+                params[1].should.have.property('name')
+                    .that.equals('arg2');
+                params[1].should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('int');
+
+                fluidMethod.should.have.property('throws')
+                    .that.is.an('array')
+                        .of.length(1)
+                        .with.deep.property('[0]')
+                            .that.has.property('name')
+                                .that.equals('Exception');
+            });
         });
 
         // TODO

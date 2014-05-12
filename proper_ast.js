@@ -118,8 +118,11 @@ VariableDeclNode.prototype._readDeclarations = function(firstName) {
 };
 
 
-function VarDef(prev, mods, type, name) {
+function VarDef(prev, mods, type, name, isInitable) {
     SimpleNode.call(this, prev);
+
+    if (isInitable === undefined)
+        isInitable = true;
 
     if (mods)
         this.start = mods.start;
@@ -136,7 +139,10 @@ function VarDef(prev, mods, type, name) {
 
     var tok = this.tok;
     if (tok.readEquals()) {
-        this._readInitializer();
+        if (isInitable)
+            this._readInitializer();
+        else
+            this.raise("no initialization");
     }
 
     this._end();
@@ -386,9 +392,12 @@ function Method(prev, mods, type, typeParams, name) {
 
     this.params = new FormalParameters(this);
 
-    if (this.tok.readString("throws")) {
-        // TODO throws decl
-        this.raiseUnsupported("throws decl");
+    var tok = this.tok;
+    if (tok.readString("throws")) {
+        this.throws = []; // lazy init
+        do {
+            this.throws.push(Type.read(this));
+        } while(tok.readComma());
     }
 
     this.body = Block.read(this);
@@ -460,8 +469,29 @@ function FormalParameters(prev) {
 
     this.tok.expectParenOpen();
 
-    while (!this.tok.readParenClose()) {
-        this.tok.raiseUnsupported('Method args decl');
+    this.kids = [];
+
+    var tok = this.tok;
+    while (!tok.readParenClose()) {
+
+        // simple way to capture final/Annotation
+        var mods = Modifiers.read(this);
+        var type = Type.read(this);
+
+        // let's go out of our way for flexible parsing
+        //  (allow incompleteness, if Tokenizer is non-strict)
+        if (type) {
+            var name = tok.readIdentifier();
+            if (name) {
+                this.kids.push(new VarDef(this, mods, type, name, false));
+            } else {
+                tok.raise("Name (for Params)");
+            }
+        } else {
+            tok.raise("Type (for Params)");
+        }
+
+        tok.readComma();
     }
 
     this._end();

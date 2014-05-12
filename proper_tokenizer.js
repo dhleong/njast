@@ -437,7 +437,7 @@ Tokenizer.prototype.raise = function(expecting) {
 
 /** Always throws an error; it's not clear how to skip past an unsupported feature  */
 Tokenizer.prototype.raiseUnsupported = function(feature) {
-    throw this._error('Encountered unsupported feature ' + feature, true);
+    throw this._error('Encountered unsupported feature "' + feature + '"', true);
 }
 
 Tokenizer.prototype._error = function(message, withPos) {
