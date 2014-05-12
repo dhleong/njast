@@ -10,7 +10,7 @@ public class FullAst
         implements FullInterface {
 
     /** Static, but not a block! */
-    static Imported field1;
+    /* default*/ static Imported field1;
 
 //     /** Initialized */
 //     Imported field2 = new Imported();

@@ -82,6 +82,94 @@ var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for',
 var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
 
 /**
+ * Comment state machine
+ */
+var COMMENT_NONE = 0;
+var COMMENT_LINE = 1;
+var COMMENT_BLOCK= 2;
+
+var Commentor = {
+    type: COMMENT_NONE,
+    start: -1,
+    value: '',
+    line: -1,
+
+    inComment: function() {
+        return this.type != COMMENT_NONE;
+    },
+
+    read: function(tok, off, token, nextToken) {
+
+        switch(token) {
+        case SLASH:
+            // oh no, comment?
+            if (this.inComment())
+                break; // already in one
+
+            if (nextToken == SLASH) {
+                // line comment
+                this._startComment(tok, COMMENT_LINE, off);
+                return 1;
+
+            } else if (nextToken == STAR) {
+                // BLOCK commment!!!
+                this._startComment(tok, COMMENT_BLOCK, off);
+                return 1;
+            }
+            break;
+
+        case STAR:
+            if (this.type == COMMENT_BLOCK && nextToken == SLASH) {
+                // END block comment!!!
+                this._endComment(tok, off + 2);
+                return 1;
+            }
+            break;
+        case NL:
+            if (this.type == COMMENT_LINE)
+                this._endComment(tok, off + 1);
+            break;
+        case CR:
+            if (this.type == COMMENT_LINE && nextToken == NL) {
+                this._endComment(tok, off + 2);
+            }
+            break;
+        }
+
+        return 0;
+    },
+
+    reset: function(tok) {
+        this.type = COMMENT_NONE;
+        this.start = tok._pos;
+        this.value = '';
+        this.pos;
+    },
+
+
+    _endComment: function(tok, off) {
+        this.type = COMMENT_NONE;
+
+        var start = this.start;
+        var length = off - start;
+        var end = start + length;
+        var read = tok._fp.toString("UTF-8", start, end);
+        this.value += read;
+
+        //console.log("Read comment ~", start, end, ":", read);
+    },
+
+    _startComment: function(tok, type, off) {
+        this.type = type;
+        this.start = off;
+        this.pos = tok.getPos();
+
+        //console.log("START comment @", this.line, ":", type, off);
+    }
+}
+
+
+/**
  * Tokenizer constructor
  */
 function Tokenizer(path, buffer) {
@@ -115,9 +203,13 @@ Tokenizer.prototype._skipBlank = function() {
             ? this._fp[off + 1]
             : -1;
 
-        // TODO comments
+        // comments
+        var skip = Commentor.read(this, off, token, nextToken);
+        off += skip;
+        this._col += skip; // I guess?
 
-        if (isToken(token)) {
+        // if we had a skip from Commentor, don't process this
+        if (!skip && !Commentor.inComment() && isToken(token)) {
             this._pos = off;
             return;
         }
@@ -125,13 +217,13 @@ Tokenizer.prototype._skipBlank = function() {
         if (token == NL) {
 
             this._line++;
-            this._col = 1;
+            this._col = 0; // ++ below fixes
 
         } else if (token == CR ) {
             if (nextToken != NL) { // \r\n to end a line
                 this._recordLine(off);
                 this._line++;      // just \r 
-                this._col = 1;
+                this._col = 0; // ++ below fixes
             } else {
                 off++; // \r\n... skip next
             }

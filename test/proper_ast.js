@@ -104,11 +104,11 @@ describe("Parse of", function() {
             });
 
             it("Has default static field1", function() {
-                fullast.should.have.property('kids')
+                fullast.body.should.have.property('kids')
                     .with.deep.property('[0]')
                         .that.has.property('name')
                             .that.equals('field1');
-                fullast.kids[0].should.have.property('type')
+                fullast.body.kids[0].should.have.property('type')
                     .that.has.property('name')
                         .that.equals('Imported');
             });

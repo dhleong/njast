@@ -310,6 +310,7 @@ ClassBody.prototype._readMember = function(mods) {
 function Field(prev, mods, type, typeParams, name) {
     SimpleNode.call(this, prev);
 
+    this.start = mods.start;
     this.mods = mods;
     this.type = type;
     this.typeParams = typeParams;
