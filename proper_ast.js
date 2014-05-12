@@ -267,11 +267,89 @@ ClassBody.prototype._readDeclaration = function() {
 
     // TODO
     var mods = Modifiers.read(this);
-    if (tok.peekBracketOpen()) {
-        mods.length; // FIXME
+    if (tok.peekBlockOpen()) {
+        var block = Block.read(this);
+        if (block)
+            return block;
     }
+
+    return this._readMember(mods);
 };
 
+ClassBody.prototype._readMember = function(mods) {
+    var tok = this.tok;
+
+    var typeParams = TypeParameters.read(this);
+    if (typeParams) {
+        // TODO generic method or constructor
+        tok.raiseUnsupported("generic method/constructor");
+    }
+
+    var type = Type.read(this);
+    if (!type) {
+        // TODO class/interface decl?
+        tok.raiseUnsupported("nested class/interface");
+    }
+
+    if (tok.peekParenOpen()) {
+        // TODO
+        tok.raiseUnsupported("constructor");
+    }
+
+    typeParams = TypeParameters.read(this);
+    var ident = tok.readIdentifier();
+
+    if (tok.peekParenOpen()) {
+        // TODO
+        tok.raiseUnsupported("method");
+    }
+
+    return new Field(this, mods, type, typeParams, ident);
+};
+
+function Field(prev, mods, type, typeParams, name) {
+    SimpleNode.call(this, prev);
+
+    this.mods = mods;
+    this.type = type;
+    this.typeParams = typeParams;
+    this.name = name;
+    this._qualify('#');
+
+    var tok = this.tok;
+    if (tok.readEquals()) {
+        // TODO
+        tok.raiseUnsupported("field initialization");
+    }
+
+    tok.expectSemicolon();
+
+    this._end();
+}
+util.inherits(Field, SimpleNode);
+
+function Block(prev) {
+    SimpleNode.call(this, prev);
+
+    this.kids = [];
+
+    var tok = this.tok;
+    this.expectBlockOpen();
+    while (!tok.readBlockClose()) {
+        // TODO block statement
+        tok.readIdentifier();
+    }
+
+    this._end();
+}
+util.inherits(Block, SimpleNode);
+
+Block.read = function(prev) {
+    if (!prev.tok.peekBlockOpen())
+        return;
+
+    return new Block(prev);
+}
 
 /**
  * Modifiers list
@@ -316,31 +394,33 @@ Modifiers.read = function(prev) {
  */
 var Type = {
     read: function(prev) {
-        var ident = prev.tok.readIdentifier();
-        if (Tokenizer.isPrimitive(ident))
-            return new BasicType(prev, ident);
+        var ident = prev.tok.peekIdentifier();
+        if ('void' == ident || Tokenizer.isPrimitive(ident))
+            return new BasicType(prev);
+        else if (Tokenizer.isReserved(ident))
+            return; // not a type
 
-        return new ReferenceType(prev, ident);
+        return new ReferenceType(prev);
     }
 }
 
-function BasicType(prev, ident) {
+function BasicType(prev) {
     SimpleNode.call(this, prev);
 
-    this.name = ident;
+    this.name = prev.tok.readIdentifier();
 
     this._end();
 }
 util.inherits(BasicType, SimpleNode);
 
-function ReferenceType(prev, ident) {
+function ReferenceType(prev) {
     SimpleNode.call(this, prev);
 
-    this.name = ident;
+    var tok = this.tok;
+    this.name = tok.readIdentifier();
     this.simpleName = this.name; // Simple name will drop all TypeArguments
 
     // TODO <TypeArgs> . etc.
-    var tok = this.tok;
     if (tok.readGenericOpen())
         tok.raiseUnsupported('type arguments');
     if (tok.readDot())

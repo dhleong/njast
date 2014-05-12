@@ -7,7 +7,8 @@ var fs = require('fs')
 
   , PATH = 'FullAst.java'
 
-  , buf, ast;
+  , buf, ast
+  , fullast;
 
 /* 
  * Trim the size of the stacktrace for easier viewing as we debug */
@@ -43,6 +44,10 @@ describe("Parse of", function() {
             parseFile(PATH, b, function(err, _ast) {
                 should.not.exist(err);
                 ast = _ast;
+
+                if (ast.toplevel) {
+                    fullast = ast.toplevel[0];
+                }
 
                 done();
             });
@@ -86,16 +91,26 @@ describe("Parse of", function() {
             it("Has TypeParameters");
 
             it("Extends FullBase", function() {
-                ast.toplevel[0].should.have.property('extends')
+                fullast.should.have.property('extends')
                     .with.property('name')
                         .that.equals('FullBase');
             });
 
             it("Implements FullInterface", function() {
-                ast.toplevel[0].should.have.property('implements')
+                fullast.should.have.property('implements')
                     .with.deep.property('[0]')
                         .that.has.property('name')
                             .that.equals('FullInterface');
+            });
+
+            it("Has default static field1", function() {
+                fullast.should.have.property('kids')
+                    .with.deep.property('[0]')
+                        .that.has.property('name')
+                            .that.equals('field1');
+                fullast.kids[0].should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('Imported');
             });
         });
 

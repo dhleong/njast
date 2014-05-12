@@ -77,8 +77,8 @@ var MATH = [
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
                  'volatile', 'transient', 'native', 'strictfp'];
-// var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
-//                 'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
+var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
+                'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
 var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
 
 /**
@@ -280,6 +280,20 @@ var _peekMethod = function(readType) {
     }
 };
 Tokenizer.prototype.peekIdentifier = _peekMethod('Identifier');
+Tokenizer.prototype.peekBlockOpen  = _peekMethod('BlockOpen');
+Tokenizer.prototype.peekBlockClose = _peekMethod('BlockClose');
+Tokenizer.prototype.peekAt         = _peekMethod('At'); // at symbol, for annotations
+Tokenizer.prototype.peekDot        = _peekMethod('Dot');
+Tokenizer.prototype.peekComma      = _peekMethod('Comma');
+Tokenizer.prototype.peekColon      = _peekMethod('Colon');
+Tokenizer.prototype.peekEquals     = _peekMethod('Equals');
+Tokenizer.prototype.peekSemicolon  = _peekMethod('Semicolon');
+Tokenizer.prototype.peekParenOpen  = _peekMethod('ParenOpen');
+Tokenizer.prototype.peekParenClose = _peekMethod('ParenClose');
+Tokenizer.prototype.peekQuote      = _peekMethod('Quote');
+Tokenizer.prototype.peekQuestion   = _peekMethod('Question');
+Tokenizer.prototype.peekBracketOpen  = _peekMethod('BracketOpen');
+Tokenizer.prototype.peekBracketClose = _peekMethod('BracketClose');
 
 Tokenizer.prototype.readQualified = function() {
     var ident = this.readIdentifier();
@@ -352,6 +366,12 @@ Tokenizer.prototype._error = function(message, withPos) {
  */
 
 /** Static method */
+Tokenizer.isControl = function(token) {
+    return CONTROLS.indexOf(token) >= 0; // binary search?
+}
+
+
+/** Static method */
 Tokenizer.isModifier = function(token) {
     return MODIFIERS.indexOf(token) >= 0;
 }
@@ -362,6 +382,14 @@ Tokenizer.isModifier = function(token) {
 Tokenizer.isPrimitive = function(type) {
     return PRIMITIVES.indexOf(type) >= 0;
 }
+
+/** Static method */
+Tokenizer.isReserved = function(word) {
+    return Tokenizer.isModifier(word)
+        || Tokenizer.isControl(word)
+        || ~PRIMITIVES.indexOf(word);
+};
+
 
 function isIdentifier(existing, charCode) {
     if (!charCode)
