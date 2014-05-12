@@ -104,14 +104,37 @@ describe("Parse of", function() {
             });
 
             it("Has default static field1", function() {
+                // this is super yuck, but we should do it for completeness
                 fullast.body.should.have.property('kids')
                     .with.deep.property('[0]')
-                        .that.has.property('name')
-                            .that.equals('field1');
+                        .that.has.property('kids')
+                            .that.is.an('array')
+                            .with.length(1)
+                            .and.has.deep.property('[0]')
+                            .that.has.property('name')
+                                .that.equals('field1');
                 fullast.body.kids[0].should.have.property('type')
                     .that.has.property('name')
                         .that.equals('Imported');
+
+                fullast.body.should.have.property('fields')
+                    .that.is.an('array')
+                        .with.deep.property('[0]')
+                            .that.has.property('name')
+                                .that.equals('field1');
             });
+
+            it("Has private int singleInt", function() {
+                var singleInt = fullast.body.fields[1];
+                singleInt.should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('int');
+                singleInt.should.have.property('name')
+                    .that.equals('singleInt');
+            });
+
+            // TODO requires parsing expressions
+            it("Has initialized field2");
         });
 
         // TODO

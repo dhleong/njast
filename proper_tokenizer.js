@@ -226,6 +226,7 @@ Tokenizer.prototype._skipBlank = function() {
                 this._col = 0; // ++ below fixes
             } else {
                 off++; // \r\n... skip next
+                this._col++;
             }
         }
 

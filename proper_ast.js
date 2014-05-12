@@ -91,6 +91,65 @@ SimpleNode.prototype._qualify = function(separator) {
 }
 
 /**
+ * The VariableDeclNode is a special type of
+ *  Node that can handle variable declaration. 
+ *  Implementors should handle 
+ */
+function VariableDeclNode(prev) {
+    SimpleNode.call(this, prev);
+
+    this.kids = [];
+}
+util.inherits(VariableDeclNode, SimpleNode);
+
+VariableDeclNode.prototype._readDeclarations = function(firstName) {
+    if (firstName) {
+        this.kids.push(new VarDef(this, this.mods, this.type, firstName));
+    }
+
+    var tok = this.tok;
+    while (tok.readComma()) {
+        var ident = tok.readIdentifier();
+        if (ident)
+            this.kids.push(new VarDef(this, this.mods, this.type, ident));
+    }
+
+    tok.expectSemicolon();
+};
+
+
+function VarDef(prev, mods, type, name) {
+    SimpleNode.call(this, prev);
+
+    if (mods)
+        this.start = mods.start;
+    else
+        this.start = type.start;
+    this.mods = mods;
+    this.type = type;
+    this.name = name;
+
+    // NB: Java grammar supports brackets
+    //  here for array types, but convention
+    //  discourages that and I don't want
+    //  to deal with the complications.
+
+    var tok = this.tok;
+    if (tok.readEquals()) {
+        this._readInitializer();
+    }
+
+    this._end();
+}
+util.inherits(VarDef, SimpleNode);
+
+VarDef.prototype._readInitializer = function() {
+    this.tok.raiseUnsupported("variable initializers");
+};
+
+
+
+/**
  * Root AST node of a java file
  */
 function CompilationUnit(ast, package) {
@@ -243,6 +302,8 @@ function ClassBody(prev) {
 
     // ALL child elements, in parse-order
     this.kids = [];
+
+    var addToFields = function(el) { this.fields.push(el); }.bind(this);
     
     // TODO statements
     var tok = this.tok;
@@ -254,6 +315,9 @@ function ClassBody(prev) {
         this.kids.push(el);
 
         // TODO push onto index by type
+        if (el instanceof FieldDecl) {
+            el.kids.forEach(addToFields);
+        }
     }
 
     this._end();
@@ -304,30 +368,38 @@ ClassBody.prototype._readMember = function(mods) {
         tok.raiseUnsupported("method");
     }
 
-    return new Field(this, mods, type, typeParams, ident);
+    return new FieldDecl(this, mods, type, typeParams, ident);
 };
 
-function Field(prev, mods, type, typeParams, name) {
-    SimpleNode.call(this, prev);
+function FieldDecl(prev, mods, type, typeParams, name) {
+    VariableDeclNode.call(this, prev);
 
-    this.start = mods.start;
+    if (mods)
+        this.start = mods.start;
     this.mods = mods;
     this.type = type;
     this.typeParams = typeParams;
-    this.name = name;
-    this._qualify('#');
+    // this.name = name;
+    // this._qualify('#');
 
-    var tok = this.tok;
-    if (tok.readEquals()) {
-        // TODO
-        tok.raiseUnsupported("field initialization");
-    }
+    // var tok = this.tok;
+    // if (tok.readEquals()) {
+    //     // TODO
+    //     tok.raiseUnsupported("field initialization");
+    // }
 
-    tok.expectSemicolon();
+    // tok.expectSemicolon();
+
+    this._readDeclarations(name);
+
+    this.kids.forEach(function(decl) {
+        decl._qualify('#');
+        decl.publish('field');
+    });
 
     this._end();
 }
-util.inherits(Field, SimpleNode);
+util.inherits(FieldDecl, VariableDeclNode);
 
 function Block(prev) {
     SimpleNode.call(this, prev);
@@ -420,12 +492,18 @@ function ReferenceType(prev) {
     var tok = this.tok;
     this.name = tok.readIdentifier();
     this.simpleName = this.name; // Simple name will drop all TypeArguments
+    this.array = 0; // dimensions of array; zero means not an array
 
     // TODO <TypeArgs> . etc.
     if (tok.readGenericOpen())
         tok.raiseUnsupported('type arguments');
     if (tok.readDot())
         tok.raiseUnsupported('Type.OtherType');
+
+    while (tok.readBracketOpen()) {
+        tok.expectBracketClosed();
+        this.array++;
+    }
 
     this._end();
 }
