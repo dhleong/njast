@@ -179,10 +179,52 @@ describe("Parse of", function() {
                                 .that.equals('Exception');
             });
 
-            it("Has local variable declarations in fluidMethod");
+            it("Has local variable declarations in fluidMethod", function() {
+                
+                var fluidMethod = fullast.body.methods[1];
+                should.exist(fluidMethod);
+                var statements = fluidMethod.body.kids;
+                should.exist(statements);
+
+                statements.should.be.an('array');
+                statements.should.have.deep.property('[0]')
+                    .that.has.property('kids')
+                        .that.is.an('array')
+                            .with.deep.property('[0]')
+                                .that.has.property('name')
+                                    .that.equals('local1');
+                var local1 = statements[0].kids[0];
+                local1.should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('int');
+
+                var groups = statements[1];
+                groups.should.have.property('kids')
+                    .that.is.an('array').of.length(2)
+                        .with.deep.property('[0]')
+                            .that.has.property('name')
+                                .that.equals('group1');
+            });
 
             // TODO
             it("Has local classes in fluidMethod");
+            it("Has a Label in fluidMethod");
+
+            describe("Control Flow", function() {
+                it("if");
+                it("assert");
+                it("switch");
+                it("while");
+                it("do");
+                it("for");
+                it("break");
+                it("continue");
+                it("return");
+                it("throw");
+                it("synchronized");
+                it("try");
+            });
+
         });
 
         // TODO

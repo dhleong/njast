@@ -447,6 +447,7 @@ function FieldDecl(prev, mods, type, typeParams, name) {
 }
 util.inherits(FieldDecl, VariableDeclNode);
 
+
 function Block(prev) {
     SimpleNode.call(this, prev);
 
@@ -487,17 +488,85 @@ var BlockStatement = {
         if (type) {
             var name = tok.readIdentifier();
             if (name && !Tokenizer.isReserved(name)) {
-                tok.raiseUnsupported("local variable decl");
+                // localvardefs can't have type params...?
+                return new LocalVarDefs(prev, mods, type, null, name);
             }
         }
 
         // wasn't a variable decl; start over
         tok.restore(state);
 
-        tok.raiseUnsupported("other block statements");
+        // must be some sort of statement
+        return Statement.read(prev);
     }
 }
 
+function LocalVarDefs(prev, mods, type, typeParams, name) {
+    VariableDeclNode.call(this, prev);
+
+    if (mods)
+        this.start = mods.start;
+    this.mods = mods;
+    this.type = type;
+    this.typeParams = typeParams;
+
+    this._readDeclarations(name);
+
+    this.kids.forEach(function(decl) {
+        decl.publish('vardef');
+    });
+
+    this._end();
+}
+util.inherits(LocalVarDefs, VariableDeclNode);
+
+
+/**
+ * Statement factory
+ */
+var Statement = {
+    read: function(prev) {
+        var tok = prev.tok;
+
+        // it can be just a semicolon
+        while (tok.readSemicolon())
+            continue;
+
+        var block = Block.read(prev);
+        if (block)
+            return block;
+
+        var state = tok.save();
+        var ident = tok.readIdentifier();
+
+        if (tok.readColon()) {
+            prev.tok.raiseUnsupported("labels");
+        }
+
+        tok.restore(state);
+        if (Tokenizer.isReserved(ident))
+            return Statement._readControl(prev);
+
+        var expr = Expression.read(prev);
+        if (expr)
+            tok.expectSemicolon();
+        return expr;
+    },
+
+    _readControl: function(prev) {
+        prev.tok.raiseUnsupported("control statements: " 
+            + prev.tok.peekIdentifier());
+    }
+};
+
+/**
+ * Expression factory
+ */
+var Expression = {
+    read: function(prev) {
+        prev.tok.raiseUnsupported("expressions");
+    }
+}
 
 /**
  * Params decl for methods
