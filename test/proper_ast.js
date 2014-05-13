@@ -210,7 +210,13 @@ describe("Parse of", function() {
             it("Has local classes in fluidMethod");
             it("Has a Label in fluidMethod");
 
-            describe("Control Flow", function() {
+            describe("Expressions:", function() {
+                it("Simple assignment");
+                it("Literal assignment");
+                it("Chain assignment");
+            });
+
+            describe("Control Flow:", function() {
                 it("if");
                 it("assert");
                 it("switch");
@@ -224,7 +230,6 @@ describe("Parse of", function() {
                 it("synchronized");
                 it("try");
             });
-
         });
 
         // TODO

@@ -562,10 +562,48 @@ var Statement = {
 /**
  * Expression factory
  */
-var Expression = {
-    read: function(prev) {
-        prev.tok.raiseUnsupported("expressions");
-    }
+function Expression(prev, expr1, op) {
+    SimpleNode.call(prev);
+
+    this.start = expr1.start;
+
+    this.left = expr1;
+    this.chain = [];
+
+    var right = Expression._expression1(this);
+    if (!right)
+        this.tok.raise("Incomplete assignment");
+
+    do {
+        this.chain.push([op, right]);
+
+        op = prev.tok.readAssignment();
+        right = null;
+        if (op) 
+            right = Expression._expression1(this);
+
+        if (!right)
+            this.tok.raise("Incomplete assignment");
+    } while (op && right);
+
+    this._end();
+}
+util.inherits(Expression, SimpleNode);
+
+Expression.read = function(prev) {
+    prev.tok.raiseUnsupported("expressions");
+    var expr1 = Expression._expression1(prev);
+    var op = prev.tok.readAssignment();
+    if (!op)
+        return expr1; // just expr1
+
+    return new Expression(prev, expr1, op);
+};
+
+/** Expression1 factory */
+Expression._expression1 = function(prev) {
+    // TODO
+    prev.tok.raiseUnsupported("expression1");
 }
 
 /**

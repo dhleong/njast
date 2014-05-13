@@ -5,7 +5,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()[]=+-|&;:@\"?\\ ",
+    _val: "\r\n/*09azAZ_$.,{}<>()[]=+-|&^%;:@\"?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -40,6 +40,8 @@ var PLUS = VALS.next();
 var MINUS = VALS.next();
 var OR = VALS.next();
 var AND = VALS.next();
+var XOR = VALS.next();
+var MODULO = VALS.next();
 var SEMICOLON = VALS.next();
 var COLON = VALS.next();
 var AT = VALS.next();
@@ -74,6 +76,22 @@ var MATH = [
     OR, AND,
     GENERIC_OPEN, GENERIC_CLOSE
 ]
+
+// build up state machine
+var ASSIGNMENT = {};
+[PLUS, MINUS, STAR, SLASH, AND, OR, XOR, MODULO].forEach(function(simpleAssign) {
+    ASSIGNMENT[simpleAssign] = {};
+    ASSIGNMENT[simpleAssign][EQUALS] = true;
+});
+ASSIGNMENT[EQUALS] = true;
+ASSIGNMENT[GENERIC_OPEN] = {};
+ASSIGNMENT[GENERIC_OPEN][GENERIC_OPEN] = {};
+ASSIGNMENT[GENERIC_OPEN][GENERIC_OPEN][EQUALS] = true;
+ASSIGNMENT[GENERIC_CLOSE] = {};
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE] = {};
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE] = {};
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
                  'volatile', 'transient', 'native', 'strictfp'];
@@ -362,6 +380,28 @@ Tokenizer.prototype.readIdentifier = function() {
 
     return ident.length ? ident : undefined;
 };
+
+Tokenizer.prototype.readAssignment = function() {
+    var state = this._prepare();
+
+    var strBuffer = '';
+    var src = ASSIGNMENT;
+    for (;;) {
+        var token = this.read();
+        if (!(token in src)) {
+            this.restore(state);
+            return;
+        }
+
+        strBuffer += String.fromCharCode(token);
+        if (src[token] === true)
+            return strBuffer; // done!
+
+        // advance in the state machine
+        src = src[token];
+    }
+};
+
 
 var _peekMethod = function(readType) {
     var method = Tokenizer.prototype['read' + readType];
