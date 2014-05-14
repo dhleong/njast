@@ -336,6 +336,7 @@ describe("Parse of", function() {
                 // TODO
                 it("Chain assignment");
                 it("Assignment with infix op");
+                it("Assignment with Creator");
             });
 
             describe("Control Flow:", function() {
