@@ -160,8 +160,14 @@ function VarDef(prev, mods, type, name, isInitable) {
 }
 util.inherits(VarDef, SimpleNode);
 
+// IE: VariableInitializer
 VarDef.prototype._readInitializer = function() {
-    this.tok.raiseUnsupported("variable initializers");
+    var tok = this.tok;
+    if (tok.peekBlockOpen())
+        // TODO
+        tok.raiseUnsupported("ArrayInitializer");
+
+    this.initializer = Expression.read(this);
 };
 
 

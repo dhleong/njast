@@ -14,6 +14,7 @@ var fs = require('fs')
 
 chai.use(function(_chai, utils) {
     /** 
+     * For use on expressions, but can also be used on VarDefs
      * @param left Mixed; if object, key:value property assertions on the
      *          left side; if string, the `name` of var on left
      * @param type (optional, default:'=') Type of assignment
@@ -38,10 +39,38 @@ chai.use(function(_chai, utils) {
         if (!def.right)
             throw Error("You must provide `right` argument to assignment()");
 
-        var left = obj.left;
+        if (~obj.constructor.name.indexOf('VarDef')) {
+            var varDef = obj;
+            if (obj.kids) {
+                // LocalVarDef, or perhaps FieldDecl
+                varDef = obj.kids[0];
+            }
+
+            Object.keys(def.left).forEach(function(prop) {
+                if (prop != 'type' || typeof(varDef.type) == 'string') {
+                    new chai.Assertion(varDef).to.have.property(prop)
+                        .that.equals(def.left[prop]);
+                } else {
+                    new chai.Assertion(varDef).to.have.property(prop)
+                        .with.property('name')
+                            .that.equals(def.left[prop]);
+                }
+            });
+
+            new chai.Assertion(def.type).to.equal('=');
+
+            Object.keys(def.right).forEach(function(prop) {
+                new chai.Assertion(varDef).to.have.property('initializer')
+                    .with.property(prop)
+                        .that.equals(def.right[prop]);
+            });
+            return;
+        }
+
         Object.keys(def.left).forEach(function(prop) {
-            new chai.Assertion(left).to.have.property(prop)
-                .that.equals(def.left[prop]);
+            new chai.Assertion(obj).to.have.property('left')
+                .with.property(prop)
+                    .that.equals(def.left[prop]);
         });
 
         new chai.Assertion(obj).to.have.property('chain')
@@ -288,12 +317,16 @@ describe("Parse of", function() {
                         type: '+=',
                         value: '42'
                     });
+                });
 
+                it("Literal assignment in VarDef", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
                     var string = states[4];
                     should.exist(string);
                     string.should.be.assignment({
                         left: {
-                            // type: 'String',
+                            type: 'String',
                             name: 'myString'
                         },
                         value: 'literal'
