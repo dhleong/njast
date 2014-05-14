@@ -287,6 +287,9 @@ Tokenizer.prototype.read = function() {
     return read;
 }
 
+// lazy
+Tokenizer.prototype.peek = Tokenizer.prototype._peekChar;
+
 Tokenizer.prototype.readString = function(expected) {
     var state = this._prepare();
 
@@ -427,6 +430,8 @@ Tokenizer.prototype.peekQuote      = _peekMethod('Quote');
 Tokenizer.prototype.peekQuestion   = _peekMethod('Question');
 Tokenizer.prototype.peekBracketOpen  = _peekMethod('BracketOpen');
 Tokenizer.prototype.peekBracketClose = _peekMethod('BracketClose');
+Tokenizer.prototype.peekGenericOpen  = _peekMethod('GenericOpen');
+Tokenizer.prototype.peekGenericClose = _peekMethod('GenericClose');
 
 Tokenizer.prototype.readQualified = function() {
     var ident = this.readIdentifier();

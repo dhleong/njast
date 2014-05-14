@@ -211,9 +211,33 @@ describe("Parse of", function() {
             it("Has a Label in fluidMethod");
 
             describe("Expressions:", function() {
-                it("Simple assignment");
+                it("Simple assignment", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var assign = states[2];
+
+                    should.exist(assign);
+
+                    assign.should.have.property('left')
+                        .with.property('name')
+                            .that.equals('local1');
+
+                    assign.should.have.property('chain')
+                        .that.is.an('array').of.length(1)
+                            .with.deep.property('[0]')
+                                .that.is.an('array').of.length(2)
+                                    .with.deep.property('[0]')
+                                        .that.equals('=');
+                            
+                    var right = assign.chain[0][1];
+                    right.should.have.property('name')
+                        .that.equals('arg2');
+                });
+
+                // TODO
                 it("Literal assignment");
                 it("Chain assignment");
+                it("Assignment with infix op");
             });
 
             describe("Control Flow:", function() {

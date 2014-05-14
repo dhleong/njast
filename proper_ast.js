@@ -326,7 +326,7 @@ function ClassBody(prev) {
 
     var addToFields = function(el) { this.fields.push(el); }.bind(this);
     
-    // TODO statements
+    // read statements
     var tok = this.tok;
     tok.expectBlockOpen();
     while (!tok.readBlockClose()) {
@@ -335,11 +335,16 @@ function ClassBody(prev) {
 
         this.kids.push(el);
 
-        // TODO push onto index by type
+        // push onto index by type
         if (el instanceof FieldDecl) {
             el.kids.forEach(addToFields);
         } else if (el instanceof Method) {
             this.methods.push(el);
+        } else if (el instanceof Class
+                || el instanceof Interface) {
+            this.subclasses.push(el);
+        } else if (el instanceof Block) {
+            this.blocks.push(el);
         }
     }
 
@@ -563,7 +568,7 @@ var Statement = {
  * Expression factory
  */
 function Expression(prev, expr1, op) {
-    SimpleNode.call(prev);
+    SimpleNode.call(this, prev);
 
     this.start = expr1.start;
 
@@ -571,19 +576,16 @@ function Expression(prev, expr1, op) {
     this.chain = [];
 
     var right = Expression._expression1(this);
-    if (!right)
-        this.tok.raise("Incomplete assignment");
-
     do {
+        if (!right)
+            this.tok.raise("Incomplete assignment");
+
         this.chain.push([op, right]);
 
         op = prev.tok.readAssignment();
         right = null;
         if (op) 
             right = Expression._expression1(this);
-
-        if (!right)
-            this.tok.raise("Incomplete assignment");
     } while (op && right);
 
     this._end();
@@ -591,7 +593,6 @@ function Expression(prev, expr1, op) {
 util.inherits(Expression, SimpleNode);
 
 Expression.read = function(prev) {
-    prev.tok.raiseUnsupported("expressions");
     var expr1 = Expression._expression1(prev);
     var op = prev.tok.readAssignment();
     if (!op)
@@ -602,9 +603,190 @@ Expression.read = function(prev) {
 
 /** Expression1 factory */
 Expression._expression1 = function(prev) {
-    // TODO
-    prev.tok.raiseUnsupported("expression1");
+    var expr2 = Expression._expression2(prev);
+    if (!expr2)
+        return;
+
+    if (prev.tok.readQuestion()) {
+        return new TernaryExpression(prev, expr2);
+    }
+
+    return expr2;
 }
+
+/** Expression2 factory */
+Expression._expression2 = function(prev) {
+    var expr3 = Expression._expression3(prev);
+    if (!expr3)
+        return;
+
+    if (prev.tok.readString("instanceof"))
+        prev.tok.raiseUnsupported("instanceof expressions");
+
+    // FIXME infix op
+    
+    return expr3;
+}
+
+/** Expression3 factory */
+Expression._expression3 = function(prev) {
+
+    // FIXME prefix op
+
+    if (prev.tok.peekParenOpen()) {
+        prev.tok.raiseUnsupported("Cast expressions");
+    }
+
+    // prev.tok.raiseUnsupported("expression3");
+    var primary = Primary.read(prev);
+
+    // TODO selectors
+    // TODO postfix
+
+    return primary;
+}
+
+
+function TernaryExpression(prev, question) {
+    SimpleNode.call(this, prev);
+
+    this.start = question.start;
+    this.question = question;
+
+    // the spec says Expression.read, but
+    //  that doesn't make sense... you can't
+    //  do an assignment *only* in the "true" branch
+    this.ifTrue = Expression._expression1(this);
+    prev.tok.expectColon();
+    this.ifFalse = Expression._expression1(this);
+
+    this._end();
+}
+util.inherits(TernaryExpression, SimpleNode);
+
+function Primary(prev) {
+    SimpleNode.call(this, prev);
+
+    this._end();
+}
+util.inherits(Primary, SimpleNode);
+
+Primary.read = function(prev) {
+    var tok = prev.tok;
+
+    if (tok.readParenOpen()) {
+        // paren expression
+        var expr = Expression.read(prev);
+        tok.expectParenClose();
+        return expr;
+    }
+
+    if (tok.peekGenericOpen()) {
+        // TODO
+        tok.raiseUnsupported("NonWildcardTypeArguments");
+    }
+
+    var literal = Literal.read(prev);
+    if (literal)
+        return literal;
+
+    var state = tok.save();
+    var ident = tok.readIdentifier();
+    switch (ident) {
+    case "new":
+        // TODO
+        // return new Creator(prev);
+        tok.raiseUnsupported("Creator");
+        break;
+
+    default:
+        tok.restore(state);
+        return new IdentifierExpression(prev);
+    }
+}
+
+
+/** Factory for literals */
+var Literal = {
+    _Value: function(prev, value) {
+        SimpleNode.call(this, prev);
+
+        this.value = value;
+    },
+    
+    read: function(prev) {
+        
+        var tok = prev.tok;
+        var peeked = tok.peek();
+
+        var lit;
+        switch (peeked) {
+        case '"':
+        case '\'':
+            lit = StringLiteral.read(prev);
+            if (!lit)
+                tok.raise("String literal");
+            return lit;
+        case 'f':
+            tok.expectString("false");
+            return new Literal._Value(prev, false);
+        case 'n':
+            tok.expectString("null");
+            return new Literal._Value(prev, null);
+        case 't':
+            tok.expectString("true");
+            return new Literal._Value(prev, true);
+        }
+
+        return NumberLiteral.read(prev);
+    }
+};
+util.inherits(Literal._Value, SimpleNode);
+
+function StringLiteral(prev) {
+    SimpleNode.call(this, prev);
+
+    // FIXME
+
+    this._end();
+}
+util.inherits(StringLiteral, SimpleNode);
+
+StringLiteral.read = function(prev) {
+    // TODO
+    prev.tok.raiseUnsupported("String literals");
+}
+
+
+function NumberLiteral(prev) {
+    SimpleNode.call(this, prev);
+
+    // FIXME
+
+    this._end();
+}
+util.inherits(NumberLiteral, SimpleNode);
+
+NumberLiteral.read = function(/* prev */) {
+    // FIXME read number literal, if possible
+    return;
+}
+
+
+/**
+ * Wraps an identifier ref
+ */
+function IdentifierExpression(prev) {
+    SimpleNode.call(this, prev);
+
+    this.name = prev.tok.readQualified();
+
+    // FIXME IdentifierSuffix
+
+    this._end();
+}
+util.inherits(IdentifierExpression, SimpleNode);
+
 
 /**
  * Params decl for methods

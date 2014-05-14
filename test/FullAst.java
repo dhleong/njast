@@ -27,7 +27,8 @@ public class FullAst
     FullAst fluidMethod(int arg1, final int arg2) throws Exception { 
         int local1;
         int group1, group2;
-        // TODO body
+
+        local1 = arg2;
     }
 }
 
