@@ -45,3 +45,53 @@ describe("readAssignment", function() {
         tokify('>>>=').readAssignment().should.equal('>>>=');
     });
 });
+
+describe("readDigit", function() {
+
+    describe("(2)", function() {
+        it("accepts 0-1", function() {
+            tokify("0").readDigit(2).should.equal("0");
+            tokify("1").readDigit(2).should.equal("1");
+        });
+
+        it("rejects 2, a", function() {
+            should.not.exist(tokify("2").readDigit(2));
+            should.not.exist(tokify("a").readDigit(2));
+        });
+    });
+
+    describe("(10)", function() {
+        it("accepts 0-9", function() {
+            for (var i=0; i < 10; i++) {
+                var string = '' + i;
+                tokify(string).readDigit(10).should.equal(string);
+            }
+        });
+
+        it("rejects x, a, f", function() {
+            should.not.exist(tokify("x").readDigit(10));
+            should.not.exist(tokify("a").readDigit(10));
+            should.not.exist(tokify("f").readDigit(10));
+        });
+    });
+
+    describe("(16)", function() {
+        it("accepts 0-f", function() {
+            for (var i=0; i < 10; i++) {
+                var string = '' + i;
+                tokify(string).readDigit(16).should.equal(string);
+            }
+
+            tokify("a").readDigit(16).should.equal("a");
+            tokify("b").readDigit(16).should.equal("b");
+            tokify("c").readDigit(16).should.equal("c");
+            tokify("d").readDigit(16).should.equal("d");
+            tokify("e").readDigit(16).should.equal("e");
+            tokify("f").readDigit(16).should.equal("f");
+        });
+
+        it("rejects x", function() {
+            should.not.exist(tokify("x").readDigit(16));
+        });
+    });
+});

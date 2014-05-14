@@ -29,6 +29,7 @@ public class FullAst
         int group1, group2;
 
         local1 = arg2;
+        arg1 += 42;
     }
 }
 

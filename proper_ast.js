@@ -758,20 +758,101 @@ StringLiteral.read = function(prev) {
 }
 
 
-function NumberLiteral(prev) {
+function NumberLiteral(prev, state, value, type) {
     SimpleNode.call(this, prev);
 
-    // FIXME
+    this.start = {
+        line: state.line,
+        ch: state.col
+    };
+
+    this.value = value;
+    this.type = type;
 
     this._end();
 }
 util.inherits(NumberLiteral, SimpleNode);
 
-NumberLiteral.read = function(/* prev */) {
-    // FIXME read number literal, if possible
-    return;
+NumberLiteral.read = function(prev) {
+    var tok = prev.tok;
+    var state = tok.save();
+
+    if (tok.readDot()) {
+        // special case
+        return NumberLiteral._readFloaty(prev, state, '.');
+    }
+
+    var buf;
+    var digit = tok.readDigit(10);
+    if (digit === undefined)
+        return; // not a number
+
+    if (digit == '0' && tok.readString('x')) {
+        // hex number
+        buf = '0x' + NumberLiteral._readNumber(tok, 16);
+        return NumberLiteral._newInty(prev, state, buf);
+    } else if (digit == '0' && tok.readString('b')) {
+        // binary number
+        buf = '0b' + NumberLiteral._readNumber(tok, 2);
+        return NumberLiteral._newInty(prev, state, buf);
+    }
+
+    buf = digit;
+    buf += NumberLiteral._readNumber(tok, 10);
+
+    if (tok.readDot()) {
+        buf += '.';
+        return NumberLiteral._readFloaty(prev, state, buf);
+    }
+
+    // just an int
+    return NumberLiteral._newInty(prev, state, buf);
 }
 
+NumberLiteral._newInty = function(prev, state, buf) {
+    var type = 'int';
+    var tok = prev.tok;
+    if (tok.readString('L') || tok.readString('l')) {
+        buf += 'L';
+        type = 'long'
+    }
+
+    return new NumberLiteral(prev, state, buf, type);
+}
+
+NumberLiteral._readNumber = function(tok, radix) {
+
+    var buffer = '';
+    var read;
+    while ((read = tok.readDigit(radix)) !== undefined
+            || tok.readUnderline()) {
+        if (read !== undefined)
+            buffer += read;
+    }
+
+    return buffer;
+};
+
+NumberLiteral._readFloaty = function(prev, state, buffer) {
+    if (buffer === undefined)
+        buffer = '';
+
+    var tok = prev.tok;
+    buffer += NumberLiteral._readNumber(tok, 10);
+
+    var type = 'double';
+    if (tok.readString('e')) {
+        // scientific notation
+        buffer += 'e' + NumberLiteral._readNumber(tok, 10);
+    } else {
+        // normal
+        var next = String.fromCharCode(tok.peek());
+        if (next == 'f' || next == 'F')
+            type = 'float';
+    }
+
+    return new NumberLiteral(prev, state, buffer, type);
+};
 
 /**
  * Wraps an identifier ref

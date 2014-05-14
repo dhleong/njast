@@ -234,8 +234,31 @@ describe("Parse of", function() {
                         .that.equals('arg2');
                 });
 
+                it("Literal assignment", function() {
+                    
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var assign = states[3];
+
+                    should.exist(assign);
+
+                    assign.should.have.property('left')
+                        .with.property('name')
+                            .that.equals('arg1');
+
+                    assign.should.have.property('chain')
+                        .that.is.an('array').of.length(1)
+                            .with.deep.property('[0]')
+                                .that.is.an('array').of.length(2)
+                                    .with.deep.property('[0]')
+                                        .that.equals('+=');
+                            
+                    var right = assign.chain[0][1];
+                    right.should.have.property('value')
+                        .that.equals('42');
+                });
+
                 // TODO
-                it("Literal assignment");
                 it("Chain assignment");
                 it("Assignment with infix op");
             });

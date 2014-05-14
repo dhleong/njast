@@ -5,7 +5,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()[]=+-|&^%;:@\"?\\ ",
+    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&^%;:@\"?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -27,6 +27,7 @@ var OTHER_NAME_CHARS = [
 ];
 var DOT = VALS.next();
 var COMMA = VALS.next();
+var UNDERLINE = VALS.next();
 var BLOCK_OPEN = VALS.next();
 var BLOCK_CLOSE = VALS.next();
 var GENERIC_OPEN = VALS.next();
@@ -92,6 +93,16 @@ ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE] = {};
 ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
 ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE] = {};
 ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
+
+var DIGIT_CODE_TO_VALUE = {};
+var DIGITS = '0123456789abcdef';
+for (var i=0; i < DIGITS.length; i++) {
+    DIGIT_CODE_TO_VALUE[DIGITS.charCodeAt(i)] = i;
+
+    // upper case hex
+    if (i >= 10)
+        DIGIT_CODE_TO_VALUE[DIGITS.charAt(i).toUpperCase().charCodeAt(0)] = i;
+}
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
                  'volatile', 'transient', 'native', 'strictfp'];
@@ -290,6 +301,24 @@ Tokenizer.prototype.read = function() {
 // lazy
 Tokenizer.prototype.peek = Tokenizer.prototype._peekChar;
 
+/** 
+ * Returns the string value of the digit (eg: a-f for hex 10-15),
+ *  else undefined if not a number, or not valid for the radix
+ */
+Tokenizer.prototype.readDigit = function(radix) {
+    if (!radix) radix = 10;
+
+    var next = this.peek();
+    if (!(next in DIGIT_CODE_TO_VALUE))
+        return undefined;
+
+    if (DIGIT_CODE_TO_VALUE[next] >= radix)
+        return undefined;
+
+    return String.fromCharCode(this.read());
+};
+
+
 Tokenizer.prototype.readString = function(expected) {
     var state = this._prepare();
 
@@ -323,6 +352,7 @@ Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
 Tokenizer.prototype.readAt         = _doRead(AT); // at symbol, for annotations
 Tokenizer.prototype.readDot        = _doRead(DOT);
 Tokenizer.prototype.readComma      = _doRead(COMMA);
+Tokenizer.prototype.readUnderline  = _doRead(UNDERLINE);
 Tokenizer.prototype.readColon      = _doRead(COLON);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
