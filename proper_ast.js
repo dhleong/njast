@@ -717,12 +717,12 @@ var Literal = {
     read: function(prev) {
         
         var tok = prev.tok;
-        var peeked = tok.peek();
+        var peeked = String.fromCharCode(tok.peek());
 
         var lit;
         switch (peeked) {
         case '"':
-        case '\'':
+        case "'":
             lit = StringLiteral.read(prev);
             if (!lit)
                 tok.raise("String literal");
@@ -743,18 +743,57 @@ var Literal = {
 };
 util.inherits(Literal._Value, SimpleNode);
 
-function StringLiteral(prev) {
+
+/**
+ * Actually hosts both String and char literals
+ */
+function StringLiteral(prev, state, value, type) {
     SimpleNode.call(this, prev);
 
-    // FIXME
+    this.start = {
+        line: state.line,
+        ch: state.col
+    };
+
+    this.value = value;
+    this.type = type;
 
     this._end();
 }
 util.inherits(StringLiteral, SimpleNode);
 
 StringLiteral.read = function(prev) {
-    // TODO
-    prev.tok.raiseUnsupported("String literals");
+    var tok = prev.tok;
+    var state = tok.save();
+    var target;
+    if (tok.readQuote())
+        target = '"';
+    else if (tok.readApostrophe())
+        target = "'";
+    else
+        return;
+    
+    // read in the string
+    var buffer = '';
+    var last = null;
+    var next;
+    for (;;) {
+        next = String.fromCharCode(tok.read());
+        if (last != '\\' && next == target)
+            break;
+
+        buffer += next;
+        last = next;
+    }
+
+    // special case
+    if (target == "'") {
+        if (buffer.length > 1)
+            tok.raise("char literal should be only 1");
+        return new StringLiteral(prev, state, buffer, 'char');
+    }
+
+    return new StringLiteral(prev, state, buffer, 'String');
 }
 
 

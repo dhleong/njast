@@ -2,13 +2,62 @@
 //--reporter nyan
 
 var fs = require('fs')
-  , should = require('chai').should()
+  , chai = require('chai')
+  , should = chai.should()
   , parseFile = require('../proper_ast').parseFile
 
   , PATH = 'FullAst.java'
 
   , buf, ast
   , fullast;
+
+
+chai.use(function(_chai, utils) {
+    /** 
+     * @param left Mixed; if object, key:value property assertions on the
+     *          left side; if string, the `name` of var on left
+     * @param type (optional, default:'=') Type of assignment
+     * @param right Object of key:value property assertions on the right side
+     * @param value (optional) If provided, shortcut to {right: {value: <value>}}
+     *
+     * ex: should.be.assignment({left: 'varName', type: '=', value: 42}) 
+     */
+    utils.addMethod(chai.Assertion.prototype, 'assignment', function(def) {
+        var obj = utils.flag(this, 'object');
+
+        if (def.value)
+            def.right = {value: def.value};
+        if (!def.type)
+            def.type = '=';
+            
+        if (!def.left)
+            throw Error("You must provide `left` argument to assignment()");
+        if (utils.type(def.left) === 'string')
+            def.left = {name: def.left};
+
+        if (!def.right)
+            throw Error("You must provide `right` argument to assignment()");
+
+        var left = obj.left;
+        Object.keys(def.left).forEach(function(prop) {
+            new chai.Assertion(left).to.have.property(prop)
+                .that.equals(def.left[prop]);
+        });
+
+        new chai.Assertion(obj).to.have.property('chain')
+            .that.is.an('array').of.length(1)
+                .with.deep.property('[0]')
+                    .that.is.an('array').of.length(2)
+                        .with.deep.property('[0]')
+                            .that.equals(def.type);
+                            
+        var right = obj.chain[0][1];
+        Object.keys(def.right).forEach(function(prop) {
+            new chai.Assertion(right).to.have.property(prop)
+                .that.equals(def.right[prop]);
+        });
+    });
+});
 
 /* 
  * Trim the size of the stacktrace for easier viewing as we debug */
@@ -218,20 +267,12 @@ describe("Parse of", function() {
 
                     should.exist(assign);
 
-                    assign.should.have.property('left')
-                        .with.property('name')
-                            .that.equals('local1');
-
-                    assign.should.have.property('chain')
-                        .that.is.an('array').of.length(1)
-                            .with.deep.property('[0]')
-                                .that.is.an('array').of.length(2)
-                                    .with.deep.property('[0]')
-                                        .that.equals('=');
-                            
-                    var right = assign.chain[0][1];
-                    right.should.have.property('name')
-                        .that.equals('arg2');
+                    assign.should.be.assignment({
+                        left: 'local1'
+                      , right: {
+                            name: 'arg2'
+                        }
+                    });
                 });
 
                 it("Literal assignment", function() {
@@ -242,20 +283,21 @@ describe("Parse of", function() {
 
                     should.exist(assign);
 
-                    assign.should.have.property('left')
-                        .with.property('name')
-                            .that.equals('arg1');
+                    assign.should.be.assignment({
+                        left: 'arg1',
+                        type: '+=',
+                        value: '42'
+                    });
 
-                    assign.should.have.property('chain')
-                        .that.is.an('array').of.length(1)
-                            .with.deep.property('[0]')
-                                .that.is.an('array').of.length(2)
-                                    .with.deep.property('[0]')
-                                        .that.equals('+=');
-                            
-                    var right = assign.chain[0][1];
-                    right.should.have.property('value')
-                        .that.equals('42');
+                    var string = states[4];
+                    should.exist(string);
+                    string.should.be.assignment({
+                        left: {
+                            // type: 'String',
+                            name: 'myString'
+                        },
+                        value: 'literal'
+                    });
                 });
 
                 // TODO

@@ -30,6 +30,9 @@ public class FullAst
 
         local1 = arg2;
         arg1 += 42;
+
+        myString = "literal";
+        myChar = 'a';
     }
 }
 

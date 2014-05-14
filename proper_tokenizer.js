@@ -5,7 +5,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&^%;:@\"?\\ ",
+    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&^%;:@\"'?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -47,6 +47,7 @@ var SEMICOLON = VALS.next();
 var COLON = VALS.next();
 var AT = VALS.next();
 var QUOTE = VALS.next();
+var APOSTROPHE = VALS.next();
 var QUESTION = VALS.next();
 
 // var ESCAPE = VALS.next();
@@ -65,6 +66,7 @@ var OTHER_TOKENS = [
     COLON,
     AT,
     QUOTE,
+    APOSTROPHE,
     QUESTION,
 
     BRACKET_OPEN,
@@ -361,6 +363,7 @@ Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
 Tokenizer.prototype.readPlus       = _doRead(PLUS);
 Tokenizer.prototype.readStar       = _doRead(STAR);
 Tokenizer.prototype.readQuote      = _doRead(QUOTE);
+Tokenizer.prototype.readApostrophe = _doRead(APOSTROPHE);
 Tokenizer.prototype.readQuestion   = _doRead(QUESTION);
 Tokenizer.prototype.readBracketOpen  = _doRead(BRACKET_OPEN);
 Tokenizer.prototype.readBracketClose = _doRead(BRACKET_CLOSE);
