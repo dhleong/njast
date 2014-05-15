@@ -21,6 +21,14 @@ public class FullAst
     // /** Initialized */
     Imported field2 = new Imported();
 
+    static {
+        field1 = new Imported();
+    }
+
+    {
+        singleInt = 42;
+    }
+
     /** simple method that needs nothing and does nothing */
     void simpleMethod() { /* nop */ }
 

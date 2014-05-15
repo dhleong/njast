@@ -81,10 +81,17 @@ chai.use(function(_chai, utils) {
                             .that.equals(def.type);
                             
         var right = obj.chain[0][1];
+        right._prev = right._root = right._tok = null;
         Object.keys(def.right).forEach(function(prop) {
-            new chai.Assertion(right).to.have.property(prop)
+            new chai.Assertion(right).to.have.deep.property(prop)
                 .that.equals(def.right[prop]);
         });
+    });
+
+    // allow `.is.an('array').that.contains(...)`
+    utils.addMethod(chai.Assertion.prototype, 'contains', function(item) {
+        var obj = utils.flag(this, 'object');
+        new chai.Assertion(obj).to.contain(item);
     });
 });
 
@@ -147,7 +154,7 @@ describe("Parse of", function() {
             ast.should.have.property('_root')
                 .with.property('imports')
                 .that.is.an('array')
-                .and.to.contain({  // doesn't have "contains" :(
+                .that.contains({
                     static: false, 
                     star: false,
                     path: 'net.dhleong.njast.subpackage.Imported'
@@ -227,9 +234,32 @@ describe("Parse of", function() {
                 });
             });
 
-            // TODO 
-            it("Has static block");
-            it("Has normal block");
+            it("Has static block", function() {
+                fullast.body.should.have.property('blocks')
+                    .that.is.an('array')
+                        .with.deep.property('[0].mods.kids')
+                            .that.contains('static');
+                
+                var block = fullast.body.blocks[0];
+                block.kids[0].should.be.assignment({
+                    left: 'field1',
+                    right: {
+                        'type.name': 'Imported'
+                    }
+                });
+            });
+
+            it("Has normal block", function() {
+                fullast.body.should.have.property('blocks')
+                    .that.is.an('array')
+                        .and.not.has.deep.property('[1].mods.kids');
+                
+                var block = fullast.body.blocks[1];
+                block.kids[0].should.be.assignment({
+                    left: 'singleInt',
+                    value: '42'
+                });
+            });
 
             it("Has simpleMethod", function() {
                 fullast.body.should.have.property('methods')

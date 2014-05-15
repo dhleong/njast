@@ -375,8 +375,10 @@ ClassBody.prototype._readDeclaration = function() {
     var mods = Modifiers.read(this);
     if (tok.peekBlockOpen()) {
         var block = Block.read(this);
-        if (block)
+        if (block) {
+            block.mods = mods;
             return block;
+        }
     }
 
     return this._readMember(mods);
