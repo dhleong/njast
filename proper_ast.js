@@ -78,6 +78,14 @@ SimpleNode.prototype.publish = function(type) {
         this._root.emit('qualified', this);
 }
 
+SimpleNode.prototype.start_from = function(state) {
+    this.start = {
+        line: state.line,
+        ch: state.col
+    };
+};
+
+
 SimpleNode.prototype._qualify = function(separator) {
 
     var parent = this.getParent();
@@ -716,7 +724,7 @@ Primary.read = function(prev) {
 
     default:
         tok.restore(state);
-        return new IdentifierExpression(prev);
+        return IdentifierExpression.read(prev);
     }
 }
 
@@ -768,11 +776,7 @@ util.inherits(Literal._Value, SimpleNode);
 function StringLiteral(prev, state, value, type) {
     SimpleNode.call(this, prev);
 
-    this.start = {
-        line: state.line,
-        ch: state.col
-    };
-
+    this.start_from(state);
     this.value = value;
     this.type = type;
 
@@ -818,11 +822,7 @@ StringLiteral.read = function(prev) {
 function NumberLiteral(prev, state, value, type) {
     SimpleNode.call(this, prev);
 
-    this.start = {
-        line: state.line,
-        ch: state.col
-    };
-
+    this.start_from(state);
     this.value = value;
     this.type = type;
 
@@ -968,19 +968,42 @@ function Arguments(prev) {
 }
 util.inherits(Arguments, SimpleNode);
 
+
 /**
  * Wraps an identifier ref
  */
-function IdentifierExpression(prev) {
+function IdentifierExpression(prev, state, name) {
     SimpleNode.call(this, prev);
 
-    this.name = prev.tok.readQualified();
-
-    // FIXME IdentifierSuffix
+    this.start_from(state);
+    this.name = name;
 
     this._end();
 }
 util.inherits(IdentifierExpression, SimpleNode);
+
+IdentifierExpression.read = function(prev) {
+    var tok = prev.tok;
+    var state = tok.save();
+    var name = tok.readQualified();
+
+    if (tok.peekParenOpen())
+        return new MethodInvocation(prev, state, name);
+
+    // FIXME other IdentifierSuffix stuff
+    return new IdentifierExpression(prev, state, name);
+}
+
+function MethodInvocation(prev, state, name) {
+    SimpleNode.call(this, prev);
+
+    this.start_from(state);
+    this.name = name;
+    this.args = new Arguments(this);
+
+    this._end();
+}
+util.inherits(MethodInvocation, SimpleNode);
 
 
 /**

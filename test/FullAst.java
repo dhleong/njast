@@ -33,6 +33,8 @@ public class FullAst
 
         String myString = "literal";
         char myChar = 'a';
+
+        simpleMethod();
     }
 }
 

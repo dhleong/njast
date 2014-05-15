@@ -345,6 +345,27 @@ describe("Parse of", function() {
                         },
                         value: 'literal'
                     });
+
+                    var chars = states[5];
+                    chars.should.be.assignment({
+                        left: {
+                            type: 'char',
+                            name: 'myChar',
+                        },
+                        value: 'a'
+                    });
+                });
+
+                it("Method Invocation", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var method = states[6];
+                    should.exist(method);
+
+                    method.should.have.deep.property('constructor.name')
+                        .that.equals('MethodInvocation');
+                    method.should.have.property('name')
+                        .that.equals('simpleMethod');
                 });
 
                 // TODO
