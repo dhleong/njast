@@ -224,8 +224,6 @@ describe("Parse of", function() {
                 field2.should.have.property('type')
                     .that.has.property('name')
                         .that.equals('Imported');
-                // field2.should.have.property('name')
-                //     .that.equals('singleInt');
                 field2.should.be.assignment({
                     left: 'field2',
                     right: {
@@ -413,7 +411,17 @@ describe("Parse of", function() {
                 it("for");
                 it("break");
                 it("continue");
-                it("return");
+
+                it("return", function() {
+                    var fluid = fullast.body.methods[2];
+                    var ret = fluid.body.kids[0];
+
+                    should.exist(ret);
+                    ret.should.have.property('value')
+                        .with.deep.property('type.name')
+                            .that.equals('SomeInterface');
+                });
+
                 it("throw");
                 it("synchronized");
                 it("try");

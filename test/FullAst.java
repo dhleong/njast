@@ -44,6 +44,10 @@ public class FullAst
 
         simpleMethod();
     }
+
+    SomeInterface factory() {
+        return new SomeInterface();
+    }
 }
 
 ;

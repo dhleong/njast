@@ -566,7 +566,7 @@ var Statement = {
 
         tok.restore(state);
         if (Tokenizer.isReserved(ident))
-            return Statement._readControl(prev);
+            return Statement._readControl(prev, ident);
 
         var expr = Expression.read(prev);
         if (expr)
@@ -574,11 +574,29 @@ var Statement = {
         return expr;
     },
 
-    _readControl: function(prev) {
+    _readControl: function(prev, name) {
+
+        switch (name) {
+        case "return":
+            return new ReturnStatement(prev);
+        }
+        
         prev.tok.raiseUnsupported("control statements: " 
             + prev.tok.peekIdentifier());
     }
 };
+
+function ReturnStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("return");
+    this.value = Expression.read(this);
+    tok.expectSemicolon();
+
+    this._end();
+}
+util.inherits(ReturnStatement, SimpleNode);
 
 /**
  * Expression factory

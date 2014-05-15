@@ -396,6 +396,12 @@ Tokenizer.prototype.expectQuestion   = _doExpect(QUESTION);
 Tokenizer.prototype.expectBracketOpen  = _doExpect(BRACKET_OPEN);
 Tokenizer.prototype.expectBracketClose = _doExpect(BRACKET_CLOSE);
 
+Tokenizer.prototype.expectString = function(string) {
+    if (!this.readString(string)) {
+        this.raise(string);
+        this.read(); // if we got here, we're relaxed; skip whatever was there
+    }
+};
 
 Tokenizer.prototype.readIdentifier = function() {
     this._prepare();
