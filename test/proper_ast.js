@@ -61,7 +61,7 @@ chai.use(function(_chai, utils) {
 
             Object.keys(def.right).forEach(function(prop) {
                 new chai.Assertion(varDef).to.have.property('initializer')
-                    .with.property(prop)
+                    .with.deep.property(prop)
                         .that.equals(def.right[prop]);
             });
             return;
@@ -211,9 +211,23 @@ describe("Parse of", function() {
                     .that.equals('singleInt');
             });
 
-            // TODO requires parsing expressions
-            it("Has initialized field2");
+            it("Has initialized field2", function() {
+            
+                var field2 = fullast.body.fields[2];
+                field2.should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('Imported');
+                // field2.should.have.property('name')
+                //     .that.equals('singleInt');
+                field2.should.be.assignment({
+                    left: 'field2',
+                    right: {
+                        'type.name': 'Imported'
+                    }
+                });
+            });
 
+            // TODO 
             it("Has static block");
             it("Has normal block");
 

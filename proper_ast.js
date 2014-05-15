@@ -699,11 +699,20 @@ Primary.read = function(prev) {
     var state = tok.save();
     var ident = tok.readIdentifier();
     switch (ident) {
-    case "new":
+    case "this":
         // TODO
-        // return new Creator(prev);
-        tok.raiseUnsupported("Creator");
+        tok.raiseUnsupported("this ref");
         break;
+    case "super":
+        // TODO
+        tok.raiseUnsupported("super ref");
+        break;
+    case "void":
+        tok.raiseUnsupported("class literal");
+        break;
+
+    case "new":
+        return Creator.read(prev);
 
     default:
         tok.restore(state);
@@ -734,13 +743,16 @@ var Literal = {
                 tok.raise("String literal");
             return lit;
         case 'f':
-            tok.expectString("false");
+            if (!tok.readString("false"))
+                return;
             return new Literal._Value(prev, false);
         case 'n':
-            tok.expectString("null");
+            if (!tok.readString("null"))
+                return;
             return new Literal._Value(prev, null);
         case 't':
-            tok.expectString("true");
+            if (!tok.readString("true"))
+                return;
             return new Literal._Value(prev, true);
         }
 
@@ -899,6 +911,63 @@ NumberLiteral._readFloaty = function(prev, state, buffer) {
     return new NumberLiteral(prev, state, buffer, type);
 };
 
+
+function Creator(prev, typeArgs, type) {
+    SimpleNode.call(this, prev);
+
+    this.start = typeArgs 
+        ? typeArgs.start
+        : type.start;
+    var tok = this.tok;
+    this.type = type;
+    if (!typeArgs && tok.peekBracketOpen()) {
+        // TODO
+        tok.raiseUnsupported("ArrayCreatorRest");
+    } else {
+        this.args = new Arguments(this);
+
+        if (tok.peekBracketOpen())
+            this.body = new ClassBody(this);
+    }
+
+    this._end();
+}
+util.inherits(Creator, SimpleNode);
+
+Creator.read = function(prev) {
+    var tok = prev.tok;
+    var typeArgs;
+    if (tok.peekGenericOpen())
+        // TODO
+        tok.raiseUnsupported("NonWildcardTypeArguments");
+
+    var createdName = Type.readCreated(prev);
+    if (!createdName)
+        return;
+
+    return new Creator(prev, typeArgs, createdName);
+};
+
+
+function Arguments(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectParenOpen();
+    if (!tok.readParenClose()) {
+        this.kids = [];
+
+        do {
+            this.kids.push(Expression.read(prev));
+        } while (tok.readComma());
+
+        tok.expectParenClose();
+    }
+
+    this._end();
+}
+util.inherits(Arguments, SimpleNode);
+
 /**
  * Wraps an identifier ref
  */
@@ -1001,6 +1070,12 @@ var Type = {
             return; // not a type
 
         return new ReferenceType(prev);
+    },
+
+    /** Read CreatedName */
+    readCreated: function(prev) {
+        // FIXME this should support TypeArgumentsOrDiamond
+        return Type.read(prev);
     }
 }
 

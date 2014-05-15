@@ -19,7 +19,7 @@ public class FullAst
     private int singleInt;
 
     // /** Initialized */
-    // Imported field2 = new Imported();
+    Imported field2 = new Imported();
 
     /** simple method that needs nothing and does nothing */
     void simpleMethod() { /* nop */ }
