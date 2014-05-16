@@ -117,8 +117,13 @@ for (var i=0; i < DIGITS.length; i++) {
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
                  'volatile', 'transient', 'native', 'strictfp'];
 var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
-                'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
+                'break', 'continue', 'return', 'throw', 'synchronized', 'try',
+                'catch', 'finally'];
 var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
+var OTHER_RESERVED = ['class', 'interface', 'const', 'goto', 'enum',
+                        'extends', 'inherits', 'import', 'instanceof',
+                        'new', 'package', 'super', 'this', 'throws',
+                        'false', 'null', 'true'];
 
 /**
  * Comment state machine
@@ -618,7 +623,8 @@ Tokenizer.isPrimitive = function(type) {
 Tokenizer.isReserved = function(word) {
     return Tokenizer.isModifier(word)
         || Tokenizer.isControl(word)
-        || ~PRIMITIVES.indexOf(word);
+        || ~PRIMITIVES.indexOf(word)
+        || ~OTHER_RESERVED.indexOf(word);
 };
 
 

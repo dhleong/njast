@@ -273,20 +273,20 @@ function Class(prev, mods) {
     this.name = tok.readIdentifier();
     this._qualify('$');
 
-    this.typeParams = TypeParameters.read(prev);
+    this.typeParams = TypeParameters.read(this);
 
     if (tok.readString('extends')) {
-        this.extends = Type.read(prev);
+        this.extends = Type.read(this);
     }
     if (tok.readString('implements')) {
         this.implements = [];
         do {
-            this.implements.push(Type.read(prev));
+            this.implements.push(Type.read(this));
         } while(tok.readComma());
     }
 
     // body
-    this.body = new ClassBody(prev);
+    this.body = new ClassBody(this);
 
     this._end();
 }
@@ -304,19 +304,19 @@ function Interface(prev, mods) {
     this.name = tok.readIdentifier();
     this._qualify('$');
 
-    this.typeParams = TypeParameters.read(prev);
+    this.typeParams = TypeParameters.read(this);
     
     if (tok.readString('extends')) {
         this.extends = [];
         do {
-            this.extends.push(Type.read(prev));
+            this.extends.push(Type.read(this));
         } while(tok.readComma());
     }
 
     // TODO technically this should be InterfaceBody,
     //  since all methods should be declared as if abstract,
     //  but for now... this is sufficient
-    this.body = new ClassBody(prev);
+    this.body = new ClassBody(this);
 
     this._end();
 }
@@ -371,7 +371,6 @@ ClassBody.prototype._readDeclaration = function() {
     if (tok.readSemicolon())
         return;
 
-    // TODO
     var mods = Modifiers.read(this);
     if (tok.peekBlockOpen()) {
         var block = Block.read(this);
@@ -395,8 +394,8 @@ ClassBody.prototype._readMember = function(mods) {
 
     var type = Type.read(this);
     if (!type) {
-        // TODO class/interface decl?
-        tok.raiseUnsupported("nested class/interface");
+        // class/interface decl
+        return TypeDeclaration.read(this, mods);
     }
 
     if (tok.peekParenOpen()) {
@@ -579,6 +578,8 @@ var Statement = {
         switch (name) {
         case "return":
             return new ReturnStatement(prev);
+
+        // TODO
         }
         
         prev.tok.raiseUnsupported("control statements: " 

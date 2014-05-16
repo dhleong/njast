@@ -491,6 +491,30 @@ describe("Parse of", function() {
                 it("synchronized");
                 it("try");
             });
+
+            describe("Nested types:", function() {
+                it("Class", function() {
+                    fullast.body.should.have.property('subclasses')
+                        .that.is.an('array')
+                        .with.deep.property('[0].name')
+                            .that.equals('NestedClass');
+                    fullast.body.subclasses[0].should.have.property('qualifiedName')
+                        .that.equals('net.dhleong.njast.FullAst$NestedClass');
+                });
+
+                it("Static Class", function() {
+                    fullast.body.should.have.property('subclasses')
+                        .that.is.an('array')
+                        .with.deep.property('[1].name')
+                            .that.equals('StaticNestedClass');
+                    fullast.body.subclasses[1].should.have
+                    .deep.property('mods.kids')
+                        .that.is.an('array')
+                        .and.contains('static');
+                    fullast.body.subclasses[1].should.have.property('qualifiedName')
+                        .that.equals('net.dhleong.njast.FullAst$StaticNestedClass');
+                });
+            });
         });
 
         // TODO

@@ -56,6 +56,12 @@ public class FullAst
         return new SomeInterface() {
         };
     }
+
+    class NestedClass {
+    }
+
+    static class StaticNestedClass {
+    }
 }
 
 ;
