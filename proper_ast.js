@@ -970,8 +970,9 @@ function Creator(prev, typeArgs, type) {
     } else {
         this.args = new Arguments(this);
 
-        if (tok.peekBracketOpen())
+        if (tok.peekBlockOpen()) {
             this.body = new ClassBody(this);
+        }
     }
 
     this._end();

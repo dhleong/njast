@@ -18,7 +18,7 @@ public class FullAst
     /** Primitive */
     private int singleInt;
 
-    // /** Initialized */
+    /** Initialized */
     Imported field2 = new Imported();
 
     static {
@@ -47,10 +47,14 @@ public class FullAst
         boolean test = field1 instanceof SomeInterface;
 
         group2 = 4 + arg2;
+
+        // test creator
+        field2 = new Imported();
     }
 
-    SomeInterface factory() {
-        return new SomeInterface();
+    static SomeInterface factory() {
+        return new SomeInterface() {
+        };
     }
 }
 

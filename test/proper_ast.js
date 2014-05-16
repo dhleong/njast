@@ -432,9 +432,39 @@ describe("Parse of", function() {
                     });
                 });
 
+                it("Assignment with Creator", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var assign = states[9];
+
+                    should.exist(assign);
+
+                    assign.should.be.assignment({
+                        left: 'field2'
+                      , right: {
+                            'type.name': 'Imported'
+                        }
+                    });
+                });
+
+                it("Anonymous class in Creator", function() {
+                    var fluid = fullast.body.methods[2];
+                    var ret = fluid.body.kids[0];
+
+                    should.exist(ret);
+                    ret.should.have.property('value')
+                        .with.deep.property('type.name')
+                            .that.equals('SomeInterface');
+                    ret.value.should.property('body')
+                        .with.deep.property('constructor.name')
+                            .that.equals('ClassBody');
+                        
+                });
+
                 // TODO
                 it("Chain assignment");
-                it("Assignment with Creator");
+                it("Array declaration");
+                it("Array initialization");
             });
 
             describe("Control Flow:", function() {
