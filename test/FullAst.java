@@ -43,6 +43,8 @@ public class FullAst
         char myChar = 'a';
 
         simpleMethod();
+
+        boolean test = field1 instanceof SomeInterface;
     }
 
     SomeInterface factory() {

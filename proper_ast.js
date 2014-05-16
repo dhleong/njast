@@ -654,8 +654,8 @@ Expression._expression2 = function(prev) {
     if (!expr3)
         return;
 
-    if (prev.tok.readString("instanceof"))
-        prev.tok.raiseUnsupported("instanceof expressions");
+    if (prev.tok.readString("instanceof")) 
+        return new InstanceOfExpression(prev, expr3);
 
     // FIXME infix op
     
@@ -697,6 +697,18 @@ function TernaryExpression(prev, question) {
     this._end();
 }
 util.inherits(TernaryExpression, SimpleNode);
+
+function InstanceOfExpression(prev, left) {
+    SimpleNode.call(this, prev);
+
+    this.start = left.start;
+    this.left = left;
+    this.right = Type.read(this);
+
+    this._end();
+}
+util.inherits(InstanceOfExpression, SimpleNode);
+
 
 function Primary(prev) {
     SimpleNode.call(this, prev);

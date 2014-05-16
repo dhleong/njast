@@ -396,6 +396,25 @@ describe("Parse of", function() {
                         .that.equals('simpleMethod');
                 });
 
+                it("instanceof", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var iof = states[7];
+                    should.exist(iof);
+
+                    iof.should.be.assignment({
+                        left: {
+                            type: 'boolean',
+                            name: 'test'
+                        },
+                        right: {
+                            'constructor.name': 'InstanceOfExpression',
+                            'left.name': 'field1',
+                            'right.name': 'SomeInterface'
+                        }
+                    });
+                });
+
                 // TODO
                 it("Chain assignment");
                 it("Assignment with infix op");
