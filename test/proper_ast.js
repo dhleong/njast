@@ -415,9 +415,25 @@ describe("Parse of", function() {
                     });
                 });
 
+                it("Assignment with infix op", function() {
+                    
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var infix = states[8];
+                    should.exist(infix);
+
+                    infix.should.be.assignment({
+                        left: 'group2',
+                        right: {
+                            'left.value': '4',
+                            'chain[0][0]': '+',
+                            'chain[0][1].name': 'arg2',
+                        }
+                    });
+                });
+
                 // TODO
                 it("Chain assignment");
-                it("Assignment with infix op");
                 it("Assignment with Creator");
             });
 

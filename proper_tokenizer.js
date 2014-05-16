@@ -491,6 +491,11 @@ Tokenizer.prototype.readInfixOp = function() {
             return '&&';
     }
 
+    if (this.readEquals()) {
+        this.restore(state);
+        return;
+    }
+
     return String.fromCharCode(token);
 }
 

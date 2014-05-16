@@ -100,6 +100,9 @@ describe("readInfixOp", function() {
     it("accepts +", function() {
         tokify('+').readInfixOp().should.equal('+');
     });
+    it("rejects +=", function() {
+        should.not.exist(tokify('+=').readInfixOp());
+    });
     it("accepts ||", function() {
         tokify('||').readInfixOp().should.equal('||');
     });

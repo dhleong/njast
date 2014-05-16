@@ -45,6 +45,8 @@ public class FullAst
         simpleMethod();
 
         boolean test = field1 instanceof SomeInterface;
+
+        group2 = 4 + arg2;
     }
 
     SomeInterface factory() {

@@ -599,40 +599,47 @@ function ReturnStatement(prev) {
 util.inherits(ReturnStatement, SimpleNode);
 
 /**
- * Expression factory
+ * The Expression Class is used for anything
+ *  "chained."
  */
-function Expression(prev, expr1, op) {
+function Expression(prev, left, op, exprFactory, opFactory) {
     SimpleNode.call(this, prev);
 
-    this.start = expr1.start;
+    this.start = left.start;
 
-    this.left = expr1;
+    this.left = left;
     this.chain = [];
 
-    var right = Expression._expression1(this);
+    var right = exprFactory(this);
     do {
         if (!right)
             this.tok.raise("Incomplete assignment");
 
         this.chain.push([op, right]);
 
-        op = prev.tok.readAssignment();
+        op = opFactory.call(this.tok);
         right = null;
         if (op) 
-            right = Expression._expression1(this);
+            right = exprFactory(this);
     } while (op && right);
 
     this._end();
 }
 util.inherits(Expression, SimpleNode);
 
+/**
+ * Expression factory
+ */
 Expression.read = function(prev) {
-    var expr1 = Expression._expression1(prev);
-    var op = prev.tok.readAssignment();
+    var exprFactory = Expression._expression1;
+    var opFactory = prev.tok.readAssignment;
+
+    var expr1 = exprFactory(prev);
+    var op = opFactory.call(prev.tok);
     if (!op)
         return expr1; // just expr1
 
-    return new Expression(prev, expr1, op);
+    return new Expression(prev, expr1, op, exprFactory, opFactory);
 };
 
 /** Expression1 factory */
@@ -650,7 +657,9 @@ Expression._expression1 = function(prev) {
 
 /** Expression2 factory */
 Expression._expression2 = function(prev) {
-    var expr3 = Expression._expression3(prev);
+    var exprFactory = Expression._expression3;
+    var opFactory = prev.tok.readInfixOp;
+    var expr3 = exprFactory(prev);
     if (!expr3)
         return;
 
@@ -658,6 +667,9 @@ Expression._expression2 = function(prev) {
         return new InstanceOfExpression(prev, expr3);
 
     // FIXME infix op
+    var op = opFactory.call(prev.tok);
+    if (op)
+        return new Expression(prev, expr3, op, exprFactory, opFactory);
     
     return expr3;
 }
