@@ -565,7 +565,7 @@ var Statement = {
         }
 
         tok.restore(state);
-        if (Tokenizer.isReserved(ident))
+        if (Tokenizer.isControl(ident))
             return Statement._readControl(prev, ident);
 
         var expr = Expression.read(prev);
