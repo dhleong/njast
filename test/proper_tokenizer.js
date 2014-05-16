@@ -95,3 +95,30 @@ describe("readDigit", function() {
         });
     });
 });
+
+describe("readInfixOp", function() {
+    it("accepts +", function() {
+        tokify('+').readInfixOp().should.equal('+');
+    });
+    it("accepts ||", function() {
+        tokify('||').readInfixOp().should.equal('||');
+    });
+    it("accepts |", function() {
+        tokify('|').readInfixOp().should.equal('|');
+    });
+    it("accepts ==", function() {
+        tokify('==').readInfixOp().should.equal('==');
+    });
+    it("accepts !=", function() {
+        tokify('!=').readInfixOp().should.equal('!=');
+    });
+    it("accepts >=", function() {
+        tokify('>=').readInfixOp().should.equal('>=');
+    });
+    it("accepts >>", function() {
+        tokify('>>').readInfixOp().should.equal('>>');
+    });
+    it("accepts >>>", function() {
+        tokify('>>>').readInfixOp().should.equal('>>>');
+    });
+});

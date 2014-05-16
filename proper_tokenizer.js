@@ -5,7 +5,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&^%;:@\"'?\\ ",
+    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&!^%;:@\"'?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -41,6 +41,7 @@ var PLUS = VALS.next();
 var MINUS = VALS.next();
 var OR = VALS.next();
 var AND = VALS.next();
+var BANG = VALS.next();
 var XOR = VALS.next();
 var MODULO = VALS.next();
 var SEMICOLON = VALS.next();
@@ -76,11 +77,11 @@ var OTHER_TOKENS = [
 var MATH = [
     PLUS, MINUS, STAR, SLASH,
     EQUALS,
-    OR, AND,
+    OR, AND, BANG,
     GENERIC_OPEN, GENERIC_CLOSE
 ]
 
-// build up state machine
+// build up state machines
 var ASSIGNMENT = {};
 [PLUS, MINUS, STAR, SLASH, AND, OR, XOR, MODULO].forEach(function(simpleAssign) {
     ASSIGNMENT[simpleAssign] = {};
@@ -95,6 +96,13 @@ ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE] = {};
 ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
 ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE] = {};
 ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
+
+var SIMPLE_INFIX_OP = [OR, XOR, AND, GENERIC_OPEN, GENERIC_CLOSE, 
+ PLUS, MINUS, STAR, SLASH, MODULO].reduce(function(dict, token) {
+    dict[token] = true;
+    return dict;
+}, {});
+
 
 var DIGIT_CODE_TO_VALUE = {};
 var DIGITS = '0123456789abcdef';
@@ -328,7 +336,7 @@ Tokenizer.prototype.readString = function(expected) {
     for (var i=0; i < len; i++) {
         var r = this.read();
         // if (r)
-        //     console.log(r.charAt(i), expected.charAt(i));
+        //     console.log(String.fromCharCode(r), expected.charAt(i));
         if (r != expected.charCodeAt(i)) {
             this.restore(state);
             return false;
@@ -442,8 +450,49 @@ Tokenizer.prototype.readAssignment = function() {
         // advance in the state machine
         src = src[token];
     }
-};
+}
 
+Tokenizer.prototype.readInfixOp = function() {
+    var state = this._prepare();
+
+    if (this.readString('=='))
+        return '==';
+    if (this.readString('!='))
+        return '!=';
+
+    var token = this.read();
+    if (!(token in SIMPLE_INFIX_OP)) {
+        this.restore(state);
+        return;
+    }
+
+    switch(token) {
+    case GENERIC_OPEN:
+        if (this.readEquals())
+            return '<=';
+        if (this.readGenericOpen())
+            return '<<';
+        break;
+    case GENERIC_CLOSE:
+        if (this.readEquals())
+            return '>=';
+        if (this.readGenericClose()) {
+            if (this.readGenericClose())
+                return '>>>';
+            return '>>';
+        }
+        break;
+    case OR:
+        if (this._readToken(OR))
+            return '||';
+        break;
+    case AND:
+        if (this._readToken(AND))
+            return '&&';
+    }
+
+    return String.fromCharCode(token);
+}
 
 var _peekMethod = function(readType) {
     var method = Tokenizer.prototype['read' + readType];
