@@ -241,7 +241,7 @@ function Tokenizer(path, buffer) {
  *  Unlike save(), this returns the position AFTER the whitespace
  *  to prevent redundant parsing. 
  */
-Tokenizer.prototype._prepare = function() {
+Tokenizer.prototype.prepare = function() {
     this._skipBlank();
     return this.save();
 };
@@ -305,7 +305,7 @@ Tokenizer.prototype.save = function() {
 };
 
 Tokenizer.prototype._peekChar = function() {
-    this._prepare();
+    this.prepare();
     return this._fp[this._pos];
 }
 
@@ -342,7 +342,7 @@ Tokenizer.prototype.readDigit = function(radix) {
 
 
 Tokenizer.prototype.readString = function(expected) {
-    var state = this._prepare();
+    var state = this.prepare();
 
     var len = expected.length;
     for (var i=0; i < len; i++) {
@@ -424,7 +424,7 @@ Tokenizer.prototype.expectString = function(string) {
 };
 
 Tokenizer.prototype.readIdentifier = function() {
-    this._prepare();
+    this.prepare();
 
     var ident = '';
     var read;
@@ -444,7 +444,7 @@ Tokenizer.prototype.readIdentifier = function() {
 };
 
 Tokenizer.prototype.readAssignment = function() {
-    var state = this._prepare();
+    var state = this.prepare();
 
     var strBuffer = '';
     var src = ASSIGNMENT;
@@ -465,7 +465,7 @@ Tokenizer.prototype.readAssignment = function() {
 }
 
 Tokenizer.prototype.readInfixOp = function() {
-    var state = this._prepare();
+    var state = this.prepare();
 
     if (this.readString('=='))
         return '==';
@@ -513,7 +513,7 @@ Tokenizer.prototype.readInfixOp = function() {
 
 Tokenizer.prototype.readPrefixOp = function() {
     
-    var state = this._prepare();
+    var state = this.prepare();
 
     var postfix = this.readPostfixOp();
     if (postfix)
@@ -544,7 +544,7 @@ Tokenizer.prototype.readPostfixOp = function() {
 var _peekMethod = function(readType) {
     var method = Tokenizer.prototype['read' + readType];
     return function() {
-        var state = this._prepare();
+        var state = this.prepare();
         var ident = method.call(this, arguments);
         this.restore(state);
         return ident;

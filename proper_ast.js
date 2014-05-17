@@ -263,7 +263,7 @@ var TypeDeclaration = {
         if (tok.readString("class")) {
             return new Class(prev, mods);
         } else if (tok.readString("enum")) {
-            tok.raiseUnsupported("enum");
+            return new Enum(prev, mods);
         } else if (tok.readString("interface")) {
             return new Interface(prev, mods);
         } else if (tok.readAt()) {
@@ -282,6 +282,8 @@ function Class(prev, mods) {
     SimpleNode.call(this, prev);
     
     this.mods = mods;
+    if (mods)
+        this.start = mods.start;
 
     var tok = this.tok;
     this.name = tok.readIdentifier();
@@ -306,6 +308,83 @@ function Class(prev, mods) {
 }
 util.inherits(Class, SimpleNode);
 
+function Enum(prev, mods) {
+    SimpleNode.call(this, prev);
+
+    this.mods = mods;
+    if (mods)
+        this.start = mods.start;
+
+    var tok = this.tok;
+    this.name = tok.readIdentifier();
+    this._qualify('$');
+
+    if (tok.readString('implements')) {
+        this.implements = [];
+        do {
+            this.implements.push(Type.read(this));
+        } while(tok.readComma());
+    }
+
+    // body
+    this.body = new EnumBody(this);
+
+    this._end();
+}
+util.inherits(Enum, SimpleNode);
+
+function EnumBody(prev) {
+    SimpleNode.call(this, prev);
+
+    this.constants = [];
+
+    this.tok.expectBlockOpen();
+    var last;
+    do {
+        last = this._readConstant();
+        if (last)
+            this.constants.push(last);
+    } while (this.tok.readComma() && last);
+
+    if (this.tok.readSemicolon()) {
+
+        // read any class body-type stuff
+        this.classBody = new ClassBody(this, true);
+    }
+
+    this._end();
+}
+util.inherits(EnumBody, SimpleNode);
+
+EnumBody.prototype._readConstant = function() {
+    var state = this.tok.prepare();
+
+    var mods = Modifiers.read(this);
+    var ident = this.tok.readIdentifier();
+    if (!ident || Tokenizer.isReserved(ident)) {
+        this.tok.restore(state);
+        return;
+    }
+
+    return new EnumConstant(this, state, mods, ident);
+};
+
+function EnumConstant(prev, state, mods, ident) {
+    SimpleNode.call(this, prev);
+
+    this.start_from(state);
+    this.mods = mods;
+    this.name = ident;
+
+    this.args = Arguments.read(this);
+    if (this.tok.peekBlockOpen())
+        this.body = new ClassBody(this);
+
+    this._end();
+}
+util.inherits(EnumConstant, SimpleNode);
+
+
 /**
  * A Java class declaration
  */
@@ -313,6 +392,8 @@ function Interface(prev, mods) {
     SimpleNode.call(this, prev);
 
     this.mods = mods;
+    if (mods)
+        this.start = mods.start;
 
     var tok = this.tok;
     this.name = tok.readIdentifier();
@@ -340,7 +421,7 @@ util.inherits(Interface, SimpleNode);
 /**
  * 
  */
-function ClassBody(prev) {
+function ClassBody(prev, skipBlockOpen) {
     SimpleNode.call(this, prev);
 
     // shorcut indexes of declared things
@@ -356,7 +437,10 @@ function ClassBody(prev) {
     
     // read statements
     var tok = this.tok;
-    tok.expectBlockOpen();
+
+    if (!skipBlockOpen)
+        tok.expectBlockOpen();
+
     while (!tok.readBlockClose()) {
         var el = this._readDeclaration();
         if (!el) continue;
@@ -413,8 +497,10 @@ ClassBody.prototype._readMember = function(mods) {
     }
 
     if (tok.peekParenOpen()) {
-        // TODO
-        tok.raiseUnsupported("constructor");
+        // special incantation for constructors.
+        // we could add a factory, but this is the only
+        // usage, I think...
+        return new Method(this, mods, null, null, type);
     }
 
     typeParams = TypeParameters.read(this);
@@ -432,11 +518,15 @@ function Method(prev, mods, type, typeParams, name) {
 
     if (mods)
         this.start = mods.start;
-    else
+    else if (type)
         this.start = type.start;
+    else if (name.start)
+        this.start = name.start;
     this.mods = mods;
     this.returns = type;
-    this.name = name;
+    this.name = typeof(name) == 'string'
+        ? name
+        : name.name; // it was a type, for constructors
     this._qualify('#');
 
     this.params = new FormalParameters(this);
@@ -459,6 +549,10 @@ function Method(prev, mods, type, typeParams, name) {
     this._end();
 }
 util.inherits(Method, SimpleNode);
+
+Method.prototype.isConstructor = function() {
+    return this.returns != null;
+};
 
 
 function FieldDecl(prev, mods, type, typeParams, name) {
@@ -1138,6 +1232,11 @@ function Arguments(prev) {
     this._end();
 }
 util.inherits(Arguments, SimpleNode);
+
+Arguments.read = function(prev) {
+    if (prev.tok.peekParenOpen())
+        return new Arguments(prev);
+}
 
 
 /**

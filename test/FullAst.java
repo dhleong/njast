@@ -99,11 +99,26 @@ interface SomeInterface {
 }
 
 ;
-// TODO
-// enum SomeEnum {
-// }
-//
-// ;
+
+enum SomeEnum {
+    VAL1,
+    VAL2(22),
+    VAL3 {
+        // body!
+    };
+
+    int myMagic;
+
+    SomeNum() {
+        // this(42);
+        myMagic = 42;
+    }
+    SomeNum(int magic) {
+        myMagic = magic;
+    }
+}
+
+;
 //
 // @interface SomeAnnotation {
 // }

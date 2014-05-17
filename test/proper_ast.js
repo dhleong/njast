@@ -623,7 +623,6 @@ describe("Parse of", function() {
             });
         });
 
-        // TODO
         it("has SomeInterface", function() {
             ast.qualifieds.should.contain.key('net.dhleong.njast.SomeInterface');
             ast.should.have.property('toplevel')
@@ -632,7 +631,17 @@ describe("Parse of", function() {
                     .that.has.property('qualifiedName')
                         .that.equals('net.dhleong.njast.SomeInterface');
         });
-        it("has SomeEnum");
+        it("has SomeEnum", function() {
+            ast.qualifieds.should.contain.key('net.dhleong.njast.SomeEnum');
+            var someEnum = ast.qualifieds['net.dhleong.njast.SomeEnum'];
+            someEnum.should.have.property('body')
+                .that.has.property('constants')
+                    .that.is.an('array').of.length(3)
+                    .with.deep.property('[0].name')
+                        .that.equals('VAL1');
+        });
+
+        // TODO
         it("has SomeAnnotation");
     });
 
