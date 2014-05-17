@@ -499,7 +499,21 @@ describe("Parse of", function() {
             });
 
             describe("Control Flow:", function() {
-                it("if");
+                it("if", function() {
+
+                    var controls = fullast.body.methods[6];
+                    var ifStatement = controls.body.kids[0];
+                    should.exist(ifStatement);
+                    ifStatement.should.have.property('condition');
+                    ifStatement.should.have.property('trueStatement')
+                        .that.has.deep.property('constructor.name')
+                            .that.equals('Block');
+                    ifStatement.should.have.property('falseStatement')
+                        .that.has.deep.property('constructor.name')
+                            .that.equals('IfStatement');
+                    ifStatement.falseStatement.should.have.property('condition');
+                });
+
                 it("assert");
                 it("switch");
                 it("while");

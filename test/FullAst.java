@@ -73,6 +73,18 @@ public class FullAst
     @SuppressWarnings(value={"unchecked", "rawtypes"})
     void suppressArrayValue() {}
 
+    void controlsMethod() {
+        if (singleArray[0] == singleInt) {
+            // TODO 
+        } else if (singleArray[1] == singleInt) {
+            // TODO 
+        }
+    }
+
+    /*
+     * Nested classes
+     */
+
     class NestedClass {
     }
 

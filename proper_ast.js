@@ -590,6 +590,8 @@ var Statement = {
     _readControl: function(prev, name) {
 
         switch (name) {
+        case "if":
+            return new IfStatement(prev);
         case "return":
             return new ReturnStatement(prev);
 
@@ -600,6 +602,23 @@ var Statement = {
             + prev.tok.peekIdentifier());
     }
 };
+
+function IfStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("if");
+    this.condition = Expression.readParen(this);
+    this.trueStatement = Statement.read(this);
+
+    if (tok.readString("else")) {
+        this.falseStatement = Statement.read(this);
+    }
+
+    this._end();
+}
+util.inherits(IfStatement, SimpleNode);
+
 
 function ReturnStatement(prev) {
     SimpleNode.call(this, prev);
@@ -657,6 +676,17 @@ Expression.read = function(prev) {
     return new Expression(prev, expr1, op, exprFactory, opFactory);
 };
 
+Expression.readParen = function(prev) {
+    if (!prev.tok.readParenOpen())
+        return;
+
+    // paren expression
+    var expr = Expression.read(prev);
+    prev.tok.expectParenClose();
+    return expr;
+}
+
+
 /** Expression1 factory */
 Expression._expression1 = function(prev) {
     var expr2 = Expression._expression2(prev);
@@ -705,8 +735,13 @@ Expression._expression3 = function(prev) {
     }
 
     var primary = Primary.read(prev);
+    var result = primary;
 
-    // TODO selectors
+    // selectors
+    var selectors = SelectorExpression.read(primary);
+    if (selectors)
+        result = selectors;
+
     // TODO postfix
 
     return primary;
@@ -723,6 +758,46 @@ function PrefixExpression(prev, state, prefixOp) {
 }
 util.inherits(PrefixExpression, SimpleNode);
 
+/** SelectorExpression wraps the previous primary */
+function SelectorExpression(primary, connector) {
+    SimpleNode.call(this, primary.getParent());
+
+    this.start = primary.start;
+    this.left = primary;
+    this.chain = [];
+
+    var tok = this.tok;
+    while (connector) {
+        switch(connector) {
+        case '.':
+            tok.raiseUnsupported(".-selector");
+            break;
+
+        case '[':
+            var expr = Expression.read(this);
+            if (expr) {
+                this.chain.push(expr);
+                tok.expectBracketClose();
+            }
+        }
+
+        connector = undefined; // clear
+        if (tok.readDot())
+            connector = '.';
+        if (tok.readBracketOpen())
+            connector = '[';
+    }
+
+    this._end();
+}
+util.inherits(SelectorExpression, SimpleNode);
+
+SelectorExpression.read = function(primary) {
+    if (primary.tok.readDot())
+        return new SelectorExpression(primary, '.');
+    if (primary.tok.readBracketOpen())
+        return new SelectorExpression(primary, '[');
+}
 
 function TernaryExpression(prev, question) {
     SimpleNode.call(this, prev);
@@ -763,12 +838,9 @@ util.inherits(Primary, SimpleNode);
 Primary.read = function(prev) {
     var tok = prev.tok;
 
-    if (tok.readParenOpen()) {
-        // paren expression
-        var expr = Expression.read(prev);
-        tok.expectParenClose();
-        return expr;
-    }
+    var parens = Expression.readParen(prev);
+    if (parens)
+        return parens;
 
     if (tok.peekGenericOpen()) {
         // TODO
