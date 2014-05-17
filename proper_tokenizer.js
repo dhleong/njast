@@ -686,7 +686,7 @@ function isMath(charCode) {
 function isToken(charCode) {
     return isIdentifier(charCode)
         || isMath(charCode)
-        || OTHER_TOKENS.indexOf(charCode) >= 0; // TODO sort + binary search?
+        || ~OTHER_TOKENS.indexOf(charCode); // TODO sort + binary search?
 }
 
 module.exports = Tokenizer;

@@ -104,7 +104,14 @@ SimpleNode.prototype._qualify = function(separator) {
         this.tok.raiseUnsupported("qualified declarations in Blocks");
     } else {
         // parent is a ClassBody; grandparent is a Class/Interface
-        this.qualifiedName = parent.getParent().qualifiedName
+        var qualifiedParent = parent.getParent();
+        while (qualifiedParent && !qualifiedParent.qualifiedName)
+            qualifiedParent = qualifiedParent.getParent();
+
+        if (!qualifiedParent)
+            this.tok.raise("Qualified parent for " + this.name);
+
+        this.qualifiedName = qualifiedParent.qualifiedName
                            + separator + this.name;
     }
 }
@@ -197,9 +204,10 @@ VarDef.readArrayInitializer = function(prev) {
 /**
  * Root AST node of a java file
  */
-function CompilationUnit(ast, package) {
+function CompilationUnit(ast, mods, package) {
     SimpleNode.call(this, ast);
 
+    this.mods = mods;
     this.package = package;
 
     this.imports = [];
@@ -237,10 +245,11 @@ function CompilationUnit(ast, package) {
 util.inherits(CompilationUnit, SimpleNode);
 
 CompilationUnit.read = function(ast) {
+    var mods = Modifiers.read(ast);
     if (ast.tok.readString("package")) {
-        return new CompilationUnit(ast, ast.tok.readQualified());
+        return new CompilationUnit(ast, mods, ast.tok.readQualified());
     } else {
-        return new CompilationUnit(ast, "default");
+        return new CompilationUnit(ast, mods, "default");
     }
 };
 
@@ -266,11 +275,10 @@ var TypeDeclaration = {
             return new Enum(prev, mods);
         } else if (tok.readString("interface")) {
             return new Interface(prev, mods);
-        } else if (tok.readAt()) {
-            // TODO annotation
-            tok.expectAt();
-            tok.raiseUnsupported("annotation declaration");
+        } else if (tok.readString("@interface")) {
+            return new AnnotationDecl(prev, mods);
         }
+
         tok.restore(state); // could be something else with mods
     }
 }
@@ -416,6 +424,81 @@ function Interface(prev, mods) {
     this._end();
 }
 util.inherits(Interface, SimpleNode);
+
+function AnnotationDecl(prev, mods) {
+    SimpleNode.call(this, prev);
+
+    this.mods = mods;
+    if (mods)
+        this.start = mods.start;
+
+    var tok = this.tok;
+    this.name = tok.readIdentifier();
+    this._qualify('$');
+
+    this.body = new AnnotationBody(this);
+
+    this._end();
+}
+util.inherits(AnnotationDecl, SimpleNode);
+
+function AnnotationBody(prev) {
+    SimpleNode.call(this, prev);
+
+    this.kids = [];
+
+    this.tok.expectBlockOpen();
+    var last;
+    while (!this.tok.readBlockClose()) {
+        last = this._readDeclaration();
+        if (last)
+            this.kids.push(last);
+    }
+
+    this._end();
+}
+util.inherits(AnnotationBody, SimpleNode);
+
+AnnotationBody.prototype._readDeclaration = function() {
+    var typeDecl = TypeDeclaration.read(this);
+    if (typeDecl)
+        return typeDecl;
+
+    var mods = Modifiers.read(this);
+    var type = Type.read(this);
+    var ident = this.tok.readIdentifier();
+    if (Tokenizer.isReserved(ident))
+        this.tok.raise("Identifier");
+
+    if (this.tok.peekParenOpen()) {
+        return new AnnotationMethod(this, mods, type, ident);
+    }
+
+    // should be ConstantDeclarators, but this is close enough
+    return new FieldDecl(this, mods, type, null, ident);
+};
+
+function AnnotationMethod(prev, mods, type, ident) {
+    SimpleNode.call(this, prev);
+
+    this.mods = mods;
+    this.returns = type;
+    this.name = ident;
+    this._qualify('#');
+
+    var tok = this.tok;
+    tok.expectParenOpen();
+    tok.expectParenClose();
+
+    if (tok.readString("default")) {
+        this.defaultValue = Annotation._readElementValue(this);
+    }
+
+    tok.expectSemicolon();
+
+    this._end();
+}
+util.inherits(AnnotationMethod, SimpleNode);
 
 
 /**
@@ -1423,7 +1506,16 @@ Annotation._readElementValue = function(prev) {
 };
 
 Annotation.read = function(prev) {
-    if (!prev.tok.peekAt())
+    var tok = prev.tok;
+    var state = tok.save();
+    if (!tok.readAt()) {
+        tok.restore(state);
+        return;
+    }
+
+    var ident = tok.readIdentifier();
+    tok.restore(state);
+    if (!ident || Tokenizer.isReserved(ident))
         return;
 
     return new Annotation(prev);

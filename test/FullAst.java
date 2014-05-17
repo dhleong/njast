@@ -1,4 +1,5 @@
 
+@PackageAnnotation
 package net.dhleong.njast;
 
 import net.dhleong.njast.subpackage.Imported;
@@ -119,6 +120,12 @@ enum SomeEnum {
 }
 
 ;
-//
-// @interface SomeAnnotation {
-// }
+
+@interface SomeAnnotation {
+
+    static final int MAGIC = 42;
+
+    int[] array() default {MAGIC, 2, 1};
+}
+
+;

@@ -641,8 +641,13 @@ describe("Parse of", function() {
                         .that.equals('VAL1');
         });
 
-        // TODO
-        it("has SomeAnnotation");
+        it("has SomeAnnotation", function() {
+            ast.qualifieds.should.contain.key('net.dhleong.njast.SomeAnnotation');
+            var annot = ast.qualifieds['net.dhleong.njast.SomeAnnotation'];
+            should.exist(annot);
+
+            ast.qualifieds.should.contain.key('net.dhleong.njast.SomeAnnotation#array');
+        });
     });
 
 });
