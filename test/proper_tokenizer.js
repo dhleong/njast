@@ -144,3 +144,19 @@ describe("readPrefixOp", function() {
         should.not.exist(tokify('+=').readPrefixOp());
     });
 });
+
+describe("readPostfixOp", function() {
+
+    it("rejects +", function() {
+        should.not.exist(tokify('+').readPostfixOp());
+    });
+    it("accepts ++", function() {
+        tokify('++').readPostfixOp().should.equal('++');
+    });
+    it("accepts --", function() {
+        tokify('--').readPostfixOp().should.equal('--');
+    });
+    it("rejects +=", function() {
+        should.not.exist(tokify('+=').readPostfixOp());
+    });
+});

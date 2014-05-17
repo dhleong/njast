@@ -54,6 +54,7 @@ public class FullAst
         field2 = new Imported();
 
         ++group2;
+        group2++; // make sure postfix is parsed
     }
 
     static SomeInterface factory() {

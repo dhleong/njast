@@ -515,10 +515,9 @@ Tokenizer.prototype.readPrefixOp = function() {
     
     var state = this._prepare();
 
-    if (this.readString('++'))
-        return '++';
-    if (this.readString('--'))
-        return '--';
+    var postfix = this.readPostfixOp();
+    if (postfix)
+        return postfix;
 
     var token = this.read();
     if (!(token in SIMPLE_PREFIX_OP)) {
@@ -533,6 +532,14 @@ Tokenizer.prototype.readPrefixOp = function() {
 
     return String.fromCharCode(token);
 };
+
+Tokenizer.prototype.readPostfixOp = function() {
+    if (this.readString('++'))
+        return '++';
+    if (this.readString('--'))
+        return '--';
+};
+
 
 var _peekMethod = function(readType) {
     var method = Tokenizer.prototype['read' + readType];

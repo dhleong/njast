@@ -742,7 +742,12 @@ Expression._expression3 = function(prev) {
     if (selectors)
         result = selectors;
 
-    // TODO postfix
+    // NB We don't record the postfix ops,
+    //  because they don't affect type, there's
+    //  no need to look them up, and we're not
+    //  trying to execute the code. If anyone ever 
+    //  needs this, they're free to submit a PR
+    tok.readPostfixOp();
 
     return primary;
 }
