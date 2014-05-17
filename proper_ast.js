@@ -590,6 +590,8 @@ var Statement = {
     _readControl: function(prev, name) {
 
         switch (name) {
+        case "assert":
+            return new AssertStatement(prev);
         case "if":
             return new IfStatement(prev);
         case "return":
@@ -602,6 +604,22 @@ var Statement = {
             + prev.tok.peekIdentifier());
     }
 };
+
+function AssertStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("assert");
+    this.condition = Expression.read(this);
+
+    if (tok.readColon())
+        this.description = Expression.read(this);
+
+    tok.expectSemicolon();
+
+    this._end();
+}
+util.inherits(AssertStatement, SimpleNode);
 
 function IfStatement(prev) {
     SimpleNode.call(this, prev);

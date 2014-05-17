@@ -514,7 +514,19 @@ describe("Parse of", function() {
                     ifStatement.falseStatement.should.have.property('condition');
                 });
 
-                it("assert");
+                it("assert", function() {
+                    var controls = fullast.body.methods[6];
+                    var ifStatement = controls.body.kids[0];
+                    should.exist(ifStatement);
+                    ifStatement.trueStatement.should.have.deep.property('kids[0]')
+                        .with.deep.property('constructor.name')
+                            .that.equals('AssertStatement');
+                    ifStatement.falseStatement.should.have // else if
+                    .deep.property('trueStatement.kids[0]')
+                        .with.deep.property('constructor.name')
+                            .that.equals('AssertStatement');
+                });
+
                 it("switch");
                 it("while");
                 it("do");

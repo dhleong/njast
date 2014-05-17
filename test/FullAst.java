@@ -76,9 +76,9 @@ public class FullAst
 
     void controlsMethod() {
         if (singleArray[0] == singleInt) {
-            // TODO 
+            assert singleInt == 1;
         } else if (singleArray[1] == singleInt) {
-            // TODO 
+            assert singleInt == 2 : "Weird";
         }
     }
 
