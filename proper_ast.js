@@ -159,7 +159,7 @@ function VarDef(prev, mods, type, name, isInitable) {
     var tok = this.tok;
     if (tok.readEquals()) {
         if (isInitable)
-            this._readInitializer();
+            this.initializer = VarDef.readInitializer(this);
         else
             this.raise("no initialization");
     }
@@ -169,15 +169,29 @@ function VarDef(prev, mods, type, name, isInitable) {
 util.inherits(VarDef, SimpleNode);
 
 // IE: VariableInitializer
-VarDef.prototype._readInitializer = function() {
-    var tok = this.tok;
-    if (tok.peekBlockOpen())
-        // TODO
-        tok.raiseUnsupported("ArrayInitializer");
+VarDef.readInitializer = function(prev) {
+    if (prev.tok.peekBlockOpen())
+        return VarDef.readArrayInitializer(prev);
 
-    this.initializer = Expression.read(this);
+    return Expression.read(prev);
 };
 
+VarDef.readArrayInitializer = function(prev) {
+    var tok = prev.tok;
+    tok.expectBlockOpen();
+
+    var items = [];
+
+    while (!tok.readBlockClose()) {
+        var init = VarDef.readInitializer(prev);
+        if (init)
+            items.push(init);
+
+        tok.readComma();
+    }
+
+    return items;
+};
 
 
 /**

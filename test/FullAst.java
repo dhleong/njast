@@ -21,7 +21,7 @@ public class FullAst
     /** Initialized */
     Imported field2 = new Imported();
 
-    int[] singleArray;
+    final int[] singleArray = {1, 2, 3};
 
     static {
         field1 = new Imported();

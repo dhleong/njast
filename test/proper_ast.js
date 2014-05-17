@@ -239,6 +239,14 @@ describe("Parse of", function() {
                         .that.equals('int');
                 field2.type.should.have.property('array')
                     .that.equals(1);
+                field2.should.be.assignment({
+                    left: 'singleArray',
+                    right: {
+                        '[0].value': '1'
+                      , '[1].value': '2'
+                      , '[2].value': '3'
+                    }
+                });
             });
 
             it("Has static block", function() {
