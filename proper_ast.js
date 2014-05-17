@@ -507,11 +507,12 @@ util.inherits(AnnotationMethod, SimpleNode);
 function ClassBody(prev, skipBlockOpen) {
     SimpleNode.call(this, prev);
 
-    // shorcut indexes of declared things
+    // shortcut indexes of declared things
     this.subclasses = [];
     this.blocks = [];
     this.fields = [];
     this.methods = [];
+    this.constructors = [];
 
     // ALL child elements, in parse-order
     this.kids = [];
@@ -534,7 +535,10 @@ function ClassBody(prev, skipBlockOpen) {
         if (el instanceof FieldDecl) {
             el.kids.forEach(addToFields);
         } else if (el instanceof Method) {
-            this.methods.push(el);
+            if (el.isConstructor())
+                this.constructors.push(el);
+            else
+                this.methods.push(el);
         } else if (el instanceof Class
                 || el instanceof Interface) {
             this.subclasses.push(el);
@@ -634,7 +638,7 @@ function Method(prev, mods, type, typeParams, name) {
 util.inherits(Method, SimpleNode);
 
 Method.prototype.isConstructor = function() {
-    return this.returns != null;
+    return this.returns == null;
 };
 
 
@@ -1051,13 +1055,13 @@ Primary.read = function(prev) {
     if (literal)
         return literal;
 
-    var state = tok.save();
+    var state = tok.prepare();
     var ident = tok.readIdentifier();
     switch (ident) {
     case "this":
-        // TODO
-        tok.raiseUnsupported("this ref");
-        break;
+        if (tok.peekParenOpen())
+            return new MethodInvocation(prev, state, ident);
+        return new IdentifierExpression(prev, state, ident);
     case "super":
         // TODO
         tok.raiseUnsupported("super ref");

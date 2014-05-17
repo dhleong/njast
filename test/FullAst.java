@@ -84,6 +84,16 @@ public class FullAst
     }
 
     /*
+     * Constructor
+     */
+    FullAst() {
+        this(SomeAnnotation.MAGIC);
+    }
+    FullAst(final int arg) {
+        singleInt = arg;
+    }
+
+    /*
      * Nested classes
      */
 

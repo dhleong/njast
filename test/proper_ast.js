@@ -648,6 +648,22 @@ describe("Parse of", function() {
 
             ast.qualifieds.should.contain.key('net.dhleong.njast.SomeAnnotation#array');
         });
+
+        it("has FullAst#constructor()", function() {
+            fullast.should.have.deep.property('body.constructors[0].params.kids')
+                .that.is.empty;
+
+            var stmt = fullast.body.constructors[0].body.kids[0];
+            should.exist(stmt);
+
+            stmt.should.have.deep.property('constructor.name')
+                .that.equals('MethodInvocation');
+            stmt.name.should.equal('this');
+        });
+        it("has FullAst#constructor(int)", function() {
+            fullast.should.have.deep.property('body.constructors[1].params.kids')
+                .that.is.an('array').of.length(1);
+        });
     });
 
 });
