@@ -1115,9 +1115,11 @@ function Modifiers(prev) {
 
     var tok = this.tok;
     while (!tok.isEof()) {
-        // TODO annotations
-        if (tok.readAt())
-            tok.raiseUnsupported("annotations");
+        var annotation = Annotation.read(this);
+        if (annotation) {
+            this.kids.push(annotation);
+            continue;
+        }
 
         var ident = tok.peekIdentifier();
         if (!Tokenizer.isModifier(ident)) 
@@ -1131,17 +1133,130 @@ function Modifiers(prev) {
 util.inherits(Modifiers, SimpleNode);
 
 Modifiers.read = function(prev) {
-    // TODO annotations
     var tok = prev.tok;
-    if (tok.readAt())
-        tok.raiseUnsupported("annotations");
-
-    var ident = tok.peekIdentifier();
-    if (!Tokenizer.isModifier(ident)) 
+    if (!(tok.peekAt()
+            || Tokenizer.isModifier(tok.peekIdentifier())))
         return;
 
     return new Modifiers(prev);
 }
+
+
+function Annotation(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectAt();
+
+    this.name = tok.readQualified();
+    if (tok.readParenOpen()) {
+        this.args = [];
+
+        var self = this;
+        var addAll = function(array) {
+            array.forEach(function(el) {
+                self.args.push(el);
+            });
+        }
+
+        do {
+            var element = this._readElement();
+            if (Array.isArray(element)) {
+                addAll(element);
+            } else {
+                this.args.push(element);
+            }
+        } while (tok.readComma());
+
+        tok.expectParenClose();
+    }
+
+    this._end();
+}
+util.inherits(Annotation, SimpleNode);
+
+Annotation.prototype._readElement = function() {
+    var tok = this.tok;
+    var state = tok.save();
+
+    // is this a pair?
+    var ident = tok.readIdentifier();
+    if (tok.peekEquals()) {
+        return this._readElementPairs(state, ident);
+    }
+
+    // just a value. let's start over
+    tok.restore(state);
+    return Annotation._readElementValue(this);
+};
+
+Annotation.prototype._readElementPairs = function(state, ident) {
+    var pairs = [
+        new AnnotationElementValuePair(this, state, ident)
+    ];
+    while (this.tok.readComma()) {
+        pairs.push(new AnnotationElementValuePair(this));
+    }
+    return pairs;
+};
+
+Annotation._readElementValue = function(prev) {
+
+    var tok = prev.tok;
+    if (tok.peekAt())
+        return Annotation.read(prev);
+
+    if (tok.peekBlockOpen()) {
+        // ElementValueArrayInitializer
+        return new AnnotationElementValueArray(prev);
+    }
+
+    return Expression._expression1(prev);
+};
+
+Annotation.read = function(prev) {
+    if (!prev.tok.peekAt())
+        return;
+
+    return new Annotation(prev);
+};
+
+function AnnotationElementValuePair(prev, state, ident) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    if (state) {
+        this.start_from(state);
+        this.name = ident;
+    } else {
+        this.name = tok.readIdentifier();
+    }
+
+    tok.expectEquals();
+    this.value = Annotation._readElementValue(this);
+
+    this._end();
+}
+util.inherits(AnnotationElementValuePair, SimpleNode);
+
+function AnnotationElementValueArray(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectBlockOpen();
+
+    this.kids = [];
+    do {
+        this.kids.push(Annotation._readElementValue(prev));
+    } while (tok.readComma());
+
+    tok.expectBlockClose();
+
+    this._end();
+}
+util.inherits(AnnotationElementValueArray, SimpleNode);
+
+
 
 /**
  * Factory for Types

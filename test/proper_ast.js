@@ -169,7 +169,7 @@ describe("Parse of", function() {
                         .that.equals('net.dhleong.njast.FullAst');
         });
 
-        describe("and handles ClassDeclarations: ", function() {
+        describe("handles ClassDeclarations: ", function() {
 
             // TODO
             it("Has TypeParameters");
@@ -513,6 +513,55 @@ describe("Parse of", function() {
                 it("throw");
                 it("synchronized");
                 it("try");
+            });
+
+            describe("Annotations", function() {
+
+                it("Override", function() {
+                    var overridable = fullast.body.methods[3];
+                    should.exist(overridable);
+                    overridable.should.have.deep.property('mods.kids[0]')
+                        .that.has.property('name').that.equals('Override');
+                });
+
+                it("SuppressWarnings with ElementValuePairs", function() {
+                    var overridable = fullast.body.methods[3];
+                    overridable.should.have.deep.property('mods.kids[1]')
+                        .that.has.property('name').that.equals('SuppressWarnings');
+
+                    var sw = overridable.mods.kids[1];
+                    sw.should.have.property('args')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0]')
+                            .that.has.deep.property('constructor.name')
+                                .that.equals('AnnotationElementValuePair');
+                });
+
+                it("SuppressWarnings with Array", function() {
+                    var suppress = fullast.body.methods[4];
+                    suppress.should.have.deep.property('mods.kids[0]')
+                        .that.has.property('name').that.equals('SuppressWarnings');
+
+                    var sw = suppress.mods.kids[0];
+                    sw.should.have.property('args')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0]')
+                            .that.has.deep.property('constructor.name')
+                                .that.equals('AnnotationElementValueArray');
+                });
+
+                it("SuppressWarnings with value=Array", function() {
+                    var suppress = fullast.body.methods[5];
+                    suppress.should.have.deep.property('mods.kids[0]')
+                        .that.has.property('name').that.equals('SuppressWarnings');
+
+                    var sw = suppress.mods.kids[0];
+                    sw.should.have.property('args')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0].value') // assumes ValuePair
+                            .that.has.deep.property('constructor.name')
+                                .that.equals('AnnotationElementValueArray');
+                });
             });
 
             describe("Nested types:", function() {

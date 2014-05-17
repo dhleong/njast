@@ -61,6 +61,18 @@ public class FullAst
         };
     }
 
+    @Override
+    @SuppressWarnings(value = "unchecked")
+    void overridable() {
+        // overridden!
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void suppressArray() {}
+
+    @SuppressWarnings(value={"unchecked", "rawtypes"})
+    void suppressArrayValue() {}
+
     class NestedClass {
     }
 
