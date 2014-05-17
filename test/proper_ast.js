@@ -24,8 +24,7 @@ chai.use(function(_chai, utils) {
      * ex: should.be.assignment({left: 'varName', type: '=', value: 42}) 
      */
     utils.addMethod(chai.Assertion.prototype, 'assignment', function(def) {
-        var obj = utils.flag(this, 'object');
-
+        var obj = utils.flag(this, 'object'); 
         if (def.value)
             def.right = {value: def.value};
         if (!def.type)
@@ -230,6 +229,16 @@ describe("Parse of", function() {
                         'type.name': 'Imported'
                     }
                 });
+            });
+
+            it("Has array field singleArray", function() {
+            
+                var field2 = fullast.body.fields[3];
+                field2.should.have.property('type')
+                    .that.has.property('name')
+                        .that.equals('int');
+                field2.type.should.have.property('array')
+                    .that.equals(1);
             });
 
             it("Has static block", function() {

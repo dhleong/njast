@@ -686,10 +686,10 @@ Expression._expression3 = function(prev) {
     }
 
     if (tok.peekParenOpen()) {
+        // TODO
         tok.raiseUnsupported("Cast expressions");
     }
 
-    // prev.tok.raiseUnsupported("expression3");
     var primary = Primary.read(prev);
 
     // TODO selectors
@@ -1164,22 +1164,41 @@ var Type = {
     }
 }
 
-function BasicType(prev) {
-    SimpleNode.call(this, prev);
-
-    this.name = prev.tok.readIdentifier();
-
-    this._end();
-}
-util.inherits(BasicType, SimpleNode);
-
-function ReferenceType(prev) {
+/**
+ * Base class for nodes that host some sort of Type
+ */
+function TypeNode(prev) {
     SimpleNode.call(this, prev);
 
     var tok = this.tok;
     this.name = tok.readIdentifier();
     this.simpleName = this.name; // Simple name will drop all TypeArguments
     this.array = 0; // dimensions of array; zero means not an array
+}
+util.inherits(TypeNode, SimpleNode);
+
+TypeNode.prototype._readArray = function() {
+    var tok = this.tok;
+    while (tok.readBracketOpen()) {
+        tok.expectBracketClose();
+        this.array++;
+    }
+};
+
+
+function BasicType(prev) {
+    TypeNode.call(this, prev);
+
+    // easy
+    this._readArray();
+    this._end();
+}
+util.inherits(BasicType, TypeNode);
+
+function ReferenceType(prev) {
+    TypeNode.call(this, prev);
+
+    var tok = this.tok;
 
     // TODO <TypeArgs> . etc.
     if (tok.readGenericOpen())
@@ -1187,14 +1206,10 @@ function ReferenceType(prev) {
     if (tok.readDot())
         tok.raiseUnsupported('Type.OtherType');
 
-    while (tok.readBracketOpen()) {
-        tok.expectBracketClosed();
-        this.array++;
-    }
-
+    this._readArray();
     this._end();
 }
-util.inherits(ReferenceType, SimpleNode);
+util.inherits(ReferenceType, TypeNode);
 
 
 function TypeParameters(prev) {
