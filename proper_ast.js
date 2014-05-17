@@ -659,7 +659,6 @@ Expression._expression1 = function(prev) {
 /** Expression2 factory */
 Expression._expression2 = function(prev) {
     var exprFactory = Expression._expression3;
-    var opFactory = prev.tok.readInfixOp;
     var expr3 = exprFactory(prev);
     if (!expr3)
         return;
@@ -667,7 +666,8 @@ Expression._expression2 = function(prev) {
     if (prev.tok.readString("instanceof")) 
         return new InstanceOfExpression(prev, expr3);
 
-    // FIXME infix op
+    // infix op
+    var opFactory = prev.tok.readInfixOp;
     var op = opFactory.call(prev.tok);
     if (op)
         return new Expression(prev, expr3, op, exprFactory, opFactory);
@@ -678,10 +678,15 @@ Expression._expression2 = function(prev) {
 /** Expression3 factory */
 Expression._expression3 = function(prev) {
 
-    // FIXME prefix op
+    var tok = prev.tok;
+    var state = tok.save();
+    var prefixOp = tok.readPrefixOp();
+    if (prefixOp) {
+        return new PrefixExpression(prev, state, prefixOp);
+    }
 
-    if (prev.tok.peekParenOpen()) {
-        prev.tok.raiseUnsupported("Cast expressions");
+    if (tok.peekParenOpen()) {
+        tok.raiseUnsupported("Cast expressions");
     }
 
     // prev.tok.raiseUnsupported("expression3");
@@ -692,6 +697,17 @@ Expression._expression3 = function(prev) {
 
     return primary;
 }
+
+function PrefixExpression(prev, state, prefixOp) {
+    SimpleNode.call(this, prev);
+
+    this.start_from(state);
+    this.op = prefixOp;
+    this.expression = Expression._expression3(this);
+
+    this._end();
+}
+util.inherits(PrefixExpression, SimpleNode);
 
 
 function TernaryExpression(prev, question) {

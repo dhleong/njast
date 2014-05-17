@@ -50,6 +50,8 @@ public class FullAst
 
         // test creator
         field2 = new Imported();
+
+        ++group2;
     }
 
     static SomeInterface factory() {

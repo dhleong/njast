@@ -447,6 +447,20 @@ describe("Parse of", function() {
                     });
                 });
 
+                it("Prefix expression", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var prefix = states[10];
+
+                    should.exist(prefix);
+
+                    prefix.should.have.property('op')
+                        .that.equals('++');
+                    prefix.should.have.property('expression')
+                        .that.has.property('name')
+                            .that.equals('group2');
+                });
+
                 it("Anonymous class in Creator", function() {
                     var fluid = fullast.body.methods[2];
                     var ret = fluid.body.kids[0];

@@ -125,3 +125,22 @@ describe("readInfixOp", function() {
         tokify('>>>').readInfixOp().should.equal('>>>');
     });
 });
+
+describe("readPrefixOp", function() {
+
+    it("accepts +", function() {
+        tokify('+').readPrefixOp().should.equal('+');
+    });
+    it("accepts ~", function() {
+        tokify('~').readPrefixOp().should.equal('~');
+    });
+    it("accepts ++", function() {
+        tokify('++').readPrefixOp().should.equal('++');
+    });
+    it("accepts --", function() {
+        tokify('--').readPrefixOp().should.equal('--');
+    });
+    it("rejects +=", function() {
+        should.not.exist(tokify('+=').readPrefixOp());
+    });
+});

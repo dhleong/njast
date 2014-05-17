@@ -5,7 +5,7 @@
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&!^%;:@\"'?\\ ",
+    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&!~^%;:@\"'?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -42,6 +42,7 @@ var MINUS = VALS.next();
 var OR = VALS.next();
 var AND = VALS.next();
 var BANG = VALS.next();
+var TILDE = VALS.next();
 var XOR = VALS.next();
 var MODULO = VALS.next();
 var SEMICOLON = VALS.next();
@@ -77,7 +78,7 @@ var OTHER_TOKENS = [
 var MATH = [
     PLUS, MINUS, STAR, SLASH,
     EQUALS,
-    OR, AND, BANG,
+    OR, AND, BANG, TILDE,
     GENERIC_OPEN, GENERIC_CLOSE
 ]
 
@@ -102,6 +103,12 @@ var SIMPLE_INFIX_OP = [OR, XOR, AND, GENERIC_OPEN, GENERIC_CLOSE,
     dict[token] = true;
     return dict;
 }, {});
+
+var SIMPLE_PREFIX_OP = [BANG, TILDE, PLUS, MINUS].reduce(function(dict, token) {
+    dict[token] = true;
+    return dict;
+}, {});
+
 
 
 var DIGIT_CODE_TO_VALUE = {};
@@ -503,6 +510,29 @@ Tokenizer.prototype.readInfixOp = function() {
 
     return String.fromCharCode(token);
 }
+
+Tokenizer.prototype.readPrefixOp = function() {
+    
+    var state = this._prepare();
+
+    if (this.readString('++'))
+        return '++';
+    if (this.readString('--'))
+        return '--';
+
+    var token = this.read();
+    if (!(token in SIMPLE_PREFIX_OP)) {
+        this.restore(state);
+        return;
+    }
+
+    if (this.readEquals()) {
+        this.restore(state);
+        return;
+    }
+
+    return String.fromCharCode(token);
+};
 
 var _peekMethod = function(readType) {
     var method = Tokenizer.prototype['read' + readType];
