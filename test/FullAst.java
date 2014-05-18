@@ -131,6 +131,32 @@ public class FullAst<E, T extends Object & Imported>
         synchronized(field1) {
             suppressArray();
         }
+
+        try {
+            // 
+        } finally {
+            // finally
+        }
+
+        try {
+            // 
+        } catch (Exception e) {
+        }
+
+        try {
+            // 
+        } catch (Exception e) {
+        } finally {
+        }
+
+        try {
+            // 
+        } catch (IOException|RuntimeException e) {
+        }
+
+        try (InputStream in = field2.open()) {
+            // block
+        }
     }
 
     /*

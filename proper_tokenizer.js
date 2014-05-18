@@ -217,7 +217,7 @@ var Commentor = {
 
         //console.log("START comment @", this.line, ":", type, off);
     }
-}
+};
 
 
 /**
@@ -228,6 +228,7 @@ function Tokenizer(path, buffer) {
     this._fp = buffer;
     this._start = buffer.offset;
     this._strict = true;
+    this._level = Tokenizer.Level.DEFAULT;
 
     this._line = 1;
     this._col = 1;
@@ -235,6 +236,16 @@ function Tokenizer(path, buffer) {
 
     this.errors = [];
 }
+
+/**
+ * Constants for compiler level compatibility checking
+ */
+Tokenizer.Level = {
+    DEFAULT: 7,  // default to JDK7 compat
+
+    JDK6: 6,
+    JDK7: 7, 
+};
 
 /** 
  * Prepare to do some reading; skips whitespace, consumes comments.
@@ -377,6 +388,7 @@ Tokenizer.prototype.readComma      = _doRead(COMMA);
 Tokenizer.prototype.readUnderline  = _doRead(UNDERLINE);
 Tokenizer.prototype.readColon      = _doRead(COLON);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
+Tokenizer.prototype.readOr         = _doRead(OR);
 Tokenizer.prototype.readAnd        = _doRead(AND);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
@@ -620,6 +632,20 @@ Tokenizer.prototype.raise = function(expecting) {
         throw err;
 };
 
+var _jdkCheck = function(level) {
+    return function(feature) {
+        if (this._level >= level)
+            return true;
+
+        var err = this._error("Using JDK" + this._level 
+            + " compat; encountered JDK" + level 
+            + " feature `" + feature + "`", true);
+        if (this._strict)
+            throw err;
+    };
+};
+Tokenizer.prototype.checkJdk7 = _jdkCheck(Tokenizer.Level.JDK7);
+
 /** Always throws an error; it's not clear how to skip past an unsupported feature  */
 Tokenizer.prototype.raiseUnsupported = function(feature) {
     throw this._error('Encountered unsupported feature "' + feature + '"', true);
@@ -668,7 +694,6 @@ Tokenizer.isReserved = function(word) {
         || ~PRIMITIVES.indexOf(word)
         || ~OTHER_RESERVED.indexOf(word);
 };
-
 
 function isIdentifier(existing, charCode) {
     if (!charCode)

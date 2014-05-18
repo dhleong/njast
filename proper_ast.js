@@ -792,9 +792,11 @@ var Statement = {
             return new ThrowStatement(prev);
         case "synchronized":
             return new SynchronizedStatement(prev);
+        case "try":
+            return new TryStatement(prev);
         }
         
-        prev.tok.raiseUnsupported("control statements: " 
+        prev.tok.raiseUnsupported("unexpected control statements: " 
             + prev.tok.peekIdentifier());
     }
 };
@@ -1066,6 +1068,83 @@ function SynchronizedStatement(prev) {
     this._end();
 }
 util.inherits(SynchronizedStatement, SimpleNode);
+
+function TryStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString('try');
+
+    if (tok.readParenOpen()) {
+        tok.checkJdk7("Try-with-resources");
+        this.resources = [];
+        do {
+            var mods = Modifiers.read(this);
+            var type = Type.read(this);
+            var name = tok.readIdentifier();
+            if (type && name) {
+                var def = new VarDef(this, mods, type, name, true);
+                if (!def.initializer)
+                    this.raise("initialized resource");
+
+                this.resources.push(def);
+            }
+        } while (tok.readSemicolon());
+        
+        tok.expectParenClose();
+    }
+
+    this.body = Block.read(this);
+
+    this.catches;
+    while (tok.readString('catch')) {
+        var clause = CatchClause.read(this);
+        if (clause) {
+            if (!this.catches) this.catches = [];
+            this.catches.push(clause);
+        }
+    }
+
+    if (tok.readString('finally')) {
+        this.finallyBlock = Block.read(this);
+    }
+
+    this._end();
+}
+util.inherits(TryStatement, SimpleNode);
+
+function CatchClause(prev, state, mods, types, name) {
+    SimpleNode.call(this, prev);
+
+    this.start_from(state);
+    this.mods = mods;
+    this.types = types;
+    this.name = name;
+
+    this.body = Block.read(this);
+
+    this._end();
+}
+util.inherits(CatchClause, SimpleNode);
+
+CatchClause.read = function(prev) {
+    var tok = prev.tok;
+    tok.expectParenOpen();
+    var state = tok.prepare();
+    var mods = Modifiers.read(prev);
+    var types = [tok.readQualified()];
+    if (tok.readOr() && tok.checkJdk7("multi-catch")) {
+        do {
+            types.push(tok.readQualified());
+        } while (tok.readOr());
+    }
+    var name = tok.readIdentifier();
+
+    if (types && name) {
+        tok.expectParenClose();
+        return new CatchClause(prev, state, mods, types, name);
+    }
+}
 
 /**
  * The Expression Class is used for anything

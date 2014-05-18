@@ -751,8 +751,73 @@ describe("Parse of", function() {
                     synchronized.should.have.property('body');
                 });
 
-                it('try');
-                it('try with resources');
+                it('try-finally', function() {
+                    var controls = fullast.body.methods[6];
+                    var tryFinally = controls.body.kids[14];
+                    tryFinally.should.have.deep.property('constructor.name')
+                        .that.equals('TryStatement');
+                    tryFinally.should.not.have.property('resources');
+                    tryFinally.should.not.have.property('catches');
+                    tryFinally.should.have.property('finallyBlock');
+                });
+
+                it('try-catch', function() {
+                    var controls = fullast.body.methods[6];
+                    var tryCatch = controls.body.kids[15];
+                    tryCatch.should.have.deep.property('constructor.name')
+                        .that.equals('TryStatement');
+                    tryCatch.should.not.have.property('resources');
+                    tryCatch.should.not.have.property('finallyBlock');
+                    tryCatch.should.have.property('catches')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0].types')
+                            .that.contains('Exception');
+                });
+
+                it('try-catch-finally', function() {
+                    var controls = fullast.body.methods[6];
+                    var tryCatchFinally = controls.body.kids[16];
+                    tryCatchFinally.should.have.deep.property('constructor.name')
+                        .that.equals('TryStatement');
+                    tryCatchFinally.should.not.have.property('resources');
+                    tryCatchFinally.should.have.property('finallyBlock');
+                    tryCatchFinally.should.have.property('catches')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0].types')
+                            .that.contains('Exception');
+                });
+
+                it('try with multi-catch', function() {
+                    var controls = fullast.body.methods[6];
+                    var multiCatch = controls.body.kids[17];
+                    multiCatch.should.have.deep.property('constructor.name')
+                        .that.equals('TryStatement');
+                    multiCatch.should.not.have.property('resources');
+                    multiCatch.should.not.have.property('finallyBlock');
+                    multiCatch.should.have.property('catches')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0].types')
+                            .that.contains('RuntimeException');
+                    multiCatch.catches[0].types.should.contain('IOException');
+                });
+
+                it('try with resources', function() {
+                    
+                    var controls = fullast.body.methods[6];
+                    var withRes = controls.body.kids[18];
+                    withRes.should.have.deep.property('constructor.name')
+                        .that.equals('TryStatement');
+                    withRes.should.not.have.property('finallyBlock');
+                    withRes.should.not.have.property('catches');
+                    withRes.should.have.property('resources')
+                        .that.is.an('array').of.length(1)
+                        .and.has.deep.property('[0]').that.is.assignment({
+                            left: 'in',
+                            right: {
+                                'left.name': 'field2'
+                            }
+                        });
+                });
             });
 
             describe("Annotations", function() {
