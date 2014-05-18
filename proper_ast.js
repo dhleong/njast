@@ -822,13 +822,10 @@ function SwitchStatement(prev) {
         if (!current.labels)
             tok.raise("switch labels");
 
-        if (tok.readBlockClose()) {
-            // quick shortcut out
-            this.kids.push(current);
-            break; 
-        }
-
-        while (!tok.readString('break')) {
+        while (!(tok.peekBlockClose()
+                || tok.readString('break')
+                || tok.peekString('case')
+                || tok.peekString('default'))) {
             var stmt = BlockStatement.read(this);
             if (!stmt)
                 break;

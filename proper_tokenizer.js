@@ -130,7 +130,7 @@ var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 
 var OTHER_RESERVED = ['class', 'interface', 'const', 'goto', 'enum',
                         'extends', 'inherits', 'import', 'instanceof',
                         'new', 'package', 'super', 'this', 'throws',
-                        'false', 'null', 'true'];
+                        'case', 'default', 'false', 'null', 'true'];
 
 /**
  * Comment state machine

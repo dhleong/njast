@@ -94,6 +94,16 @@ public class FullAst
             break;
         default:
         }
+
+        // and again, with an enum
+        SomeEnum val = SomeEnum.VAL1;
+        switch(val) {
+        case VAL1:
+            simpleMethod();
+        case VAL2:
+        default:
+            overridable();
+        }
     }
 
     /*

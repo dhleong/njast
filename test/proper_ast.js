@@ -99,7 +99,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.error = function () {
+console.aerror = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -641,6 +641,16 @@ describe("Parse of", function() {
                         .that.is.an('array').of.length(2)
                         .with.deep.property('[1].labels')
                             .that.contains('default');
+
+                    var enumSwitch = controls.body.kids[3];
+                    enumSwitch.should.have.deep.property('constructor.name')
+                        .that.equals('SwitchStatement');
+
+                    enumSwitch.should.have.property('condition');
+                    enumSwitch.should.have.property('kids')
+                        .that.is.an('array').of.length(2)
+                        .with.deep.property('[0].labels[0].name')
+                            .that.equals('VAL1');
                 });
 
                 it("while");
