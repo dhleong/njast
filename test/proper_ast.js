@@ -600,6 +600,22 @@ describe("Parse of", function() {
                     ref.should.have.deep.property('chain[1].name')
                         .that.equals('simpleMethod');
                 });
+
+                it("Generic type ref (TypeArguments)", function() {
+                    var generic = ast.qualifieds[
+                        'net.dhleong.njast.FullAst#generic'
+                    ];
+                    should.exist(generic);
+
+                    generic.should.have.deep.property('body.kids[0].type.simpleName')
+                        .that.equals('NestedClass');
+                    var def = generic.body.kids[0];
+                    var type = def.type;
+                    type.should.have.deep.property('namePath[0][0]')
+                        .that.equals('FullAst');
+                    type.should.have.deep.property('namePath[1][0]')
+                        .that.equals('NestedClass');
+                });
             
                 // TODO
                 it("Chain assignment");
@@ -902,6 +918,7 @@ describe("Parse of", function() {
                     .that.has.property('qualifiedName')
                         .that.equals('net.dhleong.njast.SomeInterface');
         });
+
         it("has SomeEnum", function() {
             ast.qualifieds.should.contain.key('net.dhleong.njast.SomeEnum');
             var someEnum = ast.qualifieds['net.dhleong.njast.SomeEnum'];
@@ -931,6 +948,7 @@ describe("Parse of", function() {
                 .that.equals('MethodInvocation');
             stmt.name.should.equal('this');
         });
+
         it("has FullAst#constructor(int)", function() {
             fullast.should.have.deep.property('body.constructors[1].params.kids')
                 .that.is.an('array').of.length(1);

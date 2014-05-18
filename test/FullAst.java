@@ -169,11 +169,15 @@ public class FullAst<E, T extends Object & Imported>
         singleInt = arg;
     }
 
+    public void generic() {
+        FullAst<? extends Object, Imported>.NestedClass<FullInterface> object;
+    }
+
     /*
      * Nested classes
      */
 
-    class NestedClass {
+    class NestedClass<T> {
         void ncMethod() {
             this.outerClassMethod();
         }

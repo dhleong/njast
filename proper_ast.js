@@ -1992,25 +1992,55 @@ function BasicType(prev, skipArray) {
 }
 util.inherits(BasicType, TypeNode);
 
+/**
+ * NB: The name property will be the full
+ *  path, minus type arguments. The simpleName
+ *  property will always be the "actual" type,
+ *  IE the last qualified identifier. typeArgs
+ *  will always be those attached to simpleName.
+ *
+ * For the full path with TypeArguments, check
+ *  namePath; it's an array of tuples, where the
+ *  first item in the tuple is name part, and
+ *  the second is the type args (if any) attached
+ *  to that name.
+ */
 function ReferenceType(prev, skipArray) {
     TypeNode.call(this, prev, skipArray);
 
     var tok = this.tok;
 
-    // TODO <TypeArgs> . etc.
-    if (tok.readGenericOpen())
-        tok.raiseUnsupported('type arguments');
+    // <TypeArguments> . etc.
+    this.typeArgs = TypeArguments.read(this);
+    var state = tok.prepare();
     if (tok.readDot()) {
-        var ident = tok.peekIdentifier();
-        if (!Tokenizer.isReserved(ident))
-            tok.raiseUnsupported('Type.OtherType');
-        // else, eg: Type.this
+        this._readQualified(state);
     }
 
     this._readArray();
     this._end();
 }
 util.inherits(ReferenceType, TypeNode);
+
+ReferenceType.prototype._readQualified = function(state) {
+    var tok = this.tok;
+    this.namePath = [[this.name, this.typeArgs]];
+    do {
+        var ident = tok.readIdentifier();
+        if (Tokenizer.isReserved(ident)) {
+            // else, eg: Type.this
+            tok.restore(state);
+            return;
+        }
+        
+        this.name += '.' + ident;
+        this.simpleName = ident;
+        this.typeArgs = TypeArguments.read(this);
+        this.namePath.push([ident, this.typeArgs]);
+    
+    } while (tok.readDot());
+};
+
 
 
 function TypeParameters(prev) {
@@ -2054,6 +2084,45 @@ function TypeParameter(prev, state, ident) {
     this._end();
 }
 util.inherits(TypeParameter, SimpleNode);
+
+function TypeArguments(prev) {
+    SimpleNode.call(this, prev);
+
+    this.kids = [];
+    var tok = this.tok;
+    do {
+        if (tok.readQuestion()) {
+            this.kids.push(new WildcardTypeArgument(this));
+        } else {
+            this.kids.push(Type.read(this));
+        }
+    } while (tok.readComma());
+    tok.expectGenericClose();
+
+    this._end();
+}
+util.inherits(TypeArguments, SimpleNode);
+
+TypeArguments.read = function(prev) {
+    var tok = prev.tok;
+    if (!tok.readGenericOpen())
+        return;
+
+    return new TypeArguments(prev);
+};
+
+function WildcardTypeArgument(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    if (tok.readString("extends"))
+        this.extends = Type.read(this);
+    else if (tok.readString("super"))
+        this.super = Type.read(this);
+
+    this._end();
+}
+util.inherits(WildcardTypeArgument, SimpleNode);
 
 
 /**
