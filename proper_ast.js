@@ -1271,9 +1271,22 @@ function Creator(prev, typeArgs, type) {
         : type.start;
     var tok = this.tok;
     this.type = type;
-    if (!typeArgs && tok.peekBracketOpen()) {
-        // TODO
-        tok.raiseUnsupported("ArrayCreatorRest");
+    if (!typeArgs && tok.readBracketOpen()) {
+        if (tok.readBracketClose()) {
+            // eg: []..
+            this.array = 1;
+            this._readEmptyArrays();
+
+            // eg: [] { .. }
+            if (tok.peekBlockOpen())
+                this.initializer = VarDef.readArrayInitializer(prev);
+        } else {
+            // eg: [2]..[]..
+            this.array = 0;
+            this.arraySizes = [];
+            this._readSizedArrays();
+            this._readEmptyArrays();
+        }
     } else {
         this.args = new Arguments(this);
 
@@ -1285,6 +1298,26 @@ function Creator(prev, typeArgs, type) {
     this._end();
 }
 util.inherits(Creator, SimpleNode);
+
+Creator.prototype._readEmptyArrays = function() {
+    var tok = this.tok;
+    while (tok.readBracketOpen()) {
+        tok.expectBracketClose();
+        this.array++;
+    }
+};
+
+Creator.prototype._readSizedArrays = function() {
+    do {
+        var expr = Expression.read(this);
+        if (expr) {
+            this.arraySizes.push(expr);
+        }
+        this.tok.expectBracketClose();
+        this.array++;
+    } while (this.tok.readBracketOpen());
+};
+
 
 Creator.read = function(prev) {
     var tok = prev.tok;
@@ -1566,37 +1599,42 @@ util.inherits(AnnotationElementValueArray, SimpleNode);
  * Factory for Types
  */
 var Type = {
-    read: function(prev) {
+    read: function(prev, skipArray) {
         var ident = prev.tok.peekIdentifier();
         if ('void' == ident || Tokenizer.isPrimitive(ident))
-            return new BasicType(prev);
+            return new BasicType(prev, skipArray);
         else if (Tokenizer.isReserved(ident))
             return; // not a type
 
-        return new ReferenceType(prev);
+        return new ReferenceType(prev, skipArray);
     },
 
     /** Read CreatedName */
     readCreated: function(prev) {
         // FIXME this should support TypeArgumentsOrDiamond
-        return Type.read(prev);
+        return Type.read(prev, true);
     }
 }
 
 /**
  * Base class for nodes that host some sort of Type
  */
-function TypeNode(prev) {
+function TypeNode(prev, skipArray) {
     SimpleNode.call(this, prev);
 
     var tok = this.tok;
     this.name = tok.readIdentifier();
     this.simpleName = this.name; // Simple name will drop all TypeArguments
-    this.array = 0; // dimensions of array; zero means not an array
+
+    if (skipArray === undefined)
+        this.array = 0; // dimensions of array; zero means not an array
 }
 util.inherits(TypeNode, SimpleNode);
 
 TypeNode.prototype._readArray = function() {
+    if (this.array === undefined)
+        return; // nop
+
     var tok = this.tok;
     while (tok.readBracketOpen()) {
         tok.expectBracketClose();
@@ -1605,8 +1643,8 @@ TypeNode.prototype._readArray = function() {
 };
 
 
-function BasicType(prev) {
-    TypeNode.call(this, prev);
+function BasicType(prev, skipArray) {
+    TypeNode.call(this, prev, skipArray);
 
     // easy
     this._readArray();
@@ -1614,8 +1652,8 @@ function BasicType(prev) {
 }
 util.inherits(BasicType, TypeNode);
 
-function ReferenceType(prev) {
-    TypeNode.call(this, prev);
+function ReferenceType(prev, skipArray) {
+    TypeNode.call(this, prev, skipArray);
 
     var tok = this.tok;
 

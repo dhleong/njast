@@ -56,6 +56,12 @@ public class FullAst
 
         ++group2;
         group2++; // make sure postfix is parsed
+
+        int[] array1 = new int[1];
+        int[] array2 = {2, 3};
+        int[] array3 = new int[] {4, 5, 6};
+        int[][] array4 = {{7, 8}, {9, 10}};
+        int[][][] array5 = new int[11][12][];
     }
 
     static SomeInterface factory() {

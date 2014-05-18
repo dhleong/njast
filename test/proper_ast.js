@@ -492,10 +492,72 @@ describe("Parse of", function() {
                         
                 });
 
+                it("Array initialization", function() {
+                    
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var array1 = states[12];
+                    var array2 = states[13];
+                    var array3 = states[14];
+                    var array4 = states[15];
+                    var array5 = states[16];
+
+                    array1.should.be.assignment({
+                        left: 'array1',
+                        right: {
+                            'type.name': 'int'
+                          , 'array': 1
+                          , 'arraySizes[0].value': '1'
+                        }
+                    });
+
+                    array2.should.be.assignment({
+                        left: 'array2',
+                        right: {
+                            // array literal
+                            'constructor.name': 'Array'
+                          , '[0].value': '2'
+                          , '[1].value': '3'
+                        }
+                    });
+                    
+                    array3.should.be.assignment({
+                        left: 'array3',
+                        right: {
+                            'type.name': 'int'
+                          , 'array': 1
+                          , 'initializer[0].value': '4'
+                          , 'initializer[1].value': '5'
+                          , 'initializer[2].value': '6'
+                        }
+                    });
+
+                    array4.should.be.assignment({
+                        left: 'array4',
+                        right: {
+                            // array[][] literal
+                            'constructor.name': 'Array'
+                          , '[0][0].value': '7'
+                          , '[0][1].value': '8'
+                          , '[1][0].value': '9'
+                          , '[1][1].value': '10'
+                        }
+                    });
+                    
+                    array5.should.be.assignment({
+                        left: 'array5',
+                        right: {
+                            'type.name': 'int'
+                          , 'array': 3
+                          , 'arraySizes[0].value': '11'
+                          , 'arraySizes[1].value': '12'
+                        }
+                    });
+
+                });
+
                 // TODO
                 it("Chain assignment");
-                it("Array declaration");
-                it("Array initialization");
             });
 
             describe("Control Flow:", function() {
