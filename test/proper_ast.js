@@ -653,8 +653,24 @@ describe("Parse of", function() {
                             .that.equals('VAL1');
                 });
 
-                it('while');
-                it('do');
+                it('while', function() {
+                    var controls = fullast.body.methods[6];
+                    var whileStatement = controls.body.kids[9];
+                    should.exist(whileStatement);
+                    whileStatement.should.have.deep.property('constructor.name')
+                        .that.equals('WhileStatement');
+                    whileStatement.should.have.property('condition');
+                    whileStatement.should.have.property('body');
+                });
+                it('do', function() {
+                    var controls = fullast.body.methods[6];
+                    var doStatement = controls.body.kids[10];
+                    should.exist(doStatement);
+                    doStatement.should.have.deep.property('constructor.name')
+                        .that.equals('WhileStatement');
+                    doStatement.should.have.property('condition');
+                    doStatement.should.have.property('body');
+                });
 
                 it('for', function() {
                     
@@ -689,7 +705,10 @@ describe("Parse of", function() {
                             .that.equals('ClassicForControl');
                 });
 
-                it('break');
+                it('break', function() {
+                    // NB parsing tested in "for" above
+                });
+
                 it('continue');
 
                 it('return', function() {

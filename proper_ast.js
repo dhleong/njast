@@ -777,6 +777,9 @@ var Statement = {
             return new SwitchStatement(prev);
         case "if":
             return new IfStatement(prev);
+        case "while":
+        case "do":
+            return new WhileStatement(prev, name == "do");
         case "return":
             return new ReturnStatement(prev);
         case "for":
@@ -883,6 +886,28 @@ function IfStatement(prev) {
     this._end();
 }
 util.inherits(IfStatement, SimpleNode);
+
+function WhileStatement(prev, isDo) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    this.isDo = isDo;
+    if (isDo) {
+        tok.expectString("do");
+        this.body = Statement.read(this);
+
+        tok.expectString("while");
+        this.condition = Expression.readParen(this);
+        tok.expectSemicolon();
+    } else {
+        tok.expectString("while");
+        this.condition = Expression.readParen(this);
+        this.body = Statement.read(this);
+    }
+
+    this._end();
+}
+util.inherits(WhileStatement, SimpleNode);
 
 function ForStatement(prev) {
     SimpleNode.call(this, prev);

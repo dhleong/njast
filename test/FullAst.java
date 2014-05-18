@@ -116,6 +116,11 @@ public class FullAst
         int x = 0;
         for (; x < 10;)
             x++;
+
+        while (false) {}
+        do {
+            x++;
+        } while (x < 20);
     }
 
     /*
