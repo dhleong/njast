@@ -664,12 +664,15 @@ describe("Parse of", function() {
                 });
                 it('do', function() {
                     var controls = fullast.body.methods[6];
-                    var doStatement = controls.body.kids[10];
+                    // [10] is a label before us
+                    var doStatement = controls.body.kids[11];
                     should.exist(doStatement);
                     doStatement.should.have.deep.property('constructor.name')
                         .that.equals('WhileStatement');
                     doStatement.should.have.property('condition');
                     doStatement.should.have.property('body');
+                    doStatement.should.have.property('isDo')
+                        .that.equals(true);
                 });
 
                 it('for', function() {
@@ -709,7 +712,9 @@ describe("Parse of", function() {
                     // NB parsing tested in "for" above
                 });
 
-                it('continue');
+                it('continue', function() {
+                    // NB parsing tested in "do" above
+                });
 
                 it('return', function() {
                     var fluid = fullast.body.methods[2];

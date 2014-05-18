@@ -118,8 +118,11 @@ public class FullAst
             x++;
 
         while (false) {}
+    PreDo:
         do {
             x++;
+            if (x < 5)
+                continue PreDo; // won't happen, but let's parse
         } while (x < 20);
     }
 

@@ -751,12 +751,12 @@ var Statement = {
         if (block)
             return block;
 
-        var state = tok.save();
+        var state = tok.prepare();
         var ident = tok.readIdentifier();
 
-        if (tok.readColon()) {
-            prev.tok.raiseUnsupported("labels");
-        }
+        // label?
+        if (tok.readColon()) 
+            return new LabelStatement(prev, state, ident);
 
         tok.restore(state);
         if (Tokenizer.isControl(ident))
@@ -786,6 +786,8 @@ var Statement = {
             return new ForStatement(prev);
         case "break":
             return new BreakStatement(prev);
+        case "continue":
+            return new ContinueStatement(prev);
         // TODO
         }
         
@@ -793,6 +795,17 @@ var Statement = {
             + prev.tok.peekIdentifier());
     }
 };
+
+function LabelStatement(prev, state, label) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    this.start_from(state);
+    this.name = label;
+
+    this._end();
+}
+util.inherits(LabelStatement, SimpleNode);
 
 function AssertStatement(prev) {
     SimpleNode.call(this, prev);
@@ -997,6 +1010,20 @@ function BreakStatement(prev) {
     this._end();
 }
 util.inherits(BreakStatement, SimpleNode);
+
+function ContinueStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("continue");
+    if (!tok.readSemicolon()) {
+        this.label = tok.readIdentifier();
+        tok.expectSemicolon();
+    }
+
+    this._end();
+}
+util.inherits(ContinueStatement, SimpleNode);
 
 function ReturnStatement(prev) {
     SimpleNode.call(this, prev);
