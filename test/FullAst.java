@@ -170,7 +170,8 @@ public class FullAst<E, T extends Object & Imported>
     }
 
     public void generic() {
-        FullAst<? extends Object, Imported>.NestedClass<FullInterface> object;
+        FullAst<? extends Object, Imported>.NestedClass<FullInterface> object =
+            new FullAst<>.NestedClass<>();
     }
 
     /*

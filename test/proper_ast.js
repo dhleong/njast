@@ -601,7 +601,7 @@ describe("Parse of", function() {
                         .that.equals('simpleMethod');
                 });
 
-                it("Generic type ref (TypeArguments)", function() {
+                it("Generic type ref (TypeArguments) + diamond", function() {
                     var generic = ast.qualifieds[
                         'net.dhleong.njast.FullAst#generic'
                     ];
@@ -615,6 +615,15 @@ describe("Parse of", function() {
                         .that.equals('FullAst');
                     type.should.have.deep.property('namePath[1][0]')
                         .that.equals('NestedClass');
+                    type.should.have.deep.property('namePath[0][1].isDiamond')
+                        .that.equals(false);
+
+                    def.should.be.assignment({
+                        left: 'object',
+                        right: {
+                            'type.namePath[0][1].isDiamond': true
+                        }
+                    });
                 });
             
                 // TODO

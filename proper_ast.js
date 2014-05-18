@@ -1939,20 +1939,19 @@ util.inherits(AnnotationElementValueArray, SimpleNode);
  * Factory for Types
  */
 var Type = {
-    read: function(prev, skipArray) {
+    read: function(prev, skipArray, allowDiamond) {
         var ident = prev.tok.peekIdentifier();
         if ('void' == ident || Tokenizer.isPrimitive(ident))
             return new BasicType(prev, skipArray);
         else if (Tokenizer.isReserved(ident))
             return; // not a type
 
-        return new ReferenceType(prev, skipArray);
+        return new ReferenceType(prev, skipArray, allowDiamond);
     },
 
     /** Read CreatedName */
     readCreated: function(prev) {
-        // FIXME this should support TypeArgumentsOrDiamond
-        return Type.read(prev, true);
+        return Type.read(prev, true, true);
     }
 }
 
@@ -2005,16 +2004,16 @@ util.inherits(BasicType, TypeNode);
  *  the second is the type args (if any) attached
  *  to that name.
  */
-function ReferenceType(prev, skipArray) {
+function ReferenceType(prev, skipArray, allowDiamond) {
     TypeNode.call(this, prev, skipArray);
 
     var tok = this.tok;
 
     // <TypeArguments> . etc.
-    this.typeArgs = TypeArguments.read(this);
+    this.typeArgs = TypeArguments.read(this, allowDiamond);
     var state = tok.prepare();
     if (tok.readDot()) {
-        this._readQualified(state);
+        this._readQualified(state, allowDiamond);
     }
 
     this._readArray();
@@ -2022,7 +2021,7 @@ function ReferenceType(prev, skipArray) {
 }
 util.inherits(ReferenceType, TypeNode);
 
-ReferenceType.prototype._readQualified = function(state) {
+ReferenceType.prototype._readQualified = function(state, allowDiamond) {
     var tok = this.tok;
     this.namePath = [[this.name, this.typeArgs]];
     do {
@@ -2035,7 +2034,7 @@ ReferenceType.prototype._readQualified = function(state) {
         
         this.name += '.' + ident;
         this.simpleName = ident;
-        this.typeArgs = TypeArguments.read(this);
+        this.typeArgs = TypeArguments.read(this, allowDiamond);
         this.namePath.push([ident, this.typeArgs]);
     
     } while (tok.readDot());
@@ -2088,6 +2087,7 @@ util.inherits(TypeParameter, SimpleNode);
 function TypeArguments(prev) {
     SimpleNode.call(this, prev);
 
+    this.isDiamond = false; // explicit
     this.kids = [];
     var tok = this.tok;
     do {
@@ -2103,10 +2103,19 @@ function TypeArguments(prev) {
 }
 util.inherits(TypeArguments, SimpleNode);
 
-TypeArguments.read = function(prev) {
+/** Special version of TypeArguments for JDK7 Diamond syntax */
+TypeArguments.Diamond = {
+    isDiamond: true
+};
+
+TypeArguments.read = function(prev, allowDiamond) {
     var tok = prev.tok;
     if (!tok.readGenericOpen())
         return;
+    if (allowDiamond 
+            && tok.readGenericClose() 
+            && tok.checkJdk7("diamonds"))
+        return TypeArguments.Diamond;
 
     return new TypeArguments(prev);
 };
