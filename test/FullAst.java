@@ -104,6 +104,18 @@ public class FullAst
         default:
             overridable();
         }
+
+        for (int i=0, j=1; i < 5; i++)
+            suppressArray();
+
+        for (int i : new int[]{1, 2, 3}) {
+            suppressArray();
+        }
+
+        for (;;) break; // useless, but important to test
+        int x = 0;
+        for (; x < 10;)
+            x++;
     }
 
     /*

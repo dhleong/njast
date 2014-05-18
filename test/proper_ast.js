@@ -99,7 +99,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.aerror = function () {
+console.error = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -602,7 +602,7 @@ describe("Parse of", function() {
             });
 
             describe("Control Flow:", function() {
-                it("if", function() {
+                it('if', function() {
 
                     var controls = fullast.body.methods[6];
                     var ifStatement = controls.body.kids[0];
@@ -617,7 +617,7 @@ describe("Parse of", function() {
                     ifStatement.falseStatement.should.have.property('condition');
                 });
 
-                it("assert", function() {
+                it('assert', function() {
                     var controls = fullast.body.methods[6];
                     var ifStatement = controls.body.kids[0];
                     should.exist(ifStatement);
@@ -630,7 +630,7 @@ describe("Parse of", function() {
                             .that.equals('AssertStatement');
                 });
 
-                it("switch", function() {
+                it('switch', function() {
                     var controls = fullast.body.methods[6];
                     var switchStatement = controls.body.kids[1];
                     switchStatement.should.have.deep.property('constructor.name')
@@ -653,13 +653,46 @@ describe("Parse of", function() {
                             .that.equals('VAL1');
                 });
 
-                it("while");
-                it("do");
-                it("for");
-                it("break");
-                it("continue");
+                it('while');
+                it('do');
 
-                it("return", function() {
+                it('for', function() {
+                    
+                    var controls = fullast.body.methods[6];
+                    var classicFor = controls.body.kids[4];
+                    classicFor.should.have.deep.property('constructor.name')
+                        .that.equals('ForStatement');
+                    classicFor.should.have.property('control')
+                        .with.deep.property('constructor.name')
+                            .that.equals('ClassicForControl');
+
+                    var enhancedFor = controls.body.kids[5];
+                    enhancedFor.should.have.deep.property('constructor.name')
+                        .that.equals('ForStatement');
+                    enhancedFor.should.have.property('control')
+                        .with.deep.property('constructor.name')
+                            .that.equals('EnhancedForControl');
+
+                    var emptyFor = controls.body.kids[6];
+                    emptyFor.should.have.deep.property('constructor.name')
+                        .that.equals('ForStatement');
+                    emptyFor.should.have.property('control')
+                        .with.deep.property('constructor.name')
+                            .that.equals('ClassicForControl');
+
+                    // [7] is an init
+                    var weirdFor = controls.body.kids[8];
+                    weirdFor.should.have.deep.property('constructor.name')
+                        .that.equals('ForStatement');
+                    weirdFor.should.have.property('control')
+                        .with.deep.property('constructor.name')
+                            .that.equals('ClassicForControl');
+                });
+
+                it('break');
+                it('continue');
+
+                it('return', function() {
                     var fluid = fullast.body.methods[2];
                     var ret = fluid.body.kids[0];
 
@@ -669,9 +702,9 @@ describe("Parse of", function() {
                             .that.equals('SomeInterface');
                 });
 
-                it("throw");
-                it("synchronized");
-                it("try");
+                it('throw');
+                it('synchronized');
+                it('try');
             });
 
             describe("Annotations", function() {

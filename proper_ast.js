@@ -130,14 +130,14 @@ util.inherits(VariableDeclNode, SimpleNode);
 
 VariableDeclNode.prototype._readDeclarations = function(firstName) {
     if (firstName) {
-        this.kids.push(new VarDef(this, this.mods, this.type, firstName));
+        this.kids.push(new VarDef(this, this.mods, this.type, firstName, true));
     }
 
     var tok = this.tok;
     while (tok.readComma()) {
         var ident = tok.readIdentifier();
         if (ident)
-            this.kids.push(new VarDef(this, this.mods, this.type, ident));
+            this.kids.push(new VarDef(this, this.mods, this.type, ident, true));
     }
 
     tok.expectSemicolon();
@@ -779,7 +779,10 @@ var Statement = {
             return new IfStatement(prev);
         case "return":
             return new ReturnStatement(prev);
-
+        case "for":
+            return new ForStatement(prev);
+        case "break":
+            return new BreakStatement(prev);
         // TODO
         }
         
@@ -881,6 +884,94 @@ function IfStatement(prev) {
 }
 util.inherits(IfStatement, SimpleNode);
 
+function ForStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("for");
+    tok.expectParenOpen();
+    this.control = this._readControl();
+    tok.expectParenClose();
+
+    this.body = Statement.read(this);
+
+    this._end();
+}
+util.inherits(ForStatement, SimpleNode);
+
+ForStatement.prototype._readControl = function() {
+    var tok = this.tok;
+    var mods = Modifiers.read(this);
+    var type = Type.read(this);
+    if (type) {
+        var name = tok.readIdentifier();
+        if (name) {
+            if (tok.readColon())
+                return new EnhancedForControl(this, mods, type, name);
+            else
+                return new ClassicForControl(this, mods, type, name);
+        }
+    }
+
+    return new ClassicForControl(this);
+};
+
+function ClassicForControl(prev, mods, type, name) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    if (name)
+        this.init = new LocalVarDefs(this, mods, type, null, name);
+    else if (!tok.readSemicolon()) {
+        this.init = [];
+        do {
+            var expr = Expression.read(this);
+            if (expr)
+                this.init.push(expr);
+        } while (tok.readComma());
+
+        // LocalVarDefs above reads the semicolon
+        tok.expectSemicolon();
+    }
+
+    this.condition = Expression.read(this);
+    tok.expectSemicolon();
+    
+    this.update = [];
+    do {
+        var expr = Expression.read(this); // jshint ignore:line
+        if (expr)
+            this.update.push(expr);
+    } while (tok.readComma());
+
+    this._end();
+}
+util.inherits(ClassicForControl, SimpleNode);
+
+function EnhancedForControl(prev, mods, type, name) {
+    SimpleNode.call(this, prev);
+
+    this.variable = new VarDef(this, mods, type, name);
+    this.src = Expression.read(this);
+
+    this._end();
+}
+util.inherits(EnhancedForControl, SimpleNode);
+
+
+function BreakStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("break");
+    if (!tok.readSemicolon()) {
+        this.label = tok.readIdentifier();
+        tok.expectSemicolon();
+    }
+
+    this._end();
+}
+util.inherits(BreakStatement, SimpleNode);
 
 function ReturnStatement(prev) {
     SimpleNode.call(this, prev);
