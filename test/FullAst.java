@@ -104,6 +104,14 @@ public class FullAst
      */
 
     class NestedClass {
+        void ncMethod() {
+            this.outerClassMethod();
+        }
+
+        void outerClassMethod() {
+
+            FullAst.this.simpleMethod();
+        }
     }
 
     static class StaticNestedClass {

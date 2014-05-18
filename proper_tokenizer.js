@@ -545,7 +545,7 @@ var _peekMethod = function(readType) {
     var method = Tokenizer.prototype['read' + readType];
     return function() {
         var state = this.prepare();
-        var ident = method.call(this, arguments);
+        var ident = method.apply(this, arguments);
         this.restore(state);
         return ident;
     }
@@ -567,6 +567,8 @@ Tokenizer.prototype.peekBracketOpen  = _peekMethod('BracketOpen');
 Tokenizer.prototype.peekBracketClose = _peekMethod('BracketClose');
 Tokenizer.prototype.peekGenericOpen  = _peekMethod('GenericOpen');
 Tokenizer.prototype.peekGenericClose = _peekMethod('GenericClose');
+
+Tokenizer.prototype.peekString = _peekMethod('String');
 
 Tokenizer.prototype.readQualified = function() {
     var ident = this.readIdentifier();

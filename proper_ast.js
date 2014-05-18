@@ -948,7 +948,7 @@ Expression._expression3 = function(prev) {
     //  needs this, they're free to submit a PR
     tok.readPostfixOp();
 
-    return primary;
+    return result;
 }
 
 function PrefixExpression(prev, state, prefixOp) {
@@ -972,12 +972,33 @@ function SelectorExpression(primary, connector) {
 
     var tok = this.tok;
     while (connector) {
-        switch(connector) {
-        case '.':
-            tok.raiseUnsupported(".-selector");
-            break;
+        if ('.' == connector) {
+            var state = tok.prepare();
+            var next = tok.readIdentifier();
 
-        case '[':
+            switch(next) {
+            case 'this':
+                this.chain.push(new IdentifierExpression(this, state, 'this'));
+                break; // break out of switch (to "clear" comment below)
+
+            case 'super':
+                this.raiseUnsupported(".super");
+                break;
+            case 'new':
+                this.raiseUnsupported(".new");
+                break;
+
+            default:
+                if (tok.peekGenericOpen())
+                    this.raiseUnsupported("NonWildcardTypeArguments");
+
+                if (tok.peekParenOpen())
+                    this.chain.push(new MethodInvocation(this, state, next));
+                else
+                    this.chain.push(new IdentifierExpression(this, state, next));
+            }
+
+        } else if ('[' == connector) {
             var expr = Expression.read(this);
             if (expr) {
                 this.chain.push(expr);
@@ -1374,8 +1395,12 @@ util.inherits(IdentifierExpression, SimpleNode);
 
 IdentifierExpression.read = function(prev) {
     var tok = prev.tok;
-    var state = tok.save();
-    var name = tok.readQualified();
+    var state = tok.prepare();
+    // NB the spec suggests qualified, here,
+    //  but I'd rather be more consistent and use
+    //  SelectorExpressions
+    // var name = tok.readQualified();
+    var name = tok.readIdentifier();
 
     if (tok.peekParenOpen())
         return new MethodInvocation(prev, state, name);
@@ -1660,8 +1685,12 @@ function ReferenceType(prev, skipArray) {
     // TODO <TypeArgs> . etc.
     if (tok.readGenericOpen())
         tok.raiseUnsupported('type arguments');
-    if (tok.readDot())
-        tok.raiseUnsupported('Type.OtherType');
+    if (tok.readDot()) {
+        var ident = tok.peekIdentifier();
+        if (!Tokenizer.isReserved(ident))
+            tok.raiseUnsupported('Type.OtherType');
+        // else, eg: Type.this
+    }
 
     this._readArray();
     this._end();

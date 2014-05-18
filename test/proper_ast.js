@@ -556,6 +556,47 @@ describe("Parse of", function() {
 
                 });
 
+                it("this ref", function() {
+                    var nested = fullast.body.subclasses[0];
+                    nested.name.should.equal('NestedClass');
+                    var ncMethod = nested.body.methods[0];
+                    ncMethod.name.should.equal('ncMethod');
+
+                    ncMethod.body.kids.should.be.an('array').of.length(1);
+                    var ref = ncMethod.body.kids[0]
+                    should.exist(ref);
+
+                    ref.should.have.property('left')
+                        .with.property('name')
+                            .that.equals('this');
+                    ref.should.have.property('chain')
+                        .that.is.an('array').of.length(1)
+                        .with.deep.property('[0].constructor.name')
+                            .that.equals('MethodInvocation');
+                });
+            
+                it("Other.this ref", function() {
+                    var nested = fullast.body.subclasses[0];
+                    nested.name.should.equal('NestedClass');
+                    var outerClassMethod = nested.body.methods[1];
+                    outerClassMethod.name.should.equal('outerClassMethod');
+                    
+                    var ref = outerClassMethod.body.kids[0]
+                    should.exist(ref);
+                    ref.should.have.property('left')
+                        .with.property('name')
+                            .that.equals('FullAst');
+                    ref.should.have.property('chain')
+                        .that.is.an('array')// .of.length(2)
+                        .with.deep.property('[0].name')
+                            .that.equals('this');
+
+                    ref.should.have.deep.property('chain[1].constructor.name')
+                        .that.equals('MethodInvocation');
+                    ref.should.have.deep.property('chain[1].name')
+                        .that.equals('simpleMethod');
+                });
+            
                 // TODO
                 it("Chain assignment");
             });
