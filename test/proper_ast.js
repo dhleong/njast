@@ -625,6 +625,32 @@ describe("Parse of", function() {
                         }
                     });
                 });
+
+                it('Instantiate generic outer class', function() {
+                    var nested = fullast.body.subclasses[0];
+                    nested.name.should.equal('NestedClass');
+                    var outerClassMethod = nested.body.methods[1];
+                    outerClassMethod.name.should.equal('outerClassMethod');
+                    
+                    var ref = outerClassMethod.body.kids[1]
+                    should.exist(ref);
+                    ref.should.have.property('left')
+                        .with.property('name')
+                            .that.equals('FullAst');
+                    ref.should.have.property('chain')
+                        .that.is.an('array')// .of.length(2)
+                        .with.deep.property('[0].name')
+                            .that.equals('this');
+
+                    ref.should.have.deep.property('chain[1].constructor.name')
+                        .that.equals('Creator');
+                    ref.should.have.deep.property('chain[1].type.name')
+                        .that.equals('FullAst');
+                    ref.should.have.deep.property('chain[1].type.typeArgs.isDiamond')
+                        .that.equals(true);
+                    ref.should.have.deep.property('chain[1].typeArgs.kids[0].name')
+                        .that.equals('Imported');
+                });
             
                 // TODO
                 it("Chain assignment");
@@ -972,6 +998,9 @@ describe("Parse of", function() {
                 .with.deep.property('kids[0].name')
                     .that.equals('Y');
         });
+
+        // TODO don't forget javadoc!
+        it('has javadoc');
     });
 
 });

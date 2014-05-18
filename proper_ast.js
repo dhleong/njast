@@ -1290,15 +1290,16 @@ function SelectorExpression(primary, connector) {
             case 'this':
                 this.chain.push(new IdentifierExpression(this, state, 'this'));
                 break; // break out of switch (to "clear" comment below)
+            case 'new':
+                this.chain.push(Creator.read(this));
+                break;
 
             case 'super':
-                this.raiseUnsupported(".super");
-                break;
-            case 'new':
-                this.raiseUnsupported(".new");
+                tok.raiseUnsupported(".super");
                 break;
 
             default:
+                // TODO we can read these now...
                 if (tok.peekGenericOpen())
                     this.raiseUnsupported("NonWildcardTypeArguments");
 
@@ -1602,6 +1603,7 @@ function Creator(prev, typeArgs, type) {
         : type.start;
     var tok = this.tok;
     this.type = type;
+    this.typeArgs = typeArgs;
     if (!typeArgs && tok.readBracketOpen()) {
         if (tok.readBracketClose()) {
             // eg: []..

@@ -192,6 +192,9 @@ public class FullAst<E, T extends Object & Imported>
         void outerClassMethod() {
 
             FullAst.this.simpleMethod();
+
+            // crazy gross generic instantiation of inner class
+            FullAst.this.new <Imported>FullAst<>(FullAst.this.field1);
         }
     }
 
