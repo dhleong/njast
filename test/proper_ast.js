@@ -171,8 +171,13 @@ describe("Parse of", function() {
 
         describe("handles ClassDeclarations: ", function() {
 
-            // TODO
-            it("Has TypeParameters");
+            it("Has TypeParameters", function() {
+                fullast.should.have.property('typeParams')
+                    .with.deep.property('kids[0].name')
+                        .that.equals('E');
+                fullast.should.have.deep.property('typeParams.kids[1].name')
+                    .that.equals('T');
+            });
 
             it("Extends FullBase", function() {
                 fullast.should.have.property('extends')

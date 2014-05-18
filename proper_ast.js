@@ -799,7 +799,6 @@ var Statement = {
 function LabelStatement(prev, state, label) {
     SimpleNode.call(this, prev);
 
-    var tok = this.tok;
     this.start_from(state);
     this.name = label;
 
@@ -1907,19 +1906,44 @@ util.inherits(ReferenceType, TypeNode);
 function TypeParameters(prev) {
     SimpleNode.call(this, prev);
 
+    var tok = this.tok;
+    this.kids = [];
+    do {
+        var state = tok.prepare();
+        var ident = tok.readIdentifier();
+        if (ident)
+            this.kids.push(new TypeParameter(this, state, ident));
+    } while (tok.readComma());
+    tok.expectGenericClose();
+
     this._end();
 }
-util.inherits(Modifiers, SimpleNode);
+util.inherits(TypeParameters, SimpleNode);
 
 TypeParameters.read = function(prev) {
     var tok = prev.tok;
     if (!tok.readGenericOpen())
         return;
 
-    // TODO
-    tok.raiseUnsupported("TypeParameters");
     return new TypeParameters(prev);
 }
+
+function TypeParameter(prev, state, ident) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    this.start_from(state);
+    this.name = ident;
+    if (tok.readString("extends")) {
+        this.extends = [];
+        do {
+            this.extends.push(Type.read(this));
+        } while (tok.readAnd());
+    }
+
+    this._end();
+}
+util.inherits(TypeParameter, SimpleNode);
 
 
 /**

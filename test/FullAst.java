@@ -9,7 +9,7 @@ import net.dhleong.njast.subpackage.FullInterface;
 /** 
  * Javadoc for FullAst class 
  */
-public class FullAst 
+public class FullAst<E, T extends Object & Imported>
         extends FullBase
         implements FullInterface {
 

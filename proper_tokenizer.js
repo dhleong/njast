@@ -377,6 +377,7 @@ Tokenizer.prototype.readComma      = _doRead(COMMA);
 Tokenizer.prototype.readUnderline  = _doRead(UNDERLINE);
 Tokenizer.prototype.readColon      = _doRead(COLON);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
+Tokenizer.prototype.readAnd        = _doRead(AND);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
 Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
@@ -415,6 +416,8 @@ Tokenizer.prototype.expectQuote      = _doExpect(QUOTE);
 Tokenizer.prototype.expectQuestion   = _doExpect(QUESTION);
 Tokenizer.prototype.expectBracketOpen  = _doExpect(BRACKET_OPEN);
 Tokenizer.prototype.expectBracketClose = _doExpect(BRACKET_CLOSE);
+Tokenizer.prototype.expectGenericOpen  = _doExpect(GENERIC_OPEN);
+Tokenizer.prototype.expectGenericClose = _doExpect(GENERIC_CLOSE);
 
 Tokenizer.prototype.expectString = function(string) {
     if (!this.readString(string)) {
