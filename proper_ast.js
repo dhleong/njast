@@ -790,7 +790,8 @@ var Statement = {
             return new ReturnStatement(prev);
         case "throw":
             return new ThrowStatement(prev);
-        // TODO
+        case "synchronized":
+            return new SynchronizedStatement(prev);
         }
         
         prev.tok.raiseUnsupported("control statements: " 
@@ -1050,6 +1051,21 @@ function ThrowStatement(prev) {
     this._end();
 }
 util.inherits(ThrowStatement, SimpleNode);
+
+function SynchronizedStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("synchronized");
+
+    // condition is not exactly the right word,
+    //  but it's consistent with other statements...
+    this.condition = Expression.readParen(this);
+    this.body = Block.read(this);
+
+    this._end();
+}
+util.inherits(SynchronizedStatement, SimpleNode);
 
 /**
  * The Expression Class is used for anything

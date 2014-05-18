@@ -742,9 +742,17 @@ describe("Parse of", function() {
                     throwStatement.should.have.property('body');
                 });
 
+                it('synchronized', function() {
+                    var controls = fullast.body.methods[6];
+                    var synchronized = controls.body.kids[13];
+                    synchronized.should.have.deep.property('constructor.name')
+                        .that.equals('SynchronizedStatement');
+                    synchronized.should.have.property('condition');
+                    synchronized.should.have.property('body');
+                });
 
-                it('synchronized');
                 it('try');
+                it('try with resources');
             });
 
             describe("Annotations", function() {

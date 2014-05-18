@@ -128,6 +128,9 @@ public class FullAst<E, T extends Object & Imported>
         if (singleArray.length > 42)
             throw new Exception("hi");
 
+        synchronized(field1) {
+            suppressArray();
+        }
     }
 
     /*
