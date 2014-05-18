@@ -121,7 +121,7 @@ console.error = function () {
 /* jshint ignore:end */
 
 describe("Parse of", function() {
-    beforeEach(function(done) {
+    before(function(done) {
         fs.readFile(PATH, function(err, b) {
 
             buf = b;
@@ -630,7 +630,19 @@ describe("Parse of", function() {
                             .that.equals('AssertStatement');
                 });
 
-                it("switch");
+                it("switch", function() {
+                    var controls = fullast.body.methods[6];
+                    var switchStatement = controls.body.kids[1];
+                    switchStatement.should.have.deep.property('constructor.name')
+                        .that.equals('SwitchStatement');
+
+                    switchStatement.should.have.property('condition');
+                    switchStatement.should.have.property('kids')
+                        .that.is.an('array').of.length(2)
+                        .with.deep.property('[1].labels')
+                            .that.contains('default');
+                });
+
                 it("while");
                 it("do");
                 it("for");

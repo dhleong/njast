@@ -87,6 +87,13 @@ public class FullAst
         } else if (singleArray[1] == singleInt) {
             assert singleInt == 2 : "Weird";
         }
+
+        switch(singleInt) {
+        case 5:
+            simpleMethod();
+            break;
+        default:
+        }
     }
 
     /*

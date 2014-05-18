@@ -773,6 +773,8 @@ var Statement = {
         switch (name) {
         case "assert":
             return new AssertStatement(prev);
+        case "switch":
+            return new SwitchStatement(prev);
         case "if":
             return new IfStatement(prev);
         case "return":
@@ -801,6 +803,70 @@ function AssertStatement(prev) {
     this._end();
 }
 util.inherits(AssertStatement, SimpleNode);
+
+function SwitchStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    tok.expectString("switch");
+    this.condition = Expression.readParen(this);
+    this.kids = [];
+
+    tok.expectBlockOpen();
+    while (!tok.readBlockClose()) {
+        var current = {
+            labels: this._readLabels()
+          , kids: [] 
+        };
+
+        if (!current.labels)
+            tok.raise("switch labels");
+
+        if (tok.readBlockClose()) {
+            // quick shortcut out
+            this.kids.push(current);
+            break; 
+        }
+
+        while (!tok.readString('break')) {
+            var stmt = BlockStatement.read(this);
+            if (!stmt)
+                break;
+
+            current.kids.push(stmt);
+        } 
+        tok.readSemicolon();
+
+        if (!current.labels && !current.kids)
+            break; // safety net
+
+        // got it!
+        this.kids.push(current);
+    }
+
+    this._end();
+}
+util.inherits(SwitchStatement, SimpleNode);
+
+SwitchStatement.prototype._readLabels = function() {
+    var labels = [];
+    var tok = this.tok;
+    for (;;) {
+        if (tok.readString("default")) {
+            labels.push('default');
+        } else if (tok.readString("case")) {
+            var expr = Expression.read(this);
+            if (expr)
+                labels.push(expr);
+        } else {
+            // no more
+            return labels;
+        }
+
+        tok.expectColon();
+    }
+};
+
 
 function IfStatement(prev) {
     SimpleNode.call(this, prev);
