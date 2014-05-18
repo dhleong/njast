@@ -350,7 +350,6 @@ describe("Parse of", function() {
 
             // TODO
             it("Has local classes in fluidMethod");
-            it("Has a Label in fluidMethod");
 
             describe("Expressions:", function() {
                 it("Simple assignment", function() {
@@ -731,7 +730,19 @@ describe("Parse of", function() {
                             .that.equals('SomeInterface');
                 });
 
-                it('throw');
+                it('throw', function() {
+                    var controls = fullast.body.methods[6];
+                    var ifThrow = controls.body.kids[12];
+                    ifThrow.should.have.deep.property('constructor.name')
+                        .that.equals('IfStatement');
+                    ifThrow.should.have.deep.property('trueStatement.constructor.name')
+                        .that.equals('ThrowStatement');
+
+                    var throwStatement = ifThrow.trueStatement;
+                    throwStatement.should.have.property('body');
+                });
+
+
                 it('synchronized');
                 it('try');
             });

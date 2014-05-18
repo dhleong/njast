@@ -124,6 +124,10 @@ public class FullAst<E, T extends Object & Imported>
             if (x < 5)
                 continue PreDo; // won't happen, but let's parse
         } while (x < 20);
+
+        if (singleArray.length > 42)
+            throw new Exception("hi");
+
     }
 
     /*

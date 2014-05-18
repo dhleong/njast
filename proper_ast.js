@@ -780,14 +780,16 @@ var Statement = {
         case "while":
         case "do":
             return new WhileStatement(prev, name == "do");
-        case "return":
-            return new ReturnStatement(prev);
         case "for":
             return new ForStatement(prev);
         case "break":
             return new BreakStatement(prev);
         case "continue":
             return new ContinueStatement(prev);
+        case "return":
+            return new ReturnStatement(prev);
+        case "throw":
+            return new ThrowStatement(prev);
         // TODO
         }
         
@@ -1035,6 +1037,19 @@ function ReturnStatement(prev) {
     this._end();
 }
 util.inherits(ReturnStatement, SimpleNode);
+
+function ThrowStatement(prev) {
+    SimpleNode.call(this, prev);
+
+    this.tok.expectString("throw");
+    this.body = Expression.read(this);
+    if (!this.body)
+        this.raise("something to throw");
+    this.tok.expectSemicolon();
+
+    this._end();
+}
+util.inherits(ThrowStatement, SimpleNode);
 
 /**
  * The Expression Class is used for anything
