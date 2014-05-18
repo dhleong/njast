@@ -962,6 +962,16 @@ describe("Parse of", function() {
             fullast.should.have.deep.property('body.constructors[1].params.kids')
                 .that.is.an('array').of.length(1);
         });
+
+        it("has <Y> FullAst#constructor(Y)", function() {
+            fullast.should.have.deep.property('body.constructors[2].params.kids')
+                .that.is.an('array').of.length(1);
+
+            var ctor = fullast.body.constructors[2];
+            ctor.should.have.property('typeParams')
+                .with.deep.property('kids[0].name')
+                    .that.equals('Y');
+        });
     });
 
 });

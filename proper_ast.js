@@ -572,11 +572,6 @@ ClassBody.prototype._readMember = function(mods) {
     var tok = this.tok;
 
     var typeParams = TypeParameters.read(this);
-    if (typeParams) {
-        // TODO generic method or constructor
-        tok.raiseUnsupported("generic method/constructor");
-    }
-
     var type = Type.read(this);
     if (!type) {
         // class/interface decl
@@ -587,10 +582,9 @@ ClassBody.prototype._readMember = function(mods) {
         // special incantation for constructors.
         // we could add a factory, but this is the only
         // usage, I think...
-        return new Method(this, mods, null, null, type);
+        return new Method(this, mods, null, typeParams, type);
     }
 
-    typeParams = TypeParameters.read(this);
     var ident = tok.readIdentifier();
 
     if (tok.peekParenOpen()) {
@@ -611,6 +605,7 @@ function Method(prev, mods, type, typeParams, name) {
         this.start = name.start;
     this.mods = mods;
     this.returns = type;
+    this.typeParams = typeParams;
     this.name = typeof(name) == 'string'
         ? name
         : name.name; // it was a type, for constructors
@@ -1656,12 +1651,7 @@ Creator.prototype._readSizedArrays = function() {
 
 
 Creator.read = function(prev) {
-    var tok = prev.tok;
-    var typeArgs;
-    if (tok.peekGenericOpen())
-        // TODO
-        tok.raiseUnsupported("NonWildcardTypeArguments");
-
+    var typeArgs = TypeArguments.readNonWildcard(prev);
     var createdName = Type.readCreated(prev);
     if (!createdName)
         return;
@@ -2084,7 +2074,7 @@ function TypeParameter(prev, state, ident) {
 }
 util.inherits(TypeParameter, SimpleNode);
 
-function TypeArguments(prev) {
+function TypeArguments(prev, disallowWildcard) {
     SimpleNode.call(this, prev);
 
     this.isDiamond = false; // explicit
@@ -2092,6 +2082,8 @@ function TypeArguments(prev) {
     var tok = this.tok;
     do {
         if (tok.readQuestion()) {
+            if (disallowWildcard)
+                tok.raise("No wildcard type arguments here");
             this.kids.push(new WildcardTypeArgument(this));
         } else {
             this.kids.push(Type.read(this));
@@ -2108,7 +2100,7 @@ TypeArguments.Diamond = {
     isDiamond: true
 };
 
-TypeArguments.read = function(prev, allowDiamond) {
+TypeArguments.read = function(prev, allowDiamond, disallowWildcard) {
     var tok = prev.tok;
     if (!tok.readGenericOpen())
         return;
@@ -2117,8 +2109,12 @@ TypeArguments.read = function(prev, allowDiamond) {
             && tok.checkJdk7("diamonds"))
         return TypeArguments.Diamond;
 
-    return new TypeArguments(prev);
+    return new TypeArguments(prev, disallowWildcard);
 };
+
+TypeArguments.readNonWildcard = function(prev, allowDiamond) {
+    return TypeArguments.read(prev, allowDiamond, true);
+}
 
 function WildcardTypeArgument(prev) {
     SimpleNode.call(this, prev);

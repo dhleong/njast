@@ -168,10 +168,16 @@ public class FullAst<E, T extends Object & Imported>
     FullAst(final int arg) {
         singleInt = arg;
     }
+    <Y> FullAst(Y obj) {
+        // generic constructor
+    }
 
     public void generic() {
         FullAst<? extends Object, Imported>.NestedClass<FullInterface> object =
             new FullAst<>.NestedClass<>();
+
+        // call generic constructor
+        new <Imported>FullAst<>(field1);
     }
 
     /*
