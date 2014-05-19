@@ -1484,9 +1484,9 @@ Primary.read = function(prev) {
         return new IdentifierExpression(prev, state, ident);
     case "super":
         return new SuperExpression(prev, state);
-    case "void":
-        tok.raiseUnsupported("class literal");
-        break;
+    // case "void":
+    //     tok.raiseUnsupported("class literal");
+    //     break;
 
     case "new":
         return Creator.read(prev);

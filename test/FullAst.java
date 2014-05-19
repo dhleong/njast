@@ -2,6 +2,8 @@
 @PackageAnnotation
 package net.dhleong.njast;
 
+import java.io.IOException;
+
 import net.dhleong.njast.subpackage.Imported;
 import net.dhleong.njast.subpackage.FullBase;
 import net.dhleong.njast.subpackage.FullInterface;
@@ -66,6 +68,10 @@ public class FullAst<E, T extends Object & Imported>
         group2 = array4[0][1] + this.singleArray[2];
 
         this.<Imported>generic();
+
+        Class<?> myClass = FullAst.class;
+        Class<?> arrayClass = int[][].class;
+        Class<?> voidClass = void.class;
 
         return this;
     }
@@ -182,7 +188,7 @@ public class FullAst<E, T extends Object & Imported>
 
     public <T> void generic() {
         FullAst<? extends Object, Imported>.NestedClass<FullInterface> object =
-            new FullAst<>.NestedClass<>();
+            new FullAst.NestedClass<>();
 
         // call generic constructor
         new <Imported>FullAst<>(field1);
@@ -240,11 +246,11 @@ enum SomeEnum {
 
     int myMagic;
 
-    SomeNum() {
+    SomeEnum() {
         // this(42);
         myMagic = 42;
     }
-    SomeNum(int magic) {
+    SomeEnum(int magic) {
         myMagic = magic;
     }
 }

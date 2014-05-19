@@ -621,7 +621,9 @@ describe("Parse of", function() {
                     def.should.be.assignment({
                         left: 'object',
                         right: {
-                            'type.namePath[0][1].isDiamond': true
+                            // [0][1] doesn't compile, even though
+                            // the spec says it's valid....
+                            'type.namePath[1][1].isDiamond': true
                         }
                     });
                 });
