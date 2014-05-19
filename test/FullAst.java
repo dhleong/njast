@@ -62,6 +62,8 @@ public class FullAst<E, T extends Object & Imported>
         int[] array3 = new int[] {4, 5, 6};
         int[][] array4 = {{7, 8}, {9, 10}};
         int[][][] array5 = new int[11][12][];
+
+        return this;
     }
 
     static SomeInterface factory() {
@@ -178,6 +180,15 @@ public class FullAst<E, T extends Object & Imported>
 
         // call generic constructor
         new <Imported>FullAst<>(field1);
+    }
+
+    public void cast(FullBase arg) {
+        FullAst cast = (FullAst) arg;
+
+        ((FullAst) arg).generic();
+
+        // cast to FullInterface is unncessary, but good for testing
+        ((FullInterface) (((FullAst) arg).fluidMethod())).interfaceMethod();
     }
 
     /*

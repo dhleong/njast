@@ -651,7 +651,54 @@ describe("Parse of", function() {
                     ref.should.have.deep.property('chain[1].typeArgs.kids[0].name')
                         .that.equals('Imported');
                 });
+
+                it("Cast", function() {
+                    var method = ast.qualifieds['net.dhleong.njast.FullAst#cast'];
+                    should.exist(method);
+
+                    var castAssign = method.body.kids[0];
+                    should.exist(castAssign);
+                    castAssign.should.be.assignment({
+                        left: 'cast',
+                        right: {
+                            'left.name': 'FullAst'
+                          , 'right.name': 'arg'
+                        }
+                    });
+                });
+
+                it("Cast and invoke", function() {
+                    var method = ast.qualifieds['net.dhleong.njast.FullAst#cast'];
+                    should.exist(method);
+
+                    method.body.kids.should.be.an('array').of.length(3);
+                    var stmt = method.body.kids[1];
+                    should.exist(stmt);
+                    stmt.should.have.deep.property('constructor.name')
+                        .that.equals('SelectorExpression');
+                    stmt.should.have.deep.property('left.left.name')
+                        .that.equals('FullAst');
+                    stmt.should.have.deep.property('left.right.name')
+                        .that.equals('arg');
+                    stmt.should.have.deep.property('chain[0].name')
+                        .that.equals('generic');
+                });
             
+                it("Crazy Cast and invoke", function() {
+                    var method = ast.qualifieds['net.dhleong.njast.FullAst#cast'];
+                    should.exist(method);
+
+                    method.body.kids.should.be.an('array').of.length(3);
+                    var stmt = method.body.kids[2];
+                    should.exist(stmt);
+                    stmt.should.have.deep.property('constructor.name')
+                        .that.equals('SelectorExpression');
+                    stmt.should.have.deep.property('left.left.name')
+                        .that.equals('FullInterface');
+                    stmt.should.have.deep.property('chain[0].name')
+                        .that.equals('interfaceMethod');
+                });
+
                 // TODO
                 it("Chain assignment");
             });

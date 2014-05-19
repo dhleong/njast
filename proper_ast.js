@@ -1238,16 +1238,21 @@ Expression._expression3 = function(prev) {
         return new PrefixExpression(prev, state, prefixOp);
     }
 
+    var result;
     if (tok.peekParenOpen()) {
-        // TODO
-        tok.raiseUnsupported("Cast expressions");
+        // try to read it as a CastExpression
+        result = CastExpression.read(prev);
+        
+        // if it's not a cast, the factory
+        //  will do the right thing
+    } else {
+        
+        // must be a Primary
+        result = Primary.read(prev);
     }
 
-    var primary = Primary.read(prev);
-    var result = primary;
-
     // selectors
-    var selectors = SelectorExpression.read(primary);
+    var selectors = SelectorExpression.read(result);
     if (selectors)
         result = selectors;
 
@@ -1260,6 +1265,49 @@ Expression._expression3 = function(prev) {
 
     return result;
 }
+
+function CastExpression(prev, left, right) {
+    SimpleNode.call(this, prev);
+
+    this.start = left.start;
+    this.left = left;
+    this.right = right;
+
+    this._end();
+}
+util.inherits(CastExpression, SimpleNode);
+
+/** 
+ * Try to read a CastExpression, but
+ *  can return a Primary if it was just
+ *  a paren expression
+ */
+CastExpression.read = function(prev) {
+    var tok = prev.tok;
+
+    tok.expectParenOpen();
+    var left = Expression.read(prev);
+    if (!left)
+        left = Type.read(prev);
+    tok.expectParenClose();
+    
+    if (tok.peekDot()) {
+        // this is kind of shitty, but necessary for sane parsing.
+        // EX: ((Foo) obj).bar();
+        // the stuff inside the paren is a nice CastExpression, 
+        // but the outer paren ALSO becomes a CastExpression 
+        // whose right is a SelectorExpression. Since we
+        // expect SelectorExpression to be first, this minor
+        // hack will make that happen
+        return left; 
+    }
+
+    var right = Expression._expression3(prev);
+    return right
+        ? new CastExpression(prev, left, right)
+        : left;
+}
+
 
 function PrefixExpression(prev, state, prefixOp) {
     SimpleNode.call(this, prev);
@@ -1579,6 +1627,12 @@ NumberLiteral._readFloaty = function(prev, state, buffer) {
 
     var tok = prev.tok;
     buffer += NumberLiteral._readNumber(tok, 10);
+
+    if (!buffer || buffer == '.') {
+        // no number here :(
+        tok.restore(state);
+        return;
+    }
 
     var type = 'double';
     if (tok.readString('e')) {
