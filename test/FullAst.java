@@ -71,6 +71,7 @@ public class FullAst<E, T extends Object & Imported>
 
         Class<?> myClass = FullAst.class;
         Class<?> arrayClass = int[][].class;
+        Class<?> objectArrayClass = FullAst[][].class;
         Class<?> voidClass = void.class;
 
         return this;

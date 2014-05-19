@@ -737,8 +737,52 @@ describe("Parse of", function() {
                         .that.equals('generic');
                 });
 
+                it("Class literals", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+
+                    states[19].should.be.assignment({
+                        left: 'myClass',
+                        right: {
+                            'constructor.name': 'SelectorExpression'
+                          , 'left.name': 'FullAst'
+                          , 'chain[0].name': 'class'
+                        }
+                    });
+
+                    states[20].should.be.assignment({
+                        left: 'arrayClass',
+                        right: {
+                            'constructor.name': 'SelectorExpression'
+                          , 'left.name': 'int'
+                          , 'left.constructor.name': 'BasicType'
+                          , 'left.array': 2
+                          , 'chain[0].name': 'class'
+                        }
+                    });
+
+                    states[21].should.be.assignment({
+                        left: 'objectArrayClass',
+                        right: {
+                            'constructor.name': 'SelectorExpression'
+                          , 'left.name': 'FullAst'
+                          , 'left.constructor.name': 'ReferenceType'
+                          , 'left.array': 2
+                          , 'chain[0].name': 'class'
+                        }
+                    });
+
+                    states[22].should.be.assignment({
+                        left: 'voidClass',
+                        right: {
+                            'constructor.name': 'SelectorExpression'
+                          , 'left.name': 'void'
+                          , 'chain[0].name': 'class'
+                        }
+                    });
+                });
+
                 // TODO
-                it("Class literals");
                 it("Chain assignment");
             });
 

@@ -1387,10 +1387,18 @@ function SelectorExpression(primary, connector) {
 util.inherits(SelectorExpression, SimpleNode);
 
 SelectorExpression.read = function(primary) {
-    if (primary.tok.readDot())
+    var tok = primary.tok;
+    var state = tok.save();
+    if (tok.readDot())
         return new SelectorExpression(primary, '.');
-    if (primary.tok.readBracketOpen())
+    if (tok.readBracketOpen()) {
+        if (tok.readBracketClose())
+            tok.raise("Array SelectorExpression");
         return new SelectorExpression(primary, '[');
+    }
+
+    // might have read bracket open prematurely
+    primary.tok.restore(state);
 }
 
 function ArrayAccessExpression(prev, access) {
@@ -1493,6 +1501,8 @@ Primary.read = function(prev) {
 
     default:
         tok.restore(state);
+
+        // this factory will handle eg: BasicType{[]}.class
         return IdentifierExpression.read(prev);
     }
 }
@@ -1801,10 +1811,33 @@ IdentifierExpression.read = function(prev) {
     // var name = tok.readQualified();
     var name = tok.readIdentifier();
 
+    if (Tokenizer.isPrimitive(name)) {
+        // actually, a BasicType
+        tok.restore(state); // BasicType reads the name
+        return new BasicType(prev);
+    }
+
     if (tok.peekParenOpen())
         return new MethodInvocation(prev, state, name);
 
-    // FIXME other IdentifierSuffix stuff
+    // is this a Class[]...class expression?
+    var preBrackets = tok.save();
+    if (tok.readBracketOpen()) {
+        // read all brackets
+        do {
+            tok.readBracketClose();
+        } while(tok.readBracketOpen());
+
+        if (tok.readDot() && tok.readString("class")) {
+            // actually a class array literal
+            tok.restore(state);
+            return new ReferenceType(prev);
+        }
+
+        // nope. back up
+        tok.restore(preBrackets);
+    }
+
     return new IdentifierExpression(prev, state, name);
 }
 
