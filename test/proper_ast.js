@@ -699,7 +699,44 @@ describe("Parse of", function() {
                         .that.equals('interfaceMethod');
                 });
 
+                it("Array access", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var arrayAccess = states[17];
+                    arrayAccess.should.be.assignment({
+                        left: 'group2',
+                        right: {
+                            'left.constructor.name': 'SelectorExpression'
+                          , 'left.left.name': 'array4' 
+                          , 'left.chain.length': 2
+                          , 'left.chain[0].constructor.name': 'ArrayAccessExpression' 
+                          , 'left.chain[0].value.value': '0'
+                          , 'left.chain[1].constructor.name': 'ArrayAccessExpression' 
+                          , 'left.chain[1].value.value': '1'
+                        }
+                    });
+                });
+
+                // It's in the spec, but doesn't compile. Just use Selector
+                // it("Explicit Generic Invocation (from Primary)");
+
+                it("Explicit Generic Invocation (from Selector)", function() {
+                    var fluid = fullast.body.methods[1];
+                    var states = fluid.body.kids;
+                    var genericInvoke = states[18];
+                    genericInvoke.should.have.deep.property('left.name')
+                        .that.equals('this');
+                    genericInvoke.should.have.deep.property('chain[0].typeArgs')
+
+                    var invocation = genericInvoke.chain[0];
+                    invocation.should.have.deep.property('typeArgs.kids[0].name')
+                        .that.equals('Imported');
+                    invocation.should.have.deep.property('name')
+                        .that.equals('generic');
+                });
+
                 // TODO
+                it("Class literals");
                 it("Chain assignment");
             });
 

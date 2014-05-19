@@ -1362,7 +1362,7 @@ function SelectorExpression(primary, connector) {
                 }
 
                 if (tok.peekParenOpen())
-                    this.chain.push(new MethodInvocation(this, state, next));
+                    this.chain.push(new MethodInvocation(this, state, next, typeArgs));
                 else
                     this.chain.push(new IdentifierExpression(this, state, next));
             }
@@ -1370,7 +1370,7 @@ function SelectorExpression(primary, connector) {
         } else if ('[' == connector) {
             var expr = Expression.read(this);
             if (expr) {
-                this.chain.push(expr);
+                this.chain.push(new ArrayAccessExpression(this, expr));
                 tok.expectBracketClose();
             }
         }
@@ -1392,6 +1392,16 @@ SelectorExpression.read = function(primary) {
     if (primary.tok.readBracketOpen())
         return new SelectorExpression(primary, '[');
 }
+
+function ArrayAccessExpression(prev, access) {
+    SimpleNode.call(this, prev);
+
+    this.start = access.start;
+    this.value = access;
+
+    this._end();
+}
+util.inherits(ArrayAccessExpression, SimpleNode);
 
 function SuperExpression(prev, state) {
     SimpleNode.call(this, prev);
@@ -1798,12 +1808,13 @@ IdentifierExpression.read = function(prev) {
     return new IdentifierExpression(prev, state, name);
 }
 
-function MethodInvocation(prev, state, name) {
+function MethodInvocation(prev, state, name, typeArgs) {
     SimpleNode.call(this, prev);
 
     this.start_from(state);
     this.name = name;
     this.args = new Arguments(this);
+    this.typeArgs = typeArgs;
 
     this._end();
 }

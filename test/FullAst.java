@@ -63,6 +63,10 @@ public class FullAst<E, T extends Object & Imported>
         int[][] array4 = {{7, 8}, {9, 10}};
         int[][][] array5 = new int[11][12][];
 
+        group2 = array4[0][1] + this.singleArray[2];
+
+        this.<Imported>generic();
+
         return this;
     }
 
@@ -176,7 +180,7 @@ public class FullAst<E, T extends Object & Imported>
         // generic constructor
     }
 
-    public void generic() {
+    public <T> void generic() {
         FullAst<? extends Object, Imported>.NestedClass<FullInterface> object =
             new FullAst<>.NestedClass<>();
 
