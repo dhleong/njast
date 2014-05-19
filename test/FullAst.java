@@ -159,6 +159,8 @@ public class FullAst<E, T extends Object & Imported>
         try (InputStream in = field2.open()) {
             // block
         }
+
+        super.overridable();
     }
 
     /*
@@ -207,6 +209,11 @@ public class FullAst<E, T extends Object & Imported>
             // crazy gross generic instantiation of inner class
             FullAst.this.new <Imported>FullAst<>(FullAst.this.field1);
         }
+
+        public void callNestedSuper() {
+            Foo.super.overridable();
+        }
+
     }
 
     static class StaticNestedClass {

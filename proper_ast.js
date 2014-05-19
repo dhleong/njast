@@ -1343,13 +1343,23 @@ function SelectorExpression(primary, connector) {
                 break;
 
             case 'super':
-                tok.raiseUnsupported(".super");
+                this.chain.push(new SuperExpression(this, state));
                 break;
 
             default:
-                // TODO we can read these now...
-                if (tok.peekGenericOpen())
-                    this.raiseUnsupported("NonWildcardTypeArguments");
+                var typeArgs = TypeArguments.readNonWildcard(this);
+                if (typeArgs) {
+                    next = tok.readIdentifier();
+
+                    // NB The spec says YES, but the compiler says NO.
+                    // if (next == 'super') {
+                    //     this.chain.push(new SuperExpression(this, typeArgs));
+                    //     break;
+                    // }
+
+                    if (!tok.peekParenOpen())
+                        tok.raise("arguments to explicit generic invocation");
+                }
 
                 if (tok.peekParenOpen())
                     this.chain.push(new MethodInvocation(this, state, next));
@@ -1382,6 +1392,26 @@ SelectorExpression.read = function(primary) {
     if (primary.tok.readBracketOpen())
         return new SelectorExpression(primary, '[');
 }
+
+function SuperExpression(prev, state) {
+    SimpleNode.call(this, prev);
+
+    var tok = this.tok;
+    if (state) {
+        this.start_from(state);
+    } else {
+        tok.expectString("super");
+    }
+
+    this.args = Arguments.read(this);
+    if (!this.args) {
+        this.method = tok.readIdentifier();
+        this.args = Arguments.read(this);
+    }
+
+    this._end();
+}
+util.inherits(SuperExpression, SimpleNode);
 
 function TernaryExpression(prev, question) {
     SimpleNode.call(this, prev);
@@ -1443,9 +1473,7 @@ Primary.read = function(prev) {
             return new MethodInvocation(prev, state, ident);
         return new IdentifierExpression(prev, state, ident);
     case "super":
-        // TODO
-        tok.raiseUnsupported("super ref");
-        break;
+        return new SuperExpression(prev, state);
     case "void":
         tok.raiseUnsupported("class literal");
         break;
