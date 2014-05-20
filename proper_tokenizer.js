@@ -229,7 +229,7 @@ var Commentor = {
 /**
  * Tokenizer constructor
  */
-function Tokenizer(path, buffer) {
+function Tokenizer(path, buffer, options) {
     this._path = path;
     this._fp = buffer;
     this._start = buffer.offset;
@@ -239,6 +239,18 @@ function Tokenizer(path, buffer) {
     this._line = 1;
     this._col = 1;
     this._pos = 0;
+
+    if (options) {
+        if (options.strict !== undefined)
+            this._strict = options.strict;
+        if (options.level !== undefined)
+            this._level = options.level;
+
+        if (options.line)
+            this._line = options.line;
+        if (options.ch)
+            this._col = options.ch;
+    }
 
     this.errors = [];
 }
@@ -422,7 +434,9 @@ var _doExpect = function(token) {
     return function() { 
         if (!this._readToken(token)) {
             this.raise(String.fromCharCode(token));
-            this.read(); // if we got here, we're relaxed; skip whatever it was
+
+            if (!this.peekBlockClose()) // never skip these!
+                this.read(); // if we got here, we're relaxed; skip whatever it was
         }
     } 
 };

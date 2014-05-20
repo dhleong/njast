@@ -3,14 +3,20 @@ var events = require('events')
   , util = require('util')
   , Tokenizer = require('./proper_tokenizer');
 
-function Ast(path, buffer) {
+function Ast(path, buffer, options) {
     // this._path = path;
     // this._fp = buffer;
-    this.tok = new Tokenizer(path, buffer);
+    this.tok = new Tokenizer(path, buffer, options);
     this._root; // filled via parse()
 
     this.toplevel = [];
     this.qualifieds = {};
+
+    if (options && options.debug) {
+        this.log = console.log.bind(console);
+    } else {
+        this.log = function(){};
+    }
 
     var self = this;
     this.on('qualified', function(node) {
@@ -56,12 +62,14 @@ function SimpleNode(prev) {
 
     this.tok = prev.tok;
     this.start = prev.tok.getPos();
+    this._root.log("Created", this.constructor.name, this.start, this.name);
 }
 
 /** Call at the end of parsing */
 SimpleNode.prototype._end = function() {
     this.end = this.tok.getPos();
     this.publish();
+    this._root.log("END", this.constructor.name, this.end, this.name);
 }
 
 SimpleNode.prototype.contains = function(line, ch) {
@@ -1483,6 +1491,12 @@ function SelectorExpression(primary, connector) {
                         tok.raise("arguments to explicit generic invocation");
                 }
 
+                if (!next) {
+                    tok.raise("identifier");
+                    connector = undefined;
+                    break;
+                }
+
                 if (tok.peekParenOpen())
                     this.chain.push(new MethodInvocation(this, state, next, typeArgs));
                 else
@@ -1509,6 +1523,9 @@ function SelectorExpression(primary, connector) {
 util.inherits(SelectorExpression, SimpleNode);
 
 SelectorExpression.read = function(primary) {
+    if (!primary)
+        return;
+
     var tok = primary.tok;
     var state = tok.save();
     if (tok.readDot())
@@ -1921,6 +1938,9 @@ function IdentifierExpression(prev, state, name) {
     this.start_from(state);
     this.name = name;
 
+    if (!name)
+        this.tok.raiseUnsupported("No name for IdentifierExpression");
+
     this._end();
 }
 util.inherits(IdentifierExpression, SimpleNode);
@@ -1961,7 +1981,8 @@ IdentifierExpression.read = function(prev) {
         tok.restore(preBrackets);
     }
 
-    return new IdentifierExpression(prev, state, name);
+    if (name)
+        return new IdentifierExpression(prev, state, name);
 }
 
 function MethodInvocation(prev, state, name, typeArgs) {
@@ -2182,7 +2203,9 @@ util.inherits(AnnotationElementValueArray, SimpleNode);
 var Type = {
     read: function(prev, skipArray, allowDiamond) {
         var ident = prev.tok.peekIdentifier();
-        if ('void' == ident || Tokenizer.isPrimitive(ident))
+        if (!ident)
+            return; // no identifier
+        else if ('void' == ident || Tokenizer.isPrimitive(ident))
             return new BasicType(prev, skipArray);
         else if (Tokenizer.isReserved(ident))
             return; // not a type
@@ -2205,6 +2228,9 @@ function TypeNode(prev, skipArray) {
     var tok = this.tok;
     this.name = tok.readIdentifier();
     this.simpleName = this.name; // Simple name will drop all TypeArguments
+
+    if (!this.name)
+        tok.raiseUnsupported("Empty name for " + this.constructor.name);
 
     if (skipArray === undefined)
         this.array = 0; // dimensions of array; zero means not an array
@@ -2385,9 +2411,27 @@ util.inherits(WildcardTypeArgument, SimpleNode);
  * Exports
  */
 module.exports = {
-    parseFile: function(path, buffer, callback) {
-        var ast = new Ast(path, buffer);
-        ast.parse(CompilationUnit);
-        callback(null, ast);
+
+    /**
+     * @param options (Optional) A dict with:
+     *  - strict: (default: true) Whether to bail
+     *      immediately on error
+     *  - level: (default: 7) JDK compatibility level. See: Tokenizer.Level
+     *  - line: (default: 1) Line on which input starts 
+     *  - ch: (default: 1) Column/character on which input starts
+     */
+    parseFile: function(path, buffer, options, callback) {
+        if (!callback) {
+            callback = options;
+            options = {};
+        }
+
+        var ast = new Ast(path, buffer, options);
+        try {
+            ast.parse(CompilationUnit);
+            callback(null, ast);
+        } catch(e) {
+            callback(e);
+        }
     }
 }

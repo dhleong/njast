@@ -99,7 +99,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.error = function () {
+console.aerror = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -126,7 +126,9 @@ describe("Ast of FullAst.java", function() {
 
             buf = b;
             parseFile(PATH, b, function(err, _ast) {
-                should.not.exist(err);
+                if (err)
+                    throw err;
+
                 ast = _ast;
 
                 if (ast.toplevel) {
@@ -1228,4 +1230,29 @@ describe("Ast of FullAst.java", function() {
         });
     });
 
+});
+
+describe("Ast of Foo.java", function() {
+    before(function(done) {
+        should.exist(ast);
+        ast = null;
+        fs.readFile('Foo.java', function(err, fp) {
+            parseFile('Foo.java', fp, {
+                strict: false
+            }, function(err, _ast) {
+                if (err) {
+                    // should.not.exist(err);
+                    throw err;
+                }
+
+                ast = _ast;
+                done();
+            });
+        });
+    });
+
+    // relaxed parsing!
+    it("parses", function() {
+        should.exist(ast);
+    });
 });
