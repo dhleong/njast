@@ -9,8 +9,8 @@ import net.dhleong.njast.subpackage.FullBase;
 import net.dhleong.njast.subpackage2.*;
 import static net.dhleong.njast.subpackage.Extended.createExtended;
 
-/** 
- * Javadoc for FullAst class 
+/**
+ * Javadoc for FullAst class
  */
 public class FullAst<E, T extends Object & Imported>
         extends FullBase

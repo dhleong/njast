@@ -144,10 +144,13 @@ SimpleNode.prototype._qualify = function(separator) {
  *  Node that can handle variable declaration. 
  *  Implementors should handle 
  */
-function VariableDeclNode(prev) {
+function VariableDeclNode(prev, hasJavadoc) {
     SimpleNode.call(this, prev);
 
     this.kids = [];
+
+    if (hasJavadoc)
+        this.javadoc = this.tok.getJavadoc();
 }
 util.inherits(VariableDeclNode, SimpleNode);
 
@@ -165,6 +168,18 @@ VariableDeclNode.prototype._readDeclarations = function(firstName) {
 
     tok.expectSemicolon();
 };
+
+/**
+ * JavadocNode is a drop-in replacement for SimpleNode
+ *  for those nodes that may have Javadoc attached 
+ *  to them
+ */
+function JavadocNode(prev) {
+    SimpleNode.call(this, prev);
+    
+    this.javadoc = this.tok.getJavadoc();
+}
+util.inherits(JavadocNode, SimpleNode);
 
 
 function VarDef(prev, mods, type, name, isInitable) {
@@ -310,7 +325,7 @@ var TypeDeclaration = {
  * A Java class declaration
  */
 function Class(prev, mods) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
     
     this.mods = mods;
     if (mods)
@@ -337,10 +352,10 @@ function Class(prev, mods) {
 
     this._end();
 }
-util.inherits(Class, SimpleNode);
+util.inherits(Class, JavadocNode);
 
 function Enum(prev, mods) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
 
     this.mods = mods;
     if (mods)
@@ -362,7 +377,7 @@ function Enum(prev, mods) {
 
     this._end();
 }
-util.inherits(Enum, SimpleNode);
+util.inherits(Enum, JavadocNode);
 
 function EnumBody(prev) {
     SimpleNode.call(this, prev);
@@ -401,7 +416,7 @@ EnumBody.prototype._readConstant = function() {
 };
 
 function EnumConstant(prev, state, mods, ident) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
 
     this.start_from(state);
     this.mods = mods;
@@ -413,14 +428,14 @@ function EnumConstant(prev, state, mods, ident) {
 
     this._end();
 }
-util.inherits(EnumConstant, SimpleNode);
+util.inherits(EnumConstant, JavadocNode);
 
 
 /**
  * A Java class declaration
  */
 function Interface(prev, mods) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
 
     this.mods = mods;
     if (mods)
@@ -439,17 +454,17 @@ function Interface(prev, mods) {
         } while(tok.readComma());
     }
 
-    // TODO technically this should be InterfaceBody,
+    // NB technically this should be InterfaceBody,
     //  since all methods should be declared as if abstract,
     //  but for now... this is sufficient
     this.body = new ClassBody(this);
 
     this._end();
 }
-util.inherits(Interface, SimpleNode);
+util.inherits(Interface, JavadocNode);
 
 function AnnotationDecl(prev, mods) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
 
     this.mods = mods;
     if (mods)
@@ -463,7 +478,7 @@ function AnnotationDecl(prev, mods) {
 
     this._end();
 }
-util.inherits(AnnotationDecl, SimpleNode);
+util.inherits(AnnotationDecl, JavadocNode);
 
 function AnnotationBody(prev) {
     SimpleNode.call(this, prev);
@@ -502,7 +517,7 @@ AnnotationBody.prototype._readDeclaration = function() {
 };
 
 function AnnotationMethod(prev, mods, type, ident) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
 
     this.mods = mods;
     this.returns = type;
@@ -521,7 +536,7 @@ function AnnotationMethod(prev, mods, type, ident) {
 
     this._end();
 }
-util.inherits(AnnotationMethod, SimpleNode);
+util.inherits(AnnotationMethod, JavadocNode);
 
 
 /**
@@ -618,7 +633,7 @@ ClassBody.prototype._readMember = function(mods) {
 };
 
 function Method(prev, mods, type, typeParams, name) {
-    SimpleNode.call(this, prev);
+    JavadocNode.call(this, prev);
 
     if (mods)
         this.start = mods.start;
@@ -653,7 +668,7 @@ function Method(prev, mods, type, typeParams, name) {
 
     this._end();
 }
-util.inherits(Method, SimpleNode);
+util.inherits(Method, JavadocNode);
 
 Method.prototype.isConstructor = function() {
     return this.returns == null;
@@ -661,7 +676,7 @@ Method.prototype.isConstructor = function() {
 
 
 function FieldDecl(prev, mods, type, typeParams, name) {
-    VariableDeclNode.call(this, prev);
+    VariableDeclNode.call(this, prev, true);
 
     if (mods)
         this.start = mods.start;
@@ -671,7 +686,10 @@ function FieldDecl(prev, mods, type, typeParams, name) {
 
     this._readDeclarations(name);
 
+    var self = this;
     this.kids.forEach(function(decl) {
+        // just copy the javadoc to each?
+        decl.javadoc = self.javadoc;
         decl._qualify('#');
         decl.publish('field');
     });
@@ -1498,7 +1516,8 @@ Primary.read = function(prev) {
         return parens;
 
     if (tok.peekGenericOpen()) {
-        // TODO
+        // NB spec says Yes, theoretically, but
+        //  I think it's handled by Selector
         tok.raiseUnsupported("NonWildcardTypeArguments");
     }
 

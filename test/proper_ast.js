@@ -1161,8 +1161,30 @@ describe("Parse of", function() {
                     .that.equals('Y');
         });
 
-        // TODO don't forget javadoc!
-        it('has javadoc');
+        describe('has javadoc on', function() {
+            it("FullAst class", function() {
+                var klass = ast.qualifieds['net.dhleong.njast.FullAst'];
+                klass.should.have.property('javadoc')
+                    .that.equals(
+                        "/**\n" +
+                        " * Javadoc for FullAst class\n" +
+                        " */"
+                    );
+            });
+
+            it("static Imported field1", function() {
+                var field = ast.qualifieds['net.dhleong.njast.FullAst#field1'];
+                field.should.have.property('javadoc')
+                    .that.equals("/** Static, but not a block! */");
+            });
+
+            it("simpleMethod", function() {
+                var method = ast.qualifieds['net.dhleong.njast.FullAst#simpleMethod'];
+                method.should.have.property('javadoc')
+                    .that.equals("/** simple method that needs nothing "
+                               + "and does nothing */");
+            });
+        });
     });
 
 });

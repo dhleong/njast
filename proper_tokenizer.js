@@ -193,20 +193,26 @@ var Commentor = {
     reset: function(tok) {
         this.type = COMMENT_NONE;
         this.start = tok._pos;
-        this.value = '';
         this.pos;
     },
 
+    clear: function() {
+        var ret = this.value;
+        this.value = '';
+        return ret;
+    },
 
     _endComment: function(tok, off) {
-        this.type = COMMENT_NONE;
 
         var start = this.start;
         var length = off - start;
         var end = start + length;
         var read = tok._fp.toString("UTF-8", start, end);
-        this.value += read;
 
+        if (this.type == COMMENT_BLOCK)
+            this.value += read;
+
+        this.type = COMMENT_NONE;
         //console.log("Read comment ~", start, end, ":", read);
     },
 
@@ -245,6 +251,14 @@ Tokenizer.Level = {
 
     JDK6: 6,
     JDK7: 7, 
+};
+
+/**
+ * Fetches all Javadoc read since the last call,
+ *  clearing the buffer behind us
+ */
+Tokenizer.prototype.getJavadoc = function() {
+    return Commentor.clear();
 };
 
 /** 
