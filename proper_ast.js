@@ -22,6 +22,14 @@ function Ast(path, buffer) {
 }
 util.inherits(Ast, events.EventEmitter);
 
+Ast.prototype.locate = function(line, ch) {
+    if (!this._root)
+        throw new Error("Ast not parsed yet");
+
+    return this._root.locate(line, ch);
+};
+
+
 Ast.prototype.parse = function(startType) {
 
     this._root = startType.read(this, this.tok);
@@ -55,6 +63,79 @@ SimpleNode.prototype._end = function() {
     this.end = this.tok.getPos();
     this.publish();
 }
+
+SimpleNode.prototype.contains = function(line, ch) {
+    if (line < this.start.line || line > this.end.line)
+        return false;
+    else if (line == this.start.line && ch < this.start.ch)
+        return false; // same start line, col too early
+    else if (line == this.end.line && ch > this.end.ch)
+        return false; // col too late
+
+    return true;
+};
+
+/** 
+ * Find all child nodes. Default implementation
+ *  does some searching. If perf is an issue,
+ *  we could override in subclasses to prevent
+ *  unnecessary work
+ */
+SimpleNode.prototype.getKids = function() {
+    var ret = [];
+
+    var tryAdd = function(node) {
+        if (node instanceof SimpleNode
+                && !~ret.indexOf(node))
+            ret.push(node);
+    };
+
+    var self = this;
+    Object.keys(this).forEach(function(key) {
+        if (key.charAt(0) == '_')
+            return;
+
+        var el = self[key];
+        if (Array.isArray(el))
+            el.forEach(tryAdd);
+        else
+            tryAdd(el);
+    });
+
+    return ret;
+};
+
+
+SimpleNode.prototype.locate = function(line, ch) {
+    if (!this.contains(line, ch))
+        return false; // quick reject... WE don't contain, so kids can't
+
+    var kids = this.getKids()
+    if (kids) {
+        var matching = kids.filter(function(kid) {
+            return kid.contains(line, ch);
+        });
+
+        if (matching.length == 1) {
+            // recurse! Is stack overflow a concern?
+            return matching[0].locate(line, ch);
+        } else if (matching.length > 1) {
+            matching.forEach(function(el) {
+                el._root = null;
+                el._prev = null;
+                el.tok = null;
+                console.log(require('util').inspect(el));
+            });
+            throw new Error("Multiple("
+                + matching.length 
+                +") matching nodes @" + line + ',' + ch);
+        }
+    }
+
+    // no matching kids... must just be us!
+    return this;
+};
+
 
 SimpleNode.prototype.getParent = function() {
     return this._prev;

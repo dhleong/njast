@@ -68,7 +68,7 @@ public class FullAst<E, T extends Object & Imported>
 
         group2 = array4[0][1] + this.singleArray[2];
 
-        this.<Imported>generic();
+        this.<Imported>generic(field1);
 
         Class<?> myClass = FullAst.class;
         Class<?> arrayClass = int[][].class;
@@ -189,7 +189,7 @@ public class FullAst<E, T extends Object & Imported>
         // generic constructor
     }
 
-    public <T> void generic() {
+    public <T> void generic(T arg) {
         FullAst<? extends Object, Imported>.NestedClass<FullInterface> object =
             new FullAst.NestedClass<>();
 
@@ -200,7 +200,7 @@ public class FullAst<E, T extends Object & Imported>
     public void cast(FullBase arg) {
         FullAst cast = (FullAst) arg;
 
-        ((FullAst) arg).generic();
+        ((FullAst) arg).generic(null);
 
         // cast to FullInterface is unncessary, but good for testing
         ((FullInterface) (((FullAst) arg).fluidMethod())).interfaceMethod();

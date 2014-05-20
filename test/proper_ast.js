@@ -120,7 +120,7 @@ console.error = function () {
 };
 /* jshint ignore:end */
 
-describe("Parse of", function() {
+describe("Ast of FullAst.java", function() {
     before(function(done) {
         fs.readFile(PATH, function(err, b) {
 
@@ -138,7 +138,7 @@ describe("Parse of", function() {
         });
     });
 
-    describe("FullAst.java", function() {
+    describe("successfully", function() {
         
         it("is in the right package", function() {
             ast.getPackage().should.equal('net.dhleong.njast');
@@ -1184,6 +1184,47 @@ describe("Parse of", function() {
                     .that.equals("/** simple method that needs nothing "
                                + "and does nothing */");
             });
+        });
+    });
+
+    /**
+     * Test drilling down into a node by position
+     */
+    describe("locates at", function() {
+        it("43, 23: int group2", function() {
+            var node = ast.locate(43, 23);
+            should.exist(node);
+            node.should.have.property('name')
+                .that.equals('group2');
+            node.should.have.deep.property('type.name')
+                .that.equals('int');
+        });
+
+        it("71, 34: field1", function() {
+            var node = ast.locate(71, 34);
+            should.exist(node);
+            node.should.have.property('name')
+                .that.equals('field1');
+            // just an identifier
+            node.should.not.have.property('type');
+        });
+
+        it("206, 32: FullAst (cast)", function() {
+            var node = ast.locate(206, 32);
+            should.exist(node);
+            node.should.have.property('name')
+                .that.equals('FullAst');
+            // just an identifier
+            node.should.not.have.property('type');
+        });
+
+        it("206, 73: interfaceMethod invocation", function() {
+            var node = ast.locate(206, 73);
+            should.exist(node);
+            node.should.have.deep.property('constructor.name')
+                .that.equals('MethodInvocation');
+            node.should.have.property('name')
+                .that.equals('interfaceMethod');
         });
     });
 
