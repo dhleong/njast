@@ -6,7 +6,8 @@ import java.io.IOException;
 
 import net.dhleong.njast.subpackage.Imported;
 import net.dhleong.njast.subpackage.FullBase;
-import net.dhleong.njast.subpackage.FullInterface;
+import net.dhleong.njast.subpackage2.*;
+import static net.dhleong.njast.subpackage.Extended.createExtended;
 
 /** 
  * Javadoc for FullAst class 

@@ -144,10 +144,6 @@ describe("Parse of", function() {
             ast.getPackage().should.equal('net.dhleong.njast');
         });
 
-        // TODO
-        it("handles static import");
-        it("handles simple import.*");
-
         it("handles simple import", function() {
 
             ast.should.have.property('_root')
@@ -157,6 +153,26 @@ describe("Parse of", function() {
                     static: false, 
                     star: false,
                     path: 'net.dhleong.njast.subpackage.Imported'
+                });
+        });
+
+        it("handles import.*", function() {
+            ast.should.deep.property('_root.imports')
+                .that.is.an('array')
+                .that.contains({
+                    static: false, 
+                    star: true,
+                    path: 'net.dhleong.njast.subpackage2'
+                });
+        });
+
+        it("handles static import", function() {
+            ast.should.deep.property('_root.imports')
+                .that.is.an('array')
+                .that.contains({
+                    static: true, 
+                    star: false,
+                    path: 'net.dhleong.njast.subpackage.Extended.createExtended'
                 });
         });
 

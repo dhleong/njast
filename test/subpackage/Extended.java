@@ -6,4 +6,6 @@ public class Extended {
     public Extended fluidMethod() {
         return this;
     }
+
+    static Extended createExtended();
 }
