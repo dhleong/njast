@@ -786,8 +786,20 @@ describe("Parse of", function() {
                     });
                 });
 
-                // TODO
-                it("Chain assignment");
+                it("Chain assignment", function() {
+                    var method = ast.qualifieds[
+                        'net.dhleong.njast.FullAst#overridable'
+                    ];
+                    method.body.kids[0].should.be.assignment({
+                        left: 'field1',
+                        right: {
+                            'left.constructor.name': 'MethodInvocation'
+                          , 'left.name': 'fluidMethod'
+                          , 'chain[0].constructor.name': 'MethodInvocation'
+                          , 'chain[0].name': 'getImported'
+                        }
+                    });
+                });
             });
 
             describe("Control Flow:", function() {

@@ -86,6 +86,7 @@ public class FullAst<E, T extends Object & Imported>
     @SuppressWarnings(value = "unchecked")
     void overridable() {
         // overridden!
+        field1 = fluidMethod().getImported();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -204,6 +205,10 @@ public class FullAst<E, T extends Object & Imported>
         ((FullInterface) (((FullAst) arg).fluidMethod())).interfaceMethod();
     }
 
+    public Imported getImported() {
+        return new Imported();
+    }
+
     static SomeInterface localClassFactory() {
         class LocalClass implements SomeInterface {
         }
@@ -217,6 +222,7 @@ public class FullAst<E, T extends Object & Imported>
 
         return new LocalClass();
     }
+
     /*
      * Nested classes
      */
