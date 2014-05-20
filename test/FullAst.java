@@ -204,6 +204,19 @@ public class FullAst<E, T extends Object & Imported>
         ((FullInterface) (((FullAst) arg).fluidMethod())).interfaceMethod();
     }
 
+    static SomeInterface localClassFactory() {
+        class LocalClass implements SomeInterface {
+        }
+
+        return new LocalClass();
+    }
+
+    static SomeInterface otherLocalClassFactory() {
+        class LocalClass implements SomeInterface {
+        }
+
+        return new LocalClass();
+    }
     /*
      * Nested classes
      */

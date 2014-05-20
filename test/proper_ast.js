@@ -348,8 +348,12 @@ describe("Parse of", function() {
                                 .that.equals('group1');
             });
 
-            // TODO
-            it("Has local classes in fluidMethod");
+            it("Has local classes", function() {
+                ast.qualifieds.should.contain
+                    .key('net.dhleong.njast.FullAst$1LocalClass');
+                ast.qualifieds.should.contain
+                    .key('net.dhleong.njast.FullAst$2LocalClass');
+            });
 
             describe("Expressions:", function() {
                 it("Simple assignment", function() {

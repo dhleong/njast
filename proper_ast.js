@@ -92,27 +92,50 @@ SimpleNode.prototype._qualify = function(separator) {
     if (parent instanceof CompilationUnit) {
         this.qualifiedName = this.getParent().package + '.' + this.name;
         this.getRoot().emit('toplevel', this);
-    } else if (parent instanceof Block) {
-        // TODO
-        // Apparently classes can be declared inside a block.
-        // This is called a Local Class.
-        // They are qualified as OuterClass$(declNumber?)ClassName.
-        // Note the lack of $ between declNumber and ClassName.
-        // declNumber is the 1-indexed appearance of ClassName
-        // within OuterClass (since you could declare a class of
-        // the same name in another block).
-        this.tok.raiseUnsupported("qualified declarations in Blocks");
     } else {
+
         // parent is a ClassBody; grandparent is a Class/Interface
         var qualifiedParent = parent.getParent();
-        while (qualifiedParent && !qualifiedParent.qualifiedName)
+        while (qualifiedParent 
+                && (!qualifiedParent.qualifiedName
+                    || (qualifiedParent instanceof Method))) {
             qualifiedParent = qualifiedParent.getParent();
+        }
 
         if (!qualifiedParent)
             this.tok.raise("Qualified parent for " + this.name);
 
-        this.qualifiedName = qualifiedParent.qualifiedName
-                           + separator + this.name;
+        if (parent instanceof Block) {
+            // Apparently classes can be declared inside a block.
+            // This is called a Local Class.
+            // They are qualified as OuterClass$(declNumber?)ClassName.
+            // Note the lack of $ between declNumber and ClassName.
+            // declNumber is the 1-indexed appearance of ClassName
+            // within OuterClass (since you could declare a class of
+            // the same name in another block).
+
+            var root = this.getRoot();
+            var index = 1;
+            do {
+                this.qualifiedName = qualifiedParent.qualifiedName
+                                   + separator + index + this.name;
+                index++;
+            } while (root.qualifieds[this.qualifiedName]);
+
+            var self = this;
+            var exists = parent.kids.some(function(node) {
+                return node.name == self.name;
+            });
+
+            if (exists) {
+                this.tok.raise("No other " + self.name 
+                    + " in " + parent.getParent().qualifiedName);
+            }
+
+        } else {
+            this.qualifiedName = qualifiedParent.qualifiedName
+                               + separator + this.name;
+        }
     }
 }
 
