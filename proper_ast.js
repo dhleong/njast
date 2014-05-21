@@ -247,6 +247,34 @@ SimpleNode.prototype.start_from = function(state) {
     };
 };
 
+SimpleNode.prototype.getScope = function() {
+
+    var parent = this.getParent();
+    while (parent && !(parent instanceof ScopeNode)) {
+        parent = parent.getParent();
+
+        // are we at the root Ast?
+        if (parent == this.getRoot())
+            parent = null; // bail
+    }
+
+    return parent;
+}
+
+/**
+ * Climb the scope to locate the given identifier
+ */
+SimpleNode.prototype.searchScope = function(identifier) {
+    var scope = this.getScope();
+    while (scope) {
+        var found = scope.getVar(identifier);
+        if (found)
+            return found;
+
+        scope = scope.getScope();
+    }
+};
+
 
 SimpleNode.prototype._qualify = function(separator) {
 
@@ -300,6 +328,35 @@ SimpleNode.prototype._qualify = function(separator) {
         }
     }
 }
+
+/**
+ * Superclass for things that might hold
+ *  VarDefs. 
+ */
+function ScopeNode(prev) {
+    SimpleNode.call(this, prev);
+}
+util.inherits(ScopeNode, SimpleNode);
+
+/**
+ * implement this method to return an array
+ * of VarDefs to use the default functionality
+ */
+ScopeNode.prototype._getVars = undefined;
+
+ScopeNode.prototype.getVar = function(varName) {
+    if (!this._getVars)
+        throw new Error(this.constructor.name 
+            + " does not implement getVar! Cannot find " + varName);
+
+    var varDefs = this._getVars();
+    var len = varDefs.length;
+    for (var i=0; i < len; i++) {
+        var f = varDefs[i];
+        if (f.name == varName)
+            return f;
+    }
+};
 
 /**
  * The VariableDeclNode is a special type of
@@ -719,7 +776,7 @@ util.inherits(AnnotationMethod, JavadocNode);
  * 
  */
 function ClassBody(prev, skipBlockOpen) {
-    SimpleNode.call(this, prev);
+    ScopeNode.call(this, prev);
 
     // shortcut indexes of declared things
     this.subclasses = [];
@@ -763,7 +820,12 @@ function ClassBody(prev, skipBlockOpen) {
 
     this._end();
 }
-util.inherits(ClassBody, SimpleNode);
+util.inherits(ClassBody, ScopeNode);
+
+ClassBody.prototype._getVars = function() {
+    return this.fields;
+};
+
 
 ClassBody.prototype._readDeclaration = function() {
     var tok = this.tok;
@@ -809,7 +871,9 @@ ClassBody.prototype._readMember = function(mods) {
 };
 
 function Method(prev, mods, type, typeParams, name) {
-    JavadocNode.call(this, prev);
+    ScopeNode.call(this, prev);
+
+    this.javadoc = this.tok.getJavadoc();
 
     if (mods)
         this.start = mods.start;
@@ -844,7 +908,12 @@ function Method(prev, mods, type, typeParams, name) {
 
     this._end();
 }
-util.inherits(Method, JavadocNode);
+util.inherits(Method, ScopeNode);
+
+Method.prototype._getVars = function() {
+    return this.params._getVars();
+};
+
 
 Method.prototype.isConstructor = function() {
     return this.returns == null;
@@ -876,7 +945,7 @@ util.inherits(FieldDecl, VariableDeclNode);
 
 
 function Block(prev) {
-    SimpleNode.call(this, prev);
+    ScopeNode.call(this, prev);
 
     this.kids = [];
 
@@ -890,7 +959,18 @@ function Block(prev) {
 
     this._end();
 }
-util.inherits(Block, SimpleNode);
+util.inherits(Block, ScopeNode);
+
+Block.prototype._getVars = function() {
+    return this.kids.filter(function(statement) {
+        return statement instanceof LocalVarDefs;
+    }).map(function(defs) {
+        return defs.kids;
+    }).reduce(function(result, defs) {
+        return result.concat(defs);
+    }, []);
+};
+
 
 Block.read = function(prev) {
     if (!prev.tok.peekBlockOpen())
@@ -2033,8 +2113,26 @@ function IdentifierExpression(prev, state, name) {
 util.inherits(IdentifierExpression, SimpleNode);
 
 IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
-    // FIXME
-    SimpleNode.prototype.evaluateType.call(this, classLoader, cb);
+    if (this.name == 'this')
+        throw new Error('"this" expression not handled');
+    if (this.name == 'super')
+        throw new Error('"super" expression not handled');
+
+    var varDef = this.searchScope(this.name);
+    if (varDef)
+        return varDef.evaluateType(classLoader, cb);
+
+    // probably a class name of some kind
+    this.getRoot().resolveType(classLoader, this.name, function(resolved) {
+        if (!resolved) return cb(new Error('unable to resolve class ' + this.name));
+
+        cb(null, {
+            type: resolved
+          , from: Ast.FROM_CLASS
+        });
+    });
+
+    // SimpleNode.prototype.evaluateType.call(this, classLoader, cb);
 };
 
 
@@ -2095,7 +2193,7 @@ util.inherits(MethodInvocation, SimpleNode);
  * Params decl for methods
  */
 function FormalParameters(prev) {
-    SimpleNode.call(this, prev);
+    ScopeNode.call(this, prev);
 
     this.tok.expectParenOpen();
 
@@ -2126,7 +2224,12 @@ function FormalParameters(prev) {
 
     this._end();
 }
-util.inherits(FormalParameters, SimpleNode);
+util.inherits(FormalParameters, ScopeNode);
+
+FormalParameters.prototype._getVars = function() {
+    return this.kids;
+};
+
 
 /**
  * Modifiers list

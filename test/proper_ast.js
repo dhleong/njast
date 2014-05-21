@@ -100,7 +100,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.aerror = function () {
+console.error = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -1303,20 +1303,39 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        // it("68, 21: Fancy.", function(done) {
-        //     ast.locate(68, 21)
-        //     .evaluateType(loader, function(err, value) {
-        //         should.not.exist(err);
-        //         value.type.should.equal('net.dhleong.njast.Foo$Fancy');
-        //         value.from.should.equal(Ast.FROM_CLASS);
-        //         done();
-        //     });
-        // });
+        it("53, 25: Fancier", function(done) {
+            ast.locate(53, 25)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
+        it("58, 17: Fancier", function(done) {
+            ast.locate(58, 17)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
+        it("68, 21: Fancy.", function(done) {
+            ast.locate(68, 21)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+                value.from.should.equal(Ast.FROM_CLASS);
+                done();
+            });
+        });
 
         it("68, 26: Fancy.this. ");
 
         it("27, 43: arg3: Boring");
-        it("23, 28: prepare: method -> Fanciest");
         it("26, 44: doBar: method");
         it("43, 40: Foo.this.field1. ");
     });
