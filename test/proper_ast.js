@@ -4,11 +4,12 @@
 var fs = require('fs')
   , chai = require('chai')
   , should = chai.should()
-  , parseFile = require('../proper_ast').parseFile
+  , Ast = require('../proper_ast')  
+  , parseFile = Ast.parseFile
 
   , PATH = 'FullAst.java'
 
-  , buf, ast
+  , buf, ast, loader
   , fullast;
 
 
@@ -1236,6 +1237,8 @@ describe("Ast of Foo.java", function() {
     before(function(done) {
         should.exist(ast);
         ast = null;
+        loader = require('../classloader').fromSource('Foo.java');
+
         fs.readFile('Foo.java', function(err, fp) {
             parseFile('Foo.java', fp, {
                 strict: false
@@ -1254,5 +1257,67 @@ describe("Ast of Foo.java", function() {
     // relaxed parsing!
     it("parses", function() {
         should.exist(ast);
+    });
+
+    it("finds at 21, 31: int out", function() {
+        var node = ast.locate(21, 31);
+        should.exist(node);
+        node.should.have.property('name')
+            .that.equals('out');
+        // just an identifier
+        node.should.have.property('type')
+            .with.property('name')
+                .that.equals('int');
+    });
+
+    it("finds at 53, 25: other", function() {
+        var node = ast.locate(53, 25);
+        should.exist(node);
+        node.should.have.property('name')
+            .that.equals('other');
+        // just an identifier
+        node.should.not.have.property('type');
+    });
+
+    describe("evaluates type at", function() {
+
+        it("21, 31: int", function(done) {
+            ast.locate(21, 31)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('int');
+                value.from.should.equal(Ast.FROM_OBJECT);
+
+                done();
+            });
+        });
+
+        it("7, 18: Fancier", function(done) {
+            ast.locate(7, 18)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+                value.from.should.equal(Ast.FROM_OBJECT);
+
+                done();
+            });
+        });
+
+        // it("68, 21: Fancy.", function(done) {
+        //     ast.locate(68, 21)
+        //     .evaluateType(loader, function(err, value) {
+        //         should.not.exist(err);
+        //         value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+        //         value.from.should.equal(Ast.FROM_CLASS);
+        //         done();
+        //     });
+        // });
+
+        it("68, 26: Fancy.this. ");
+
+        it("27, 43: arg3: Boring");
+        it("23, 28: prepare: method -> Fanciest");
+        it("26, 44: doBar: method");
+        it("43, 40: Foo.this.field1. ");
     });
 });

@@ -28,6 +28,10 @@ function Ast(path, buffer, options) {
 }
 util.inherits(Ast, events.EventEmitter);
 
+Ast.FROM_OBJECT = 'obj';
+Ast.FROM_METHOD = 'mth';
+Ast.FROM_CLASS  = 'cls';
+
 Ast.prototype.locate = function(line, ch) {
     if (!this._root)
         throw new Error("Ast not parsed yet");
@@ -35,7 +39,7 @@ Ast.prototype.locate = function(line, ch) {
     return this._root.locate(line, ch);
 };
 
-
+/** Generally called for you... */
 Ast.prototype.parse = function(startType) {
 
     this._root = startType.read(this, this.tok);
@@ -47,6 +51,53 @@ Ast.prototype.getPackage = function() {
         return this._root.package;
 
 };
+
+Ast.prototype.resolveType = function(classLoader, type, cb) {
+    
+    if (Tokenizer.isPrimitive(type))
+        return cb(type);
+
+    var full = this._root.namedImports[type];
+    if (full)
+        return cb(full.path);
+
+    if (type in this.qualifieds)
+        return cb(type); // already fully-qualified
+
+    var path = this._root.package;
+
+    function pathify(klass) {
+        return [this, klass];
+    }
+
+    // Loop through nested types
+    var r = this._root.types.map(pathify.bind(path));
+    while (r.length > 0) {
+        var obj = r.pop();
+        var subpath = obj[0];
+        var klass = obj[1];
+
+        var connector = subpath == path ? '.' : '$';
+        subpath = subpath + connector + klass.name;
+        if (klass.name == type)
+            return cb(subpath); // gotcha!
+
+        // nope... recurse
+        if (klass.body.subclasses) {
+            var kids = klass.body.subclasses.map(pathify.bind(subpath));
+            r = r.concat(kids);
+        }
+    }
+
+    // must be another class in this package (?)
+    var thisPackage = path + '.' + type;
+    classLoader.openClass(thisPackage, function(err) {
+        if (err) return cb(null); // couldn't resolve...
+
+        cb(thisPackage);
+    });
+};
+
 
 /**
  * Superclass for simple things
@@ -82,6 +133,28 @@ SimpleNode.prototype.contains = function(line, ch) {
 
     return true;
 };
+
+/**
+ * Evaluate what type would be returned if this node were
+ *  executed. Takes a ClassLoader as its first arg in case
+ *  we need to shop around for information
+ * @param cb fn(err, result) where result looks like: 
+ * {
+ *  type: "full.qualified.path.to.ClassName",
+ *  from: <constant indicating how the type is used>
+ * }
+ *
+ * "from" constants:
+ * - Ast.FROM_METHOD : return type of a method
+ * - Ast.FROM_OBJECT : object instance
+ * - Ast.FROM_CLASS  : static reference
+ */
+// jshint ignore:start
+SimpleNode.prototype.evaluateType = function(classLoader, cb) { 
+    throw new Error(this.constructor.name + ' does not implement evaluateType');
+};
+// jshint ignore:end
+
 
 /** 
  * Find all child nodes. Default implementation
@@ -302,6 +375,11 @@ function VarDef(prev, mods, type, name, isInitable) {
 }
 util.inherits(VarDef, SimpleNode);
 
+VarDef.prototype.evaluateType = function(classLoader, cb) {
+    this.type.evaluateType(classLoader, cb);
+};
+
+
 // IE: VariableInitializer
 VarDef.readInitializer = function(prev) {
     if (prev.tok.peekBlockOpen())
@@ -339,6 +417,7 @@ function CompilationUnit(ast, mods, package) {
 
     this.imports = [];
     this.types = [];
+    this.namedImports = {};
 
     var tok = this.tok;
     tok.expectSemicolon();
@@ -356,6 +435,14 @@ function CompilationUnit(ast, mods, package) {
                 path: path,
                 star: star
             });
+
+            if (!star) {
+                var lastDot = path.lastIndexOf('.');
+                var name = ~lastDot
+                    ? path.substr(lastDot + 1)
+                    : path;
+                this.namedImports[name] = path;
+            }
         }
 
         tok.expectSemicolon();
@@ -1945,6 +2032,12 @@ function IdentifierExpression(prev, state, name) {
 }
 util.inherits(IdentifierExpression, SimpleNode);
 
+IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
+    // FIXME
+    SimpleNode.prototype.evaluateType.call(this, classLoader, cb);
+};
+
+
 IdentifierExpression.read = function(prev) {
     var tok = prev.tok;
     var state = tok.prepare();
@@ -2248,6 +2341,19 @@ TypeNode.prototype._readArray = function() {
     }
 };
 
+TypeNode.prototype.evaluateType = function(classLoader, cb) {
+    var self = this;
+    this.getRoot().resolveType(classLoader, this.name, function(type) {
+        if (!type) return cb(new Error("Couldn't resolve type " + self.type));
+    
+        cb(null, {
+            type: type
+          , from: Ast.FROM_OBJECT
+          , array: self.array
+        });
+    });
+};
+    
 
 function BasicType(prev, skipArray) {
     TypeNode.call(this, prev, skipArray);
@@ -2411,6 +2517,9 @@ util.inherits(WildcardTypeArgument, SimpleNode);
  * Exports
  */
 module.exports = {
+    FROM_METHOD: Ast.FROM_METHOD,
+    FROM_OBJECT: Ast.FROM_OBJECT,
+    FROM_CLASS: Ast.FROM_CLASS,
 
     /**
      * @param options (Optional) A dict with:
