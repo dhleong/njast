@@ -59,7 +59,7 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
 
     var full = this._root.namedImports[type];
     if (full)
-        return cb(full.path);
+        return cb(full);
 
     if (type in this.qualifieds)
         return cb(type); // already fully-qualified
@@ -359,6 +359,27 @@ ScopeNode.prototype.getVar = function(varName) {
 };
 
 /**
+ * implement this method to return an array
+ * of VarDefs to use the default functionality
+ */
+ScopeNode.prototype._getMethods = undefined;
+
+ScopeNode.prototype.getMethod = function(methodName) {
+    if (!this._getMethods)
+        throw new Error(this.constructor.name 
+            + " does not implement getMethod! Cannot find " + methodName);
+
+    var methods = this._getMethods();
+    var len = methods.length;
+    for (var i=0; i < len; i++) {
+        var m = methods[i];
+        if (m.name == methodName)
+            return m;
+    }
+};
+
+
+/**
  * The VariableDeclNode is a special type of
  *  Node that can handle variable declaration. 
  *  Implementors should handle 
@@ -498,7 +519,34 @@ function CompilationUnit(ast, mods, package) {
                 var name = ~lastDot
                     ? path.substr(lastDot + 1)
                     : path;
-                this.namedImports[name] = path;
+
+                // now, was this import an inner class?
+                // A bit gross, but only idiots would have
+                //  capital letters in a package, or lower
+                //  case to start a class.
+                var parts = path.split('.');
+                var cleanPath;
+                if (parts.length > 1) {
+                    // len-1 is the name again
+                    cleanPath = name;
+                    var divider = static ? '#' : '$'
+                    for (var i=parts.length-2; i >= 0; i--) {
+                        var part = parts[i];
+                        var first = part.charAt(0);
+                        if (first == first.toUpperCase()) {
+                            cleanPath = part + divider + cleanPath;
+                        } else {
+                            cleanPath = part + '.' + cleanPath;
+                        }
+
+                        divider = '$'; // after the first, this always
+                    }
+                } else {
+                    // default package. yuck.
+                    cleanPath = path;
+                }
+
+                this.namedImports[name] = cleanPath;
             }
         }
 
@@ -825,6 +873,11 @@ util.inherits(ClassBody, ScopeNode);
 ClassBody.prototype._getVars = function() {
     return this.fields;
 };
+
+ClassBody.prototype._getMethods = function() {
+    return this.methods;
+};
+
 
 
 ClassBody.prototype._readDeclaration = function() {
@@ -1574,6 +1627,13 @@ function CastExpression(prev, left, right) {
 }
 util.inherits(CastExpression, SimpleNode);
 
+CastExpression.prototype.evaluateType = function(classLoader, cb) {
+    // easy!
+    this.left.evaluateType(classLoader, cb);
+};
+
+
+
 /** 
  * Try to read a CastExpression, but
  *  can return a Primary if it was just
@@ -1617,7 +1677,15 @@ function PrefixExpression(prev, state, prefixOp) {
 }
 util.inherits(PrefixExpression, SimpleNode);
 
-/** SelectorExpression wraps the previous primary */
+/** 
+ * SelectorExpression wraps the previous primary.
+ *  Chained expressions gain an extra property,
+ *  '_chain', which is the expression preceeding
+ *  it in the chain. EX: In `Foo.this`, the `this`
+ *  IdentifierExpression gets _chain -> Foo. `Foo`
+ *  is the head of the chain, and our `left` value,
+ *  so it gets nothing.
+ */
 function SelectorExpression(primary, connector) {
     SimpleNode.call(this, primary.getParent());
 
@@ -1633,14 +1701,14 @@ function SelectorExpression(primary, connector) {
 
             switch(next) {
             case 'this':
-                this.chain.push(new IdentifierExpression(this, state, 'this'));
+                this._push(new IdentifierExpression(this, state, 'this'));
                 break; // break out of switch (to "clear" comment below)
             case 'new':
-                this.chain.push(Creator.read(this));
+                this._push(Creator.read(this));
                 break;
 
             case 'super':
-                this.chain.push(new SuperExpression(this, state));
+                this._push(new SuperExpression(this, state));
                 break;
 
             default:
@@ -1650,7 +1718,7 @@ function SelectorExpression(primary, connector) {
 
                     // NB The spec says YES, but the compiler says NO.
                     // if (next == 'super') {
-                    //     this.chain.push(new SuperExpression(this, typeArgs));
+                    //     t_is..push(new SuperExpression(this, typeArgs));
                     //     break;
                     // }
 
@@ -1665,15 +1733,15 @@ function SelectorExpression(primary, connector) {
                 }
 
                 if (tok.peekParenOpen())
-                    this.chain.push(new MethodInvocation(this, state, next, typeArgs));
+                    this._push(new MethodInvocation(this, state, next, typeArgs));
                 else
-                    this.chain.push(new IdentifierExpression(this, state, next));
+                    this._push(new IdentifierExpression(this, state, next));
             }
 
         } else if ('[' == connector) {
             var expr = Expression.read(this);
             if (expr) {
-                this.chain.push(new ArrayAccessExpression(this, expr));
+                this._push(new ArrayAccessExpression(this, expr));
                 tok.expectBracketClose();
             }
         }
@@ -1688,6 +1756,16 @@ function SelectorExpression(primary, connector) {
     this._end();
 }
 util.inherits(SelectorExpression, SimpleNode);
+
+SelectorExpression.prototype._push = function(expr) {
+    var prev = this.chain.length 
+        ? this.chain[this.chain.length - 1]
+        : this.left;
+    
+    expr._chain = prev;
+    this.chain.push(expr);
+};
+
 
 SelectorExpression.read = function(primary) {
     if (!primary)
@@ -2113,18 +2191,46 @@ function IdentifierExpression(prev, state, name) {
 util.inherits(IdentifierExpression, SimpleNode);
 
 IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
-    if (this.name == 'this')
-        throw new Error('"this" expression not handled');
     if (this.name == 'super')
-        throw new Error('"super" expression not handled');
+        return cb(new Error('"super" should not be in an IdentifierExpression'));
+
+    if (this.name == 'this') {
+        if (this._chain) {
+            // use the chain's value, but twiddle it to
+            //  be "FROM_OBJECT" since "this" is referring
+            //  to an instance
+            return this._chain.evaluateType(classLoader, function(err, value) {
+                if (value)
+                    value.from = Ast.FROM_OBJECT;
+                cb(err, value);
+            });
+        }
+
+        // climb scope to find parent class
+        var scope = this;
+        do {
+            scope = scope.getScope();
+        } while (scope && (!(
+            scope instanceof Class
+            || scope instanceof Enum
+            || scope instanceof AnnotationDecl)))
+        
+        if (!scope)
+            return cb(new Error("Couldn't find containing scope"));
+
+        return scope.evaluateType(classLoader, cb);
+    }
+
+    // FIXME chain
 
     var varDef = this.searchScope(this.name);
     if (varDef)
         return varDef.evaluateType(classLoader, cb);
 
     // probably a class name of some kind
+    var self = this;
     this.getRoot().resolveType(classLoader, this.name, function(resolved) {
-        if (!resolved) return cb(new Error('unable to resolve class ' + this.name));
+        if (!resolved) return cb(new Error('unable to resolve class ' + self.name));
 
         cb(null, {
             type: resolved
@@ -2187,6 +2293,52 @@ function MethodInvocation(prev, state, name, typeArgs) {
     this._end();
 }
 util.inherits(MethodInvocation, SimpleNode);
+
+MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
+    // figure out where we live
+    var self = this;
+    if (!this._chain) {
+        // local, or in a superclass
+        // FIXME
+        cb(new Error('Search local AST then superclasses for method'));
+    } else {
+        this._chain.evaluateType(classLoader, function(err, resolved) {
+            if (err) {
+                return cb(new Error("Could not resolve " 
+                    + this.name + "(): " + err.message));
+            }
+
+            self._getReturnType(classLoader, resolved, cb);
+        });
+    }
+};
+
+MethodInvocation.prototype._getReturnType = function(classLoader, parent, cb) {
+    var local = this.getRoot().qualifieds[parent.type];
+    if (local) {
+        var m = local.body.getMethod(this.name);
+        if (!m) return cb(new Error(parent.type + " has no method " + this.name));
+
+        if (!m.returns) {
+            return cb(null, {
+                type: 'void'
+              , from: Ast.FROM_METHOD
+            });
+        }
+        m.returns.evaluateType(classLoader, function(err, resolved) {
+            if (err) return cb(err);
+            cb(null, {
+                type: resolved.type
+              , from: Ast.FROM_METHOD
+            });
+        });
+        return;
+    }
+
+    // FIXME
+    cb(new Error('Searching ClassLoader for method definition unsupported'));
+};
+
 
 
 /**

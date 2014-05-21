@@ -1,6 +1,6 @@
 package net.dhleong.njast;
 
-import net.dhleong.njast.util.Fanciest;
+import net.dhleong.njast.Boring.Fanciest;
 
 class Foo {
 
@@ -30,8 +30,8 @@ class Foo {
     class Fancy {
         
         /** Does biz by Fancy */
-        Bar biz() {
-            return new Bar();
+        Boring biz() {
+            return new Boring();
         }
 
         class Fancier {
@@ -78,4 +78,5 @@ class Foo {
     void fooMethod() {
         this. // moar suggestions
     }
+
 }

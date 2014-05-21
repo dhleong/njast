@@ -1333,10 +1333,56 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("68, 26: Fancy.this. ");
+        it("68, 26: Fancy.this.", function(done) {
+            ast.locate(68, 26)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
 
-        it("27, 43: arg3: Boring");
+        it("43, 38: Foo.this.field1.", function(done) {
+            ast.locate(43, 38)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
+        it("27, 43: arg3: Boring", function(done) {
+            ast.locate(27, 43)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Boring');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
+        it("23, 11: Fanciest", function(done) {
+            ast.locate(23, 11)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Boring$Fanciest');
+                value.from.should.equal(Ast.FROM_CLASS);
+                done();
+            });
+        });
+
+        it("26, 26: buz -> Foo", function(done) {
+            ast.locate(26, 26)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
         it("26, 44: doBar: method");
-        it("43, 40: Foo.this.field1. ");
     });
 });
