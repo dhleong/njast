@@ -65,6 +65,7 @@ Ast.prototype.getPackage = function() {
 Ast.prototype.resolveMethodReturnType = function(classLoader, type, name, cb) {
     var typeImpl = this.qualifieds[type];
     if (!typeImpl) {
+        // TODO prevent recursion loop?
         // return cb(new Error("No such type " + type + " in " + this.tok._path));
         return classLoader.resolveMethodReturnType(type, name, cb);
     }
@@ -993,7 +994,7 @@ function Method(prev, mods, type, typeParams, name) {
 
     this.body = Block.read(this);
     if (!this.body) {
-        this.expectSemicolon();
+        this.tok.expectSemicolon();
 
         // TODO enforce abstract?
     }

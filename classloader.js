@@ -4,7 +4,8 @@ var async = require('async')
   , path = require('path')
   , fs = require('fs')
   
-  , Ast = require('./ast');
+  , Ast = require('./proper_ast')  
+  , parseFile = Ast.parseFile;
 
 /**
  * Base ClassLoader interface; mostly for the
@@ -51,6 +52,11 @@ ClassLoader.prototype.openClass = function(/* qualifiedName, callback */) {
 /**
  * Attempts to located the qualified class name within this
  *  loader and extract the return type of the given method name
+ * @param cb fn(err, resolved:dict)
+ *  where resolved looks like: {
+ *      type: <fully.qualified.name>
+ *      from: Ast.FROM_METHOD
+ *  }
  */
 ClassLoader.prototype.resolveMethodReturnType = function(/* type, name, cb */) {
     throw new Error("resolveMethodReturnType not implemented");
@@ -133,6 +139,52 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
     });
 }
 
+function SourceClassLoader() {
+}
+util.inherits(SourceClassLoader, ClassLoader);
+
+SourceClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
+    var self = this;
+    this._getPathForType(type, function(err, path) {
+        if (err) return cb(err);
+        
+        fs.readFile(path, function(err, buf) {
+            if (err) return cb(err);
+
+            parseFile(path, buf, {
+                strict: false
+            }, function(err, ast) {
+                if (err) return cb(err);
+                
+                ast.resolveMethodReturnType(self, type, name, cb);
+            });
+        });
+    });
+};
+
+SourceClassLoader.prototype.openClass = function(qualifiedName, callback) {
+    this._getPathForType(qualifiedName, function(err, path) {
+        if (err) return callback(err);
+
+        fs.readFile(path, function(err/* , buf */) {
+            if (err) return callback(err);
+
+            // var ast = new Ast(filePath, buf);
+            // ast.parse(function() {
+            //     callback(null, ast.extractClass(qualifiedName));
+            // });
+            callback(null); // TODO provide something?
+        });
+    });
+};
+
+
+SourceClassLoader.prototype._getPathForType = function(/* type, cb */) {
+    throw new Error(this.constructor.name + " must implement _getPathForType");
+};
+
+
+
 /**
  * The SourceProjectClassLoader loads classes via
  *  our Ast implementation from source files located
@@ -141,7 +193,7 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
 function SourceProjectClassLoader(projectRoot) {
     this._root = projectRoot;
 }
-util.inherits(SourceProjectClassLoader, ClassLoader);
+util.inherits(SourceProjectClassLoader, SourceClassLoader);
 
 
 
@@ -154,21 +206,15 @@ util.inherits(SourceProjectClassLoader, ClassLoader);
 function SourceDirectoryClassLoader(dir) {
     this._root = dir;
 }
-util.inherits(SourceDirectoryClassLoader, ClassLoader);
+util.inherits(SourceDirectoryClassLoader, SourceClassLoader);
 
-SourceDirectoryClassLoader.prototype.openClass = function(qualifiedName, callback) {
+SourceDirectoryClassLoader.prototype._getPathForType = function(qualifiedName, cb) {
     var dirs = this._getPath(qualifiedName);
     var fileName = dirs[dirs.length - 1];
     var filePath = path.join(this._root, fileName);
-    fs.readFile(filePath, function(err, buf) {
-        if (err) return callback(err);
-
-        var ast = new Ast(filePath, buf);
-        ast.parse(function() {
-            callback(null, ast.extractClass(qualifiedName));
-        });
-    });
+    cb(null, filePath);
 };
+
 
 
 /**

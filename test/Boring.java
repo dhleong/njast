@@ -1,3 +1,4 @@
+package net.dhleong.njast;
 
 class Boring {
     static class Normal {
