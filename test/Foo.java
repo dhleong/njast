@@ -59,7 +59,7 @@ class Foo extends Extended {
                 return null;
             }
             
-            Fail method() {
+            Fail failMethod() {
                 doFancier(). // suggest from method result
                 return null;
             }
@@ -87,4 +87,9 @@ class Foo extends Extended {
         fluidMethod(). 
     }
 
+    Foo delegate = new Foo(42);
+
+    void identifierChain() {
+        delegate.field1.buz().field1.method() // silly
+    }
 }

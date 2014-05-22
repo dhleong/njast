@@ -1423,8 +1423,6 @@ describe("Ast of Foo.java", function() {
         });
 
         it("87, 20: (superclass method) -> Extended", function(done) {
-            loader.openClass('net.dhleong.njast.Foo', function() {}); // FIXME 
-
             ast.locate(87, 20)
             .evaluateType(loader, function(err, value) {
                 if (err) throw err;
@@ -1434,8 +1432,46 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("unimplemented method from interface");
-        it("identifier chains");
+        it("identifier chains", function(done) {
+            ast.locate(93, 18)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
+        it("short daisy chain", function(done) {
+            ast.locate(93, 28)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
+        it("medium daisy chain", function(done) {
+            ast.locate(93, 36)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
+        it("long daisy chain", function(done) {
+            var node = ast.locate(93, 44);
+            node.evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
         it("Static method");
         it("Static imported method");
         it("overridable methods?"); 

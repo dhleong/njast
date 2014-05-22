@@ -2719,7 +2719,7 @@ TypeNode.prototype._readArray = function() {
 TypeNode.prototype.evaluateType = function(classLoader, cb) {
     var self = this;
     this.getRoot().resolveType(classLoader, this.name, function(type) {
-        if (!type) return cb(new Error("Couldn't resolve type " + self.type));
+        if (!type) return cb(new Error("Couldn't resolve type " + self.name));
     
         cb(null, {
             type: type

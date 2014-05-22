@@ -7,5 +7,8 @@ public class Extended {
         return this;
     }
 
-    static Extended createExtended();
+    static Extended createExtended() {
+        return new Extended() {
+        };
+    }
 }
