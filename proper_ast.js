@@ -275,6 +275,19 @@ SimpleNode.prototype.searchScope = function(identifier) {
     }
 };
 
+/**
+ * Climb the scope to locate the given method
+ */
+SimpleNode.prototype.searchMethodScope = function(name) {
+    var scope = this.getScope();
+    while (scope) {
+        var found = scope.getMethod(name);
+        if (found)
+            return found;
+
+        scope = scope.getScope();
+    }
+};
 
 SimpleNode.prototype._qualify = function(separator) {
 
@@ -967,6 +980,12 @@ Method.prototype._getVars = function() {
     return this.params._getVars();
 };
 
+Method.prototype.getMethod = function() {
+    // Methods can't do this!
+    return null;
+};
+
+
 
 Method.prototype.isConstructor = function() {
     return this.returns == null;
@@ -1022,6 +1041,11 @@ Block.prototype._getVars = function() {
     }).reduce(function(result, defs) {
         return result.concat(defs);
     }, []);
+};
+
+Block.prototype.getMethod = function() {
+    // blocks can't do this!
+    return null;
 };
 
 
@@ -2168,6 +2192,11 @@ function Arguments(prev) {
 }
 util.inherits(Arguments, SimpleNode);
 
+Arguments.prototype.evaluateType = function(classLoader, cb) {
+    this.getParent().evaluateType(classLoader, cb);
+};
+
+
 Arguments.read = function(prev) {
     if (prev.tok.peekParenOpen())
         return new Arguments(prev);
@@ -2299,8 +2328,10 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
     var self = this;
     if (!this._chain) {
         // local, or in a superclass
-        // FIXME
-        cb(new Error('Search local AST then superclasses for method'));
+        var method = this.searchMethodScope(this.name);
+        if (method) return this._dispatchReturnType(classLoader, method, cb);
+
+        cb(new Error('Search superclasses for method'));
     } else {
         this._chain.evaluateType(classLoader, function(err, resolved) {
             if (err) {
@@ -2319,24 +2350,28 @@ MethodInvocation.prototype._getReturnType = function(classLoader, parent, cb) {
         var m = local.body.getMethod(this.name);
         if (!m) return cb(new Error(parent.type + " has no method " + this.name));
 
-        if (!m.returns) {
-            return cb(null, {
-                type: 'void'
-              , from: Ast.FROM_METHOD
-            });
-        }
-        m.returns.evaluateType(classLoader, function(err, resolved) {
-            if (err) return cb(err);
-            cb(null, {
-                type: resolved.type
-              , from: Ast.FROM_METHOD
-            });
-        });
+        this._dispatchReturnType(classLoader, m, cb);
         return;
     }
 
     // FIXME
     cb(new Error('Searching ClassLoader for method definition unsupported'));
+};
+
+MethodInvocation.prototype._dispatchReturnType = function(classLoader, m, cb) {
+    if (!m.returns) {
+        return cb(null, {
+            type: 'void'
+          , from: Ast.FROM_METHOD
+        });
+    }
+    m.returns.evaluateType(classLoader, function(err, resolved) {
+        if (err) return cb(err);
+        cb(null, {
+            type: resolved.type
+          , from: Ast.FROM_METHOD
+        });
+    });
 };
 
 

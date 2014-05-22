@@ -79,4 +79,8 @@ class Foo {
         this. // moar suggestions
     }
 
+    void fooMethodCall() {
+        baz(). // moar suggestions
+    }
+
 }

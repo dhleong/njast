@@ -1363,6 +1363,16 @@ describe("Ast of Foo.java", function() {
             });
         });
 
+        it("27, 48: doFancier -> Fancy", function(done) {
+            ast.locate(27, 48)
+            .evaluateType(loader, function(err, value) {
+                should.not.exist(err);
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
         it("23, 11: Fanciest", function(done) {
             ast.locate(23, 11)
             .evaluateType(loader, function(err, value) {
@@ -1383,6 +1393,35 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("26, 44: doBar: method");
+        it("26, 30: buz() -> Foo", function(done) {
+            ast.locate(26, 30)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
+        it("83, 12: baz() -> Fancy", function(done) {
+            ast.locate(83, 12)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
+        it("26, 44: doBar -> Boring"/*, function(done) {
+            ast.locate(26, 44)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Boring');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        }*/);
+
     });
 });
