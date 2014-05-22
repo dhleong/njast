@@ -58,11 +58,17 @@ Ast.prototype.getPackage = function() {
  *
  * This is an interface method that should be shared with
  *  .class-file parsed objects.
+ *
+ * @param type Must be a fully-qualified type name
+ * @param name Name of the method
  */
 Ast.prototype.resolveMethodReturnType = function(classLoader, type, name, cb) {
     var typeImpl = this.qualifieds[type];
-    if (!typeImpl) 
-        return cb(new Error("No such type " + this.type));
+    if (!typeImpl) {
+        // return cb(new Error("No such type " + type + " in " + this.tok._path));
+        return classLoader.resolveMethodReturnType(type, name, cb);
+    }
+
     var m = typeImpl.body.getMethod(name);
     if (m) return _dispatchReturnType(classLoader, m, cb);
 

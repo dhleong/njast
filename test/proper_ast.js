@@ -1413,7 +1413,7 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("26, 44: doBar -> Boring"/*, function(done) {
+        it("26, 44: doBar -> Boring", function(done) {
             ast.locate(26, 44)
             .evaluateType(loader, function(err, value) {
                 if (err) throw err;
@@ -1421,12 +1421,14 @@ describe("Ast of Foo.java", function() {
                 value.from.should.equal(Ast.FROM_METHOD);
                 done();
             });
-        }*/);
+        });
 
         it("superclass method");
         it("unimplemented method from interface");
         it("identifier chains");
         it("Static method");
         it("Static imported method");
+
+        it("overridden methods?"); // Will need to specify args & fallback if missing
     });
 });

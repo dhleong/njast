@@ -33,6 +33,7 @@ ClassLoader.prototype._getPath = function(className) {
 };
 
 /**
+ * DEPRECATED
  * Attempts to locate the qualified class name within this
  *  loader and open a file handle to it. The callback should be:
  *      fn(err, ast:Class)
@@ -47,6 +48,13 @@ ClassLoader.prototype.openClass = function(/* qualifiedName, callback */) {
     throw new Error("openClass not implemented");
 };
 
+/**
+ * Attempts to located the qualified class name within this
+ *  loader and extract the return type of the given method name
+ */
+ClassLoader.prototype.resolveMethodReturnType = function(/* type, name, cb */) {
+    throw new Error("resolveMethodReturnType not implemented");
+};
 
 /**
  * The ComposedClassLoader doesn't do any loading itself; instead
@@ -90,6 +98,40 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName, callback) {
         callback(err, result);
     });
 };
+
+ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
+    var qualifiedName = type + '#' + name; // TODO args?
+    if (qualifiedName in this._cached)
+        return cb(null, this._cached[qualifiedName]);
+
+    // create functions to call that are bound with
+    // the qualifiedName arg, plus caching
+    var self = this;
+    var loaders = this._loaders.map(function(loader) {
+        return function(cb) {
+            loader.resolveMethodReturnType(type, name, function(err, result) {
+                // cache successful results
+                if (result && !err)
+                    self._cached[qualifiedName] = result;
+
+                // call through
+                cb(err, result);
+            });
+        };
+    });
+
+    // evaluate wrapped loaders in parallel
+    async.parallel(loaders, function(err, results) {
+        // reduce results into the first successful one
+        var result = results.reduce(function(last, item) {
+            if (last) return last;
+            return item;
+        });
+
+        // finally, call the actual callback
+        cb(err, result);
+    });
+}
 
 /**
  * The SourceProjectClassLoader loads classes via
