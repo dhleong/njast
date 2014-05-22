@@ -52,6 +52,26 @@ Ast.prototype.getPackage = function() {
 
 };
 
+/**
+ * Resolve the return type of the method called "name"
+ *  in the given "type," and call through to "cb" when done.
+ *
+ * This is an interface method that should be shared with
+ *  .class-file parsed objects.
+ */
+Ast.prototype.resolveMethodReturnType = function(classLoader, type, name, cb) {
+    var typeImpl = this.qualifieds[type];
+    if (!typeImpl) 
+        return cb(new Error("No such type " + this.type));
+    var m = typeImpl.body.getMethod(name);
+    if (m) return _dispatchReturnType(classLoader, m, cb);
+
+    // no method? search superclasses
+    // FIXME
+    cb(new Error("UNIMPLEMENTED: search superclasses for method return type"));
+};
+
+
 Ast.prototype.resolveType = function(classLoader, type, cb) {
     
     if (Tokenizer.isPrimitive(type))
@@ -2329,7 +2349,7 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
     if (!this._chain) {
         // local, or in a superclass
         var method = this.searchMethodScope(this.name);
-        if (method) return this._dispatchReturnType(classLoader, method, cb);
+        if (method) return _dispatchReturnType(classLoader, method, cb);
 
         cb(new Error('Search superclasses for method'));
     } else {
@@ -2344,21 +2364,17 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
     }
 };
 
+/**
+ * Given a node with a type known to contain
+ *  (or... at least extend/implement a type known
+ *  to contain this method def), locate that type 
+ *  and search it for the method def
+ */
 MethodInvocation.prototype._getReturnType = function(classLoader, parent, cb) {
-    var local = this.getRoot().qualifieds[parent.type];
-    if (local) {
-        var m = local.body.getMethod(this.name);
-        if (!m) return cb(new Error(parent.type + " has no method " + this.name));
-
-        this._dispatchReturnType(classLoader, m, cb);
-        return;
-    }
-
-    // FIXME
-    cb(new Error('Searching ClassLoader for method definition unsupported'));
+    this.getRoot().resolveMethodReturnType(classLoader, parent.type, this.name, cb);
 };
 
-MethodInvocation.prototype._dispatchReturnType = function(classLoader, m, cb) {
+function _dispatchReturnType(classLoader, m, cb) {
     if (!m.returns) {
         return cb(null, {
             type: 'void'
@@ -2372,7 +2388,7 @@ MethodInvocation.prototype._dispatchReturnType = function(classLoader, m, cb) {
           , from: Ast.FROM_METHOD
         });
     });
-};
+}
 
 
 

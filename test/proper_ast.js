@@ -1423,5 +1423,10 @@ describe("Ast of Foo.java", function() {
             });
         }*/);
 
+        it("superclass method");
+        it("unimplemented method from interface");
+        it("identifier chains");
+        it("Static method");
+        it("Static imported method");
     });
 });
