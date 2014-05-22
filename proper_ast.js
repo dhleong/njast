@@ -1,6 +1,7 @@
 
 var events = require('events')
   , util = require('util')
+  , async = require('async')
   , Tokenizer = require('./proper_tokenizer');
 
 function Ast(path, buffer, options) {
@@ -272,6 +273,21 @@ SimpleNode.prototype.start_from = function(state) {
         line: state.line,
         ch: state.col
     };
+};
+
+SimpleNode.prototype.getDeclaringType = function() {
+    var scope = this.getScope();
+    while (scope) {
+        var parent = scope.getParent();
+        if (parent instanceof Class 
+                || parent instanceof Interface
+                || parent instanceof AnnotationDecl
+                || parent instanceof Enum) {
+            return parent;
+        }
+
+        scope = scope.getScope();
+    }
 };
 
 SimpleNode.prototype.getScope = function() {
@@ -769,9 +785,11 @@ function Interface(prev, mods) {
     this.typeParams = TypeParameters.read(this);
     
     if (tok.readString('extends')) {
-        this.extends = [];
+        // *should* be "extends," but this
+        //  gives us better parity with Class
+        this.implements = [];
         do {
-            this.extends.push(Type.read(this));
+            this.implements.push(Type.read(this));
         } while(tok.readComma());
     }
 
@@ -2354,11 +2372,54 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
     // figure out where we live
     var self = this;
     if (!this._chain) {
-        // local, or in a superclass
+        // local...?
         var method = this.searchMethodScope(this.name);
         if (method) return _dispatchReturnType(classLoader, method, cb);
+        
+        // superclass or interfaces
+        var candidates = [];
+        var type = this.getDeclaringType();
+        if (!type)
+            return cb(new Error("Couldn't determine declaring type for " + this.name));
 
-        cb(new Error('Search superclasses for method'));
+        if (type.extends)
+            candidates.push(type.extends);
+        if (type.implements && Array.isArray(type.implements))
+            candidates = candidates.concat(type.implements);
+        
+        // resolve the type and return tasks for searching it for the method
+        var resolver = function(type, onResolved) {
+            self.getRoot().resolveType(classLoader, type.name, function(resolved) {
+                if (!resolved) return onResolved(null);
+
+                // var called = {count:0};
+                onResolved(null, function(onMethodLocated) {
+                    classLoader.resolveMethodReturnType(resolved, self.name, onMethodLocated);
+                    // classLoader.resolveMethodReturnType(resolved, self.name, function(err, res) {
+                    //     console.log("Called", called.count++);
+                    //     onMethodLocated(null, {from:'a',type: 'hi' + called.count});
+                    // });
+                });
+            });
+        }
+
+        // resolve candidate type names into tasks to get return type
+        async.map(candidates, resolver, function(err, resolverTasks) {
+            if (err) return cb(err);
+
+            // call tasks in parallel
+            async.parallel(resolverTasks, function(err, results) {
+                if (err) return cb(err);
+
+                var result = results.reduce(function(last, item) {
+                    if (last) return last;
+                    return item;
+                });
+
+                if (!result) return cb(new Error("Unable to find " + type.name + "#" + self.name));
+                cb(null, result);
+            });
+        });
     } else {
         this._chain.evaluateType(classLoader, function(err, resolved) {
             if (err) {
@@ -2388,6 +2449,7 @@ function _dispatchReturnType(classLoader, m, cb) {
           , from: Ast.FROM_METHOD
         });
     }
+
     m.returns.evaluateType(classLoader, function(err, resolved) {
         if (err) return cb(err);
         cb(null, {
@@ -2851,9 +2913,10 @@ module.exports = {
         var ast = new Ast(path, buffer, options);
         try {
             ast.parse(CompilationUnit);
-            callback(null, ast);
         } catch(e) {
             callback(e);
+            return;
         }
+        callback(null, ast);
     }
 }

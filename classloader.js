@@ -114,20 +114,22 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
     // the qualifiedName arg, plus caching
     var self = this;
     var loaders = this._loaders.map(function(loader) {
-        return function(cb) {
+        return function(onResolved) {
             loader.resolveMethodReturnType(type, name, function(err, result) {
                 // cache successful results
                 if (result && !err)
                     self._cached[qualifiedName] = result;
 
                 // call through
-                cb(err, result);
+                onResolved(err, result);
             });
         };
     });
 
     // evaluate wrapped loaders in parallel
     async.parallel(loaders, function(err, results) {
+        if (err) return cb(err);
+
         // reduce results into the first successful one
         var result = results.reduce(function(last, item) {
             if (last) return last;
@@ -135,10 +137,13 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
         });
 
         // finally, call the actual callback
-        cb(err, result);
+        cb(null, result);
     });
 }
 
+/**
+ * Base class for ClassLoaders that read source files
+ */
 function SourceClassLoader() {
 }
 util.inherits(SourceClassLoader, ClassLoader);
@@ -209,8 +214,13 @@ function SourceDirectoryClassLoader(dir) {
 util.inherits(SourceDirectoryClassLoader, SourceClassLoader);
 
 SourceDirectoryClassLoader.prototype._getPathForType = function(qualifiedName, cb) {
+    // derive the "base package dir" from the first-loaded file.
+    // this is kinda crap and we should deprecate in favor of SourceProjectClassLoader
     var dirs = this._getPath(qualifiedName);
-    var fileName = dirs[dirs.length - 1];
+    if (!this.packageLen) 
+        this.packageLen = dirs.length - 1;
+
+    var fileName = path.join.apply(path, dirs.slice(this.packageLen));
     var filePath = path.join(this._root, fileName);
     cb(null, filePath);
 };

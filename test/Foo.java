@@ -1,8 +1,8 @@
 package net.dhleong.njast;
-
 import net.dhleong.njast.Boring.Fanciest;
+import net.dhleong.njast.subpackage.Extended;
 
-class Foo {
+class Foo extends Extended {
 
     Fancier field1;
 
@@ -81,6 +81,10 @@ class Foo {
 
     void fooMethodCall() {
         baz(). // moar suggestions
+    }
+
+    void fooSuperclassMethodCall() {
+        fluidMethod(). 
     }
 
 }

@@ -100,7 +100,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.aerror = function () {
+console.error = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -1235,7 +1235,6 @@ describe("Ast of FullAst.java", function() {
 
 describe("Ast of Foo.java", function() {
     before(function(done) {
-        should.exist(ast);
         ast = null;
         loader = require('../classloader').fromSource('Foo.java');
 
@@ -1423,11 +1422,23 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("superclass method");
+        it("87, 20: (superclass method) -> Extended", function(done) {
+            loader.openClass('net.dhleong.njast.Foo', function() {}); // FIXME 
+
+            ast.locate(87, 20)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.subpackage.Extended');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
         it("unimplemented method from interface");
         it("identifier chains");
         it("Static method");
         it("Static imported method");
+        it("overridable methods?"); 
 
         it("overridden methods?"); // Will need to specify args & fallback if missing
     });

@@ -32,7 +32,7 @@ console.error = function () {
 
 var loader;
 
-beforeEach(function() {
+before(function() {
     
     loader = ClassLoader.fromSource('.');
 });
@@ -83,6 +83,19 @@ describe("ClassLoader", function() {
             should.not.exist(err);
 
             value.type.should.equal('net.dhleong.njast.Foo$Fancy');
+            value.from.should.equal(Ast.FROM_METHOD);
+
+            done();
+        });
+    });
+
+    it("resolves return type of Extended#fluidMethod", function(done) {
+        loader.resolveMethodReturnType('net.dhleong.njast.subpackage.Extended', 
+                'fluidMethod', function(err, value) {
+            if (err) throw err;
+            should.not.exist(err);
+
+            value.type.should.equal('net.dhleong.njast.subpackage.Extended');
             value.from.should.equal(Ast.FROM_METHOD);
 
             done();
