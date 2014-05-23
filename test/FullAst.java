@@ -197,7 +197,7 @@ public class FullAst<E, T extends Object & Imported>
         new <Imported>FullAst<>(field1);
     }
 
-    public void cast(FullBase arg) {
+    public FullAst<? extends Imported, Imported> cast(FullBase arg) {
         FullAst cast = (FullAst) arg;
 
         ((FullAst) arg).generic(null);
@@ -222,6 +222,13 @@ public class FullAst<E, T extends Object & Imported>
         }
 
         return new LocalClass();
+    }
+
+    void genericCast() {
+
+        // generic with more wildcards
+        final FullAst<? extends Imported, Imported> actual = this
+                .cast((FullAst<? extends Imported, Imported>) null);
     }
 
     /*

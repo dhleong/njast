@@ -100,7 +100,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.error = function () {
+console.aerror = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -722,6 +722,13 @@ describe("Ast of FullAst.java", function() {
                         .that.equals('FullInterface');
                     stmt.should.have.deep.property('chain[0].name')
                         .that.equals('interfaceMethod');
+                });
+
+                it("Generic cast", function() {
+                    var method = ast.qualifieds['net.dhleong.njast.FullAst#genericCast'];
+                    should.exist(method);
+
+                    // TODO
                 });
 
                 it("Array access", function() {
@@ -1536,3 +1543,22 @@ describe("Ast of Foo.java", function() {
         it("overloaded methods?"); // Will need to specify args & fallback if missing
     });
 });
+
+// describe("MinusMessageBase.java", function() {
+//     it("test", function(done) {
+//         var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusMessageBase.java';
+//         fs.readFile(path, function(err, buf) {
+//             if (err) throw err;
+//
+//             parseFile(path, buf, {
+//                 // strict: false
+//             }, function(err, ast) {
+//                 if (err) throw err;
+//
+//                 var node = ast.locate(1066, 19);
+//                 should.exist(node);
+//                 done();
+//             });
+//         });
+//     });
+// });
