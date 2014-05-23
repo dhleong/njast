@@ -1,5 +1,5 @@
 
-var Ast = require('./proper_ast')
+var Ast = require('./ast')
   , parseFile = Ast.parseFile
   , ClassLoader = require('./classloader');
 

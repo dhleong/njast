@@ -1,7 +1,7 @@
 #!/usr/bin/env mocha 
 
 var should = require('chai').should()
-  , Tokenizer = require('../proper_tokenizer');
+  , Tokenizer = require('../tokenizer');
 
 
 function tokify(string) {

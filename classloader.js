@@ -4,7 +4,7 @@ var async = require('async')
   , path = require('path')
   , fs = require('fs')
   
-  , Ast = require('./proper_ast')  
+  , Ast = require('./ast')  
   , parseFile = Ast.parseFile;
 
 /**

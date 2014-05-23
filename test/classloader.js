@@ -1,7 +1,7 @@
 #!/usr/bin/env mocha 
 
 var ClassLoader = require('../classloader')
-  , Ast = require('../proper_ast')
+  , Ast = require('../ast')
   , should = require('chai').should();
 
 /* 

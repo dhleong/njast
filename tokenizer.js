@@ -1,10 +1,11 @@
 
-/** If true, we fail fast on parse trouble */
-var DEBUG_FAIL = true; 
+/**
+ * New Tokenizer for the proper ast
+ */
 
 var NAME_RANGES = [];
 var VALS = {
-    _val: "\r\n/*09azAZ_$.,{}<>()[]=+-|&;:@\"?\\ ",
+    _val: "\r\n/*09azAZ_$.,_{}<>()[]=+-|&!~^%;:@\"'?\\ ",
     _idx: 0,
     next: function() {
         return this._val.charCodeAt(this._idx++);
@@ -26,6 +27,7 @@ var OTHER_NAME_CHARS = [
 ];
 var DOT = VALS.next();
 var COMMA = VALS.next();
+var UNDERLINE = VALS.next();
 var BLOCK_OPEN = VALS.next();
 var BLOCK_CLOSE = VALS.next();
 var GENERIC_OPEN = VALS.next();
@@ -39,15 +41,18 @@ var PLUS = VALS.next();
 var MINUS = VALS.next();
 var OR = VALS.next();
 var AND = VALS.next();
+var BANG = VALS.next();
+var TILDE = VALS.next();
+var XOR = VALS.next();
+var MODULO = VALS.next();
 var SEMICOLON = VALS.next();
 var COLON = VALS.next();
 var AT = VALS.next();
 var QUOTE = VALS.next();
+var APOSTROPHE = VALS.next();
 var QUESTION = VALS.next();
 
-var ESCAPE = VALS.next();
-//var SPACE = VALS.next();
-
+// var ESCAPE = VALS.next();
 
 var OTHER_TOKENS = [
     DOT,
@@ -63,6 +68,7 @@ var OTHER_TOKENS = [
     COLON,
     AT,
     QUOTE,
+    APOSTROPHE,
     QUESTION,
 
     BRACKET_OPEN,
@@ -72,40 +78,66 @@ var OTHER_TOKENS = [
 var MATH = [
     PLUS, MINUS, STAR, SLASH,
     EQUALS,
-    OR, AND,
+    OR, AND, BANG, TILDE,
     GENERIC_OPEN, GENERIC_CLOSE
 ]
+
+// build up state machines
+var ASSIGNMENT = {};
+[PLUS, MINUS, STAR, SLASH, AND, OR, XOR, MODULO].forEach(function(simpleAssign) {
+    ASSIGNMENT[simpleAssign] = {};
+    ASSIGNMENT[simpleAssign][EQUALS] = true;
+});
+ASSIGNMENT[EQUALS] = true;
+ASSIGNMENT[GENERIC_OPEN] = {};
+ASSIGNMENT[GENERIC_OPEN][GENERIC_OPEN] = {};
+ASSIGNMENT[GENERIC_OPEN][GENERIC_OPEN][EQUALS] = true;
+ASSIGNMENT[GENERIC_CLOSE] = {};
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE] = {};
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE] = {};
+ASSIGNMENT[GENERIC_CLOSE][GENERIC_CLOSE][GENERIC_CLOSE][EQUALS] = true;
+
+var SIMPLE_INFIX_OP = [OR, XOR, AND, GENERIC_OPEN, GENERIC_CLOSE, 
+ PLUS, MINUS, STAR, SLASH, MODULO].reduce(function(dict, token) {
+    dict[token] = true;
+    return dict;
+}, {});
+
+var SIMPLE_PREFIX_OP = [BANG, TILDE, PLUS, MINUS].reduce(function(dict, token) {
+    dict[token] = true;
+    return dict;
+}, {});
+
+
+
+var DIGIT_CODE_TO_VALUE = {};
+var DIGITS = '0123456789abcdef';
+for (var i=0; i < DIGITS.length; i++) {
+    DIGIT_CODE_TO_VALUE[DIGITS.charCodeAt(i)] = i;
+
+    // upper case hex
+    if (i >= 10)
+        DIGIT_CODE_TO_VALUE[DIGITS.charAt(i).toUpperCase().charCodeAt(0)] = i;
+}
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
                  'volatile', 'transient', 'native', 'strictfp'];
 var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
-                'break', 'continue', 'return', 'throw', 'synchronized', 'try'];
-
+                'break', 'continue', 'return', 'throw', 'synchronized', 'try',
+                'catch', 'finally'];
 var PRIMITIVES = ['boolean', 'byte', 'short', 'int', 'long', 'float', 'double', 'char'];
+var OTHER_RESERVED = ['class', 'interface', 'const', 'goto', 'enum',
+                        'extends', 'inherits', 'import', 'instanceof',
+                        'new', 'package', 'super', 'this', 'throws',
+                        'case', 'default', 'false', 'null', 'true'];
 
+/**
+ * Comment state machine
+ */
 var COMMENT_NONE = 0;
 var COMMENT_LINE = 1;
 var COMMENT_BLOCK= 2;
-
-function isName(charCode) {
-    for (i = 0; i < NAME_RANGES.length; i++) {
-        if (charCode >= NAME_RANGES[i][0] && charCode <= NAME_RANGES[i][1])
-            return true;
-    }
-
-    return OTHER_NAME_CHARS.indexOf(charCode) >= 0;
-}
-
-function isMath(charCode) {
-    //console.log(String.fromCharCode(charCode));
-    return MATH.indexOf(charCode) >= 0;
-}
-
-function isToken(charCode) {
-    return isName(charCode)
-        || isMath(charCode)
-        || OTHER_TOKENS.indexOf(charCode) >= 0; // TODO sort + binary search?
-}
 
 var Commentor = {
     type: COMMENT_NONE,
@@ -160,237 +192,217 @@ var Commentor = {
 
     reset: function(tok) {
         this.type = COMMENT_NONE;
-        this.begin = tok._fp.offset;
-        this.start = -1;
-        this.value = '';
-        this.line = -1;
+        this.start = tok._pos;
+        this.pos;
     },
 
+    clear: function() {
+        var ret = this.value;
+        this.value = '';
+        return ret;
+    },
 
     _endComment: function(tok, off) {
-        this.type = COMMENT_NONE;
 
-        var start = this.start - this.begin;
-        var length = off - this.start;
+        var start = this.start;
+        var length = off - start;
         var end = start + length;
         var read = tok._fp.toString("UTF-8", start, end);
-        this.value += read;
 
+        if (this.type == COMMENT_BLOCK)
+            this.value += read;
+
+        this.type = COMMENT_NONE;
         //console.log("Read comment ~", start, end, ":", read);
     },
 
     _startComment: function(tok, type, off) {
         this.type = type;
         this.start = off;
-        this.line = tok.getLine();
+        this.pos = tok.getPos();
 
         //console.log("START comment @", this.line, ":", type, off);
     }
-}
-
-
-function Tokenizer(buffer) {
-    this._fp = buffer;
-    this._start = buffer.offset;
-    this._lineno = 1;
-
-    // line i starts at offset this._lines[i]
-    //  the first 0 just prevents line 0,
-    //  the second is the actual start of line 1
-    this._lines = [0, 0];
-    
-    this._lastComment = null;
-}
-
-Tokenizer.prototype._save = function() {
-    return {
-        line: this._lineno,
-        comment: this._lastComment,
-        offset: this._fp.offset
-    };
-}
-
-Tokenizer.prototype._restore = function(state) {
-    this._lineno = state.line;
-    this._lastComment = state.comment;
-    this._fp.offset = state.offset;
-}
-
-
-/** Static method */
-Tokenizer.isModifier = function(token) {
-    return MODIFIERS.indexOf(token) >= 0;
-}
-
-/** Static method */
-Tokenizer.isControl = function(token) {
-    return CONTROLS.indexOf(token) >= 0; // binary search?
-}
-
-/** Static method */
-Tokenizer.isReserved = function(word) {
-    return Tokenizer.isModifier(word)
-        || Tokenizer.isControl(word)
-        || ~PRIMITIVES.indexOf(word);
 };
 
 
-/** Skip non-tokens */
-Tokenizer.prototype._countBlank = function() {
+/**
+ * Tokenizer constructor
+ */
+function Tokenizer(path, buffer, options) {
+    this._path = path;
+    this._fp = buffer;
+    this._start = buffer.offset;
+    this._strict = true;
+    this._level = Tokenizer.Level.DEFAULT;
 
-    this._lastComment = null;
-    Commentor.reset(this);
+    this._line = 1;
+    this._col = 1;
+    this._pos = 0;
 
-    //console.log("Count Blank @", this._lineno);
-    
-    //var startLine = this._lineno;
-    var base = this._fp.offset - this._start;
-    var off = base;
-    while (off < this._fp.length) { 
+    if (options) {
+        if (options.strict !== undefined)
+            this._strict = options.strict;
+        if (options.level !== undefined)
+            this._level = options.level;
+
+        if (options.line)
+            this._line = options.line;
+        if (options.ch)
+            this._col = options.ch;
+    }
+
+    this.errors = [];
+}
+
+/**
+ * Constants for compiler level compatibility checking
+ */
+Tokenizer.Level = {
+    DEFAULT: 7,  // default to JDK7 compat
+
+    JDK6: 6,
+    JDK7: 7, 
+};
+
+/**
+ * Fetches all Javadoc read since the last call,
+ *  clearing the buffer behind us
+ */
+Tokenizer.prototype.getJavadoc = function() {
+    return Commentor.clear();
+};
+
+/** 
+ * Prepare to do some reading; skips whitespace, consumes comments.
+ *  Unlike save(), this returns the position AFTER the whitespace
+ *  to prevent redundant parsing. 
+ */
+Tokenizer.prototype.prepare = function() {
+    this._skipBlank();
+    return this.save();
+};
+
+Tokenizer.prototype._skipBlank = function() {
+    var off = this._pos;
+    while (off < this._fp.length) {
         var token = this._fp[off];
         var nextToken = off < this._fp.length + 1
             ? this._fp[off + 1]
             : -1;
 
+        // comments
         var skip = Commentor.read(this, off, token, nextToken);
         off += skip;
+        this._col += skip; // I guess?
 
         // if we had a skip from Commentor, don't process this
         if (!skip && !Commentor.inComment() && isToken(token)) {
-            // done!
-            var skipped = off - base;
-            this._fp.offset = off + this._start;
-            this._lastComment = Commentor.value;
-            // console.log("! Counted Blank @", this._lineno, "skipped=", skipped, "token=", String.fromCharCode(token), String.fromCharCode(nextToken));
-            return skipped; // also return bytes skipped
+            this._pos = off;
+            return;
         }
 
         if (token == NL) {
-            this._recordLine(off);
-            this._lineno++;
+
+            this._line++;
+            this._col = 0; // ++ below fixes
 
         } else if (token == CR ) {
             if (nextToken != NL) { // \r\n to end a line
                 this._recordLine(off);
-                this._lineno++;      // just \r 
+                this._line++;      // just \r 
+                this._col = 0; // ++ below fixes
             } else {
                 off++; // \r\n... skip next
+                this._col++;
             }
         }
 
+        this._col++;
         off++;
     }
 
-    return false;
-}
-
-Tokenizer.prototype._recordLine = function(offset) {
-    offset++; // skip past the newline
-    var lastLine = this._lines.length - 1;
-    var lastOffset = this._lines[lastLine];
-    if (offset > lastOffset) {
-        this._lines.push(offset);
-    }
 };
 
 
-Tokenizer.prototype._peek = function(offset) {
-    offset = offset 
-        ? this._fp.offset + offset 
-        : this._fp.offset;
-    offset -= this._start;
-    if (offset > this._fp.length)
-        throw new Error("Peeking at " + offset + "; length = " + this._fp.length);
+/** Restore to position state */
+Tokenizer.prototype.restore = function(state) {
+    this._pos = state.pos;
+    this._col = state.col;
+    this._line = state.line;
+};
 
-    //console.log("peek @", offset, "=", this._fp[ offset ]);
-    return this._fp[ offset ];
+/** Save current state */
+Tokenizer.prototype.save = function() {
+    return {
+        pos: this._pos
+      , col: this._col
+      , line: this._line
+    }
+};
+
+Tokenizer.prototype._peekChar = function() {
+    this.prepare();
+    return this._fp[this._pos];
 }
 
-/** NB doesn't return anything! */
-Tokenizer.prototype._skip = function(length) {
-    length = length 
-        ? length
-        : 1;
-    if (length > this._fp.length)
-        throw "_skip " + length + "; length = " + this._fp.length;
-    this._fp.offset += length;
+/** read a single character */
+Tokenizer.prototype.read = function() {
+    if (this._pos >= this._fp.length)
+        return -1;
+
+    var read = this._fp[this._pos++];
+    // TODO should we handle newlines here?
+    this._col++;
+    return read;
 }
 
-Tokenizer.prototype._read = function(length) {
-    length = length 
-        ? length
-        : 1;
-    if (length > this._fp.length)
-        throw new Error("_read " + length + "; length = " + this._fp.length);
-    //console.log(this._fp.length, this._fp.offset, length);
-    var value = this._fp.toString("UTF-8", 0, length);
-    this._fp.offset += length;
-    return value;
-}
+// lazy
+Tokenizer.prototype.peek = Tokenizer.prototype._peekChar;
 
 /** 
- * Skipping whitespace, attempt to read the token 
- * @return True if we read it, else false
+ * Returns the string value of the digit (eg: a-f for hex 10-15),
+ *  else undefined if not a number, or not valid for the radix
  */
+Tokenizer.prototype.readDigit = function(radix) {
+    if (!radix) radix = 10;
+
+    var next = this.peek();
+    if (!(next in DIGIT_CODE_TO_VALUE))
+        return undefined;
+
+    if (DIGIT_CODE_TO_VALUE[next] >= radix)
+        return undefined;
+
+    return String.fromCharCode(this.read());
+};
+
+
+Tokenizer.prototype.readString = function(expected) {
+    var state = this.prepare();
+
+    var len = expected.length;
+    for (var i=0; i < len; i++) {
+        var r = this.read();
+        // if (r)
+        //     console.log(String.fromCharCode(r), expected.charAt(i));
+        if (r != expected.charCodeAt(i)) {
+            this.restore(state);
+            return false;
+        }
+    }
+
+    return true;
+};
+
 Tokenizer.prototype._readToken = function(token) {
-    var state = this._save();
-    this._countBlank();
-    if (this._peek() == token) {
-        this._skip();
+    if (this._peekChar() == token) {
+        this.read();
         return true;
     }
 
-    this._restore(state);
     return false;
 }
-
-Tokenizer.prototype.getLastComment = function() {
-    return this._lastComment;
-}
-
-Tokenizer.prototype.getLine = function(skipBlank) {
-    // return this._lineno;
-    var state;
-    if (skipBlank) {
-        state = this._save();
-        this._countBlank();
-    }
-
-    var line = this._lines.length - 1;
-    var offset = this._fp.offset - this._start;
-    while (this._lines[line] > offset)
-        line--;
-
-    if (skipBlank) {
-        this._restore(state);
-    }
-
-    return line;
-}
-
-Tokenizer.prototype.isAnnotation = function() {
-    return this.peekAt();
-}
-
-Tokenizer.prototype.isControl = function() {
-    var name = this.peekName();
-    return Tokenizer.isControl(name);
-}
-
-Tokenizer.prototype.isModifier = function() {
-    var name = this.peekName();
-    return Tokenizer.isModifier(name);
-}
-
-Tokenizer.prototype.isReserved = function() {
-    var name = this.peekName();
-    return Tokenizer.isReserved(name);
-}
-
-Tokenizer.prototype.reset = function() {
-    this._fp.offset = this._start;
-};
-
 
 // util methods to read specific tokens
 var _doRead = function(token) { return function() { return this._readToken(token); } };
@@ -399,243 +411,303 @@ Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
 Tokenizer.prototype.readAt         = _doRead(AT); // at symbol, for annotations
 Tokenizer.prototype.readDot        = _doRead(DOT);
 Tokenizer.prototype.readComma      = _doRead(COMMA);
+Tokenizer.prototype.readUnderline  = _doRead(UNDERLINE);
 Tokenizer.prototype.readColon      = _doRead(COLON);
 Tokenizer.prototype.readEquals     = _doRead(EQUALS);
+Tokenizer.prototype.readOr         = _doRead(OR);
+Tokenizer.prototype.readAnd        = _doRead(AND);
 Tokenizer.prototype.readSemicolon  = _doRead(SEMICOLON);
 Tokenizer.prototype.readParenOpen  = _doRead(PAREN_OPEN);
 Tokenizer.prototype.readParenClose = _doRead(PAREN_CLOSE);
 Tokenizer.prototype.readPlus       = _doRead(PLUS);
 Tokenizer.prototype.readStar       = _doRead(STAR);
 Tokenizer.prototype.readQuote      = _doRead(QUOTE);
+Tokenizer.prototype.readApostrophe = _doRead(APOSTROPHE);
 Tokenizer.prototype.readQuestion   = _doRead(QUESTION);
 Tokenizer.prototype.readBracketOpen  = _doRead(BRACKET_OPEN);
 Tokenizer.prototype.readBracketClose = _doRead(BRACKET_CLOSE);
+Tokenizer.prototype.readGenericOpen  = _doRead(GENERIC_OPEN);
+Tokenizer.prototype.readGenericClose = _doRead(GENERIC_CLOSE);
 
-// just peek; return True if it matches
-var _doPeek = function(token) { 
-    return function(offset) { 
-        var state = this._save();
-        this._countBlank(); 
-        var peeked = this._peek(offset);
-        this._restore(state);
+// util methods to expect specific tokens
+var _doExpect = function(token) { 
+    return function() { 
+        if (!this._readToken(token)) {
+            this.raise(String.fromCharCode(token));
 
-        return (peeked == token);
+            // actually, skipping CAUSES problems 
+            // if (!this.peekBlockClose()) // never skip these!
+            //     this.read(); // if we got here, we're relaxed; skip whatever it was
+        }
     } 
 };
-Tokenizer.prototype.peekBlockOpen  = _doPeek(BLOCK_OPEN);
-Tokenizer.prototype.peekBlockClose = _doPeek(BLOCK_CLOSE);
-Tokenizer.prototype.peekAt         = _doPeek(AT); // at symbol, for annotations
-Tokenizer.prototype.peekDot        = _doPeek(DOT);
-Tokenizer.prototype.peekComma      = _doPeek(COMMA);
-Tokenizer.prototype.peekColon      = _doPeek(COLON);
-Tokenizer.prototype.peekEquals     = _doPeek(EQUALS);
-Tokenizer.prototype.peekSemicolon  = _doPeek(SEMICOLON);
-Tokenizer.prototype.peekParenOpen  = _doPeek(PAREN_OPEN);
-Tokenizer.prototype.peekParenClose = _doPeek(PAREN_CLOSE);
-Tokenizer.prototype.peekQuote      = _doPeek(QUOTE);
-Tokenizer.prototype.peekQuestion   = _doPeek(QUESTION);
-Tokenizer.prototype.peekBracketOpen  = _doPeek(BRACKET_OPEN);
-Tokenizer.prototype.peekBracketClose = _doPeek(BRACKET_CLOSE);
+Tokenizer.prototype.expectBlockOpen  = _doExpect(BLOCK_OPEN);
+Tokenizer.prototype.expectBlockClose = _doExpect(BLOCK_CLOSE);
+Tokenizer.prototype.expectAt         = _doExpect(AT); // at symbol, for annotations
+Tokenizer.prototype.expectDot        = _doExpect(DOT);
+Tokenizer.prototype.expectComma      = _doExpect(COMMA);
+Tokenizer.prototype.expectColon      = _doExpect(COLON);
+Tokenizer.prototype.expectEquals     = _doExpect(EQUALS);
+Tokenizer.prototype.expectSemicolon  = _doExpect(SEMICOLON);
+Tokenizer.prototype.expectParenOpen  = _doExpect(PAREN_OPEN);
+Tokenizer.prototype.expectParenClose = _doExpect(PAREN_CLOSE);
+Tokenizer.prototype.expectPlus       = _doExpect(PLUS);
+Tokenizer.prototype.expectStar       = _doExpect(STAR);
+Tokenizer.prototype.expectQuote      = _doExpect(QUOTE);
+Tokenizer.prototype.expectQuestion   = _doExpect(QUESTION);
+Tokenizer.prototype.expectBracketOpen  = _doExpect(BRACKET_OPEN);
+Tokenizer.prototype.expectBracketClose = _doExpect(BRACKET_CLOSE);
+Tokenizer.prototype.expectGenericOpen  = _doExpect(GENERIC_OPEN);
+Tokenizer.prototype.expectGenericClose = _doExpect(GENERIC_CLOSE);
 
-/** Convenience */
-Tokenizer.prototype.peekExpressionEnd = function(offset) {
-    return this.readSemicolon(offset) 
-        || this.peekComma(offset) 
-        || this.peekParenClose(offset) 
-        || this.peekColon(offset)
-        || this.peekBracketClose(offset);
-}
-
-/** Read math operation */
-Tokenizer.prototype.readMath = function() {
-    var state = this._save();
-    this._countBlank();
-
-    var length = 0;
-    if (isMath(this._peek())) {
-        length++;
-
-        if (isMath(this._peek(1))) {
-            length++;
-
-            if (isMath(this._peek(2)))
-                length++; // eg: >>=
-        }
+Tokenizer.prototype.expectString = function(string) {
+    if (!this.readString(string)) {
+        this.raise(string);
+        this.read(); // if we got here, we're relaxed; skip whatever was there
     }
-
-    if (length === 0) {
-        this._restore(state);
-        return null;
-    }
-
-    var val = this._fp.toString("UTF-8", 0, length); 
-    this._fp.offset += length;
-    return val;
-}
-
-/** Read a string literal */
-Tokenizer.prototype.readString = function() {
-    this._countBlank();
-    var length = 0;
-    this.expect(true, this.readQuote);
-
-    var prev = false;
-    while (!(this._peek(length) == QUOTE && prev != ESCAPE)) {
-        prev = this._peek(length);
-        length++;
-    }
-
-    length++; // include the end quote
-    var val = '"' + this._fp.toString("UTF-8", 0, length); 
-    this._fp.offset += length;
-    return val;
-}
-
-Tokenizer.prototype.readName = function() {
-
-    var state = this._save();
-    this._countBlank();
-    var length = 0;
-    while (isName(this._peek(length)))
-        length++;
-
-    if (!length) {
-        this._restore(state);
-        return "";
-    }
-
-    return this._read(length);
-}
-
-/** Read qualified name, eg: com.package.Class */
-Tokenizer.prototype.readQualified = function() {
-    var state = this._save();
-    var name = this.readName();
-
-    var last = this._save();
-    while (this._readToken(DOT)) {
-        var nextName = this.readName();
-        if (Tokenizer.isReserved(nextName)) {
-            this._restore(last);
-            break;
-        }
-
-        name += '.' + nextName;
-        last = this._save();
-    }
-
-    if (!name) {
-        this._restore(state);
-    }
-
-    return name;
-}
-
-Tokenizer.prototype.readGeneric = function() {
-    var name = this.readQualified();
-    if (!name) {
-        return name;
-    }
-
-    var state = this._save();
-    //var genericLen = 0;
-    var valid = [COMMA, DOT];
-    if (this._readToken(GENERIC_OPEN)) {
-        
-        // make sure this isn't just math
-        this._countBlank();
-        if (!isName(this._peek())) {
-            // yep, just math
-            this._restore(state);
-            return name;
-        }
-
-        // read through generic stuff
-        var generics = 1;
-        name += "<";
-
-        for (;;) {
-            var tok = this._peek();
-            switch (tok) {
-            case GENERIC_OPEN:
-                name += this._read();
-                generics++;
-                break;
-            case GENERIC_CLOSE:
-                name += this._read();
-                if (--generics === 0)
-                    return name;
-                break;
-                
-            default:
-                this._countBlank();
-                tok = this._peek();
-
-                if (valid.indexOf(tok) > -1 || isName(tok)) {
-                    name += this._read();
-                } else if (DEBUG_FAIL) {
-                    throw new Error("Unexpected token ``" + tok + "'' @" + this._lineno 
-                        + "\n("
-                        + String.fromCharCode(tok)
-                        + ") in generic name ``" 
-                        + name + this._read() + "''; valid=" + valid
-                        + "\nPreview: " + this._read(15));
-                } else {
-                    return name;
-                }
-            } 
-        }
-    } else {
-        this._restore(state);
-    }
-
-    return name;
-}
-
-Tokenizer.prototype.error = function(message) {
-
-    throw new Error("At line #" + this.getLine() 
-        + "\n" + message
-        + "\nPreview: " + this._read(15));
 };
 
-Tokenizer.prototype.expect = function(expected, methodOrValue) {
-    var result = (typeof(methodOrValue) == 'function')
-        ? methodOrValue.call(this)
-        : methodOrValue;
+Tokenizer.prototype.readIdentifier = function() {
+    this.prepare();
 
-    if (expected != result) {
-            
-        this.error("Expected ``" + expected 
-            + "'' but was ``" + result + "''");
+    var ident = '';
+    var read;
+    for (;;) {
+        read = this.read();
+        if (read != -1 && isIdentifier(ident, read))
+            ident += String.fromCharCode(read);
+        else
+            break;
+    }
+
+    // we read an extra char, even if it wasn't an identifier at all
+    this._pos--;
+    this._col--;
+
+    return ident.length ? ident : undefined;
+};
+
+Tokenizer.prototype.readAssignment = function() {
+    var state = this.prepare();
+
+    var strBuffer = '';
+    var src = ASSIGNMENT;
+    for (;;) {
+        var token = this.read();
+        if (!(token in src)) {
+            this.restore(state);
+            return;
+        }
+
+        strBuffer += String.fromCharCode(token);
+        if (src[token] === true)
+            return strBuffer; // done!
+
+        // advance in the state machine
+        src = src[token];
     }
 }
 
+Tokenizer.prototype.readInfixOp = function() {
+    var state = this.prepare();
 
-// generate method to peek by calling a read method and rewinding
-var _peekType = function(method) {
-    return function(offset) {
+    if (this.readString('=='))
+        return '==';
+    if (this.readString('!='))
+        return '!=';
 
-        var state = this._save();
+    var token = this.read();
+    if (!(token in SIMPLE_INFIX_OP)) {
+        this.restore(state);
+        return;
+    }
 
-        if (offset) {
-            //console.log("Offset<", offset);
-            this._fp.offset += offset;
-
-            offset += this._countBlank();
-            //console.log("Offset>", offset);
+    switch(token) {
+    case GENERIC_OPEN:
+        if (this.readEquals())
+            return '<=';
+        if (this.readGenericOpen())
+            return '<<';
+        break;
+    case GENERIC_CLOSE:
+        if (this.readEquals())
+            return '>=';
+        if (this.readGenericClose()) {
+            if (this.readGenericClose())
+                return '>>>';
+            return '>>';
         }
+        break;
+    case OR:
+        if (this._readToken(OR))
+            return '||';
+        break;
+    case AND:
+        if (this._readToken(AND))
+            return '&&';
+    }
 
-        var read = method.call(this);
+    if (this.readEquals()) {
+        this.restore(state);
+        return;
+    }
 
-        this._restore(state);
-
-        return read;
-    };
+    return String.fromCharCode(token);
 }
 
-Tokenizer.prototype.peekName    = _peekType(Tokenizer.prototype.readName);
-Tokenizer.prototype.peekGeneric = _peekType(Tokenizer.prototype.readGeneric);
+Tokenizer.prototype.readPrefixOp = function() {
+    
+    var state = this.prepare();
+
+    var postfix = this.readPostfixOp();
+    if (postfix)
+        return postfix;
+
+    var token = this.read();
+    if (!(token in SIMPLE_PREFIX_OP)) {
+        this.restore(state);
+        return;
+    }
+
+    if (this.readEquals()) {
+        this.restore(state);
+        return;
+    }
+
+    return String.fromCharCode(token);
+};
+
+Tokenizer.prototype.readPostfixOp = function() {
+    if (this.readString('++'))
+        return '++';
+    if (this.readString('--'))
+        return '--';
+};
+
+
+var _peekMethod = function(readType) {
+    var method = Tokenizer.prototype['read' + readType];
+    return function() {
+        var state = this.prepare();
+        var ident = method.apply(this, arguments);
+        this.restore(state);
+        return ident;
+    }
+};
+Tokenizer.prototype.peekIdentifier = _peekMethod('Identifier');
+Tokenizer.prototype.peekBlockOpen  = _peekMethod('BlockOpen');
+Tokenizer.prototype.peekBlockClose = _peekMethod('BlockClose');
+Tokenizer.prototype.peekAt         = _peekMethod('At'); // at symbol, for annotations
+Tokenizer.prototype.peekDot        = _peekMethod('Dot');
+Tokenizer.prototype.peekComma      = _peekMethod('Comma');
+Tokenizer.prototype.peekColon      = _peekMethod('Colon');
+Tokenizer.prototype.peekEquals     = _peekMethod('Equals');
+Tokenizer.prototype.peekSemicolon  = _peekMethod('Semicolon');
+Tokenizer.prototype.peekParenOpen  = _peekMethod('ParenOpen');
+Tokenizer.prototype.peekParenClose = _peekMethod('ParenClose');
+Tokenizer.prototype.peekQuote      = _peekMethod('Quote');
+Tokenizer.prototype.peekQuestion   = _peekMethod('Question');
+Tokenizer.prototype.peekBracketOpen  = _peekMethod('BracketOpen');
+Tokenizer.prototype.peekBracketClose = _peekMethod('BracketClose');
+Tokenizer.prototype.peekGenericOpen  = _peekMethod('GenericOpen');
+Tokenizer.prototype.peekGenericClose = _peekMethod('GenericClose');
+
+Tokenizer.prototype.peekString = _peekMethod('String');
+
+Tokenizer.prototype.readQualified = function() {
+    var ident = this.readIdentifier();
+    if (!ident)
+        return ident;
+
+    while (this.readDot()) {
+        var next = this.readIdentifier();
+        if (next) // could be incomplete
+            ident += '.' + next;
+    }
+
+    return ident;
+}
+
+/*
+ * Util methods
+ */
+
+/** Return TRUE if we've reached EOF */
+Tokenizer.prototype.isEof = function() {
+    return this._pos >= this._fp.length;
+};
+
+
+Tokenizer.prototype.getPos = function() {
+    return {
+        line: this._line
+      , ch: this._col
+    }
+};
+
+
+/** Raise a parse exception */
+Tokenizer.prototype.raise = function(expecting) {
+    var message = 'Error parsing input @' 
+                 + this._line + ',' + this._col;
+    
+    if (expecting) {
+        message += '; peek=' + String.fromCharCode(this._peekChar())
+                 + '; Expecting=' + expecting;
+    }
+
+    var err = this._error(message);
+    if (this._strict)
+        throw err;
+};
+
+var _jdkCheck = function(level) {
+    return function(feature) {
+        if (this._level >= level)
+            return true;
+
+        var err = this._error("Using JDK" + this._level 
+            + " compat; encountered JDK" + level 
+            + " feature `" + feature + "`", true);
+        if (this._strict)
+            throw err;
+    };
+};
+Tokenizer.prototype.checkJdk7 = _jdkCheck(Tokenizer.Level.JDK7);
+
+/** Always throws an error; it's not clear how to skip past an unsupported feature  */
+Tokenizer.prototype.raiseUnsupported = function(feature) {
+    throw this._error('Encountered unsupported feature "' + feature + '"', true);
+}
+
+Tokenizer.prototype._error = function(message, withPos) {
+
+    if (withPos)
+        message += ' @' + this._line + ',' + this._col;
+    
+    var err = new Error(message);
+    err.line = this._line;
+    err.col = this._line;
+    this.errors.push(err);
+
+    return err;
+};
+
+
+/*
+ * Util functions
+ */
+
+/** Static method */
+Tokenizer.isControl = function(token) {
+    return CONTROLS.indexOf(token) >= 0; // binary search?
+}
+
+
+/** Static method */
+Tokenizer.isModifier = function(token) {
+    return MODIFIERS.indexOf(token) >= 0;
+}
 
 /**
  * Check if the type name is a primitive type
@@ -644,7 +716,36 @@ Tokenizer.isPrimitive = function(type) {
     return PRIMITIVES.indexOf(type) >= 0;
 }
 
-/*
- * JUST export the Tokenizer class
- */
+/** Static method */
+Tokenizer.isReserved = function(word) {
+    return Tokenizer.isModifier(word)
+        || Tokenizer.isControl(word)
+        || ~PRIMITIVES.indexOf(word)
+        || ~OTHER_RESERVED.indexOf(word);
+};
+
+function isIdentifier(existing, charCode) {
+    if (!charCode)
+        charCode = existing;
+
+    // TODO first char is special
+    for (var i = 0; i < NAME_RANGES.length; i++) {
+        if (charCode >= NAME_RANGES[i][0] && charCode <= NAME_RANGES[i][1])
+            return true;
+    }
+
+    return OTHER_NAME_CHARS.indexOf(charCode) >= 0;
+}
+
+function isMath(charCode) {
+    //console.log(String.fromCharCode(charCode));
+    return MATH.indexOf(charCode) >= 0;
+}
+
+function isToken(charCode) {
+    return isIdentifier(charCode)
+        || isMath(charCode)
+        || ~OTHER_TOKENS.indexOf(charCode); // TODO sort + binary search?
+}
+
 module.exports = Tokenizer;
