@@ -550,7 +550,7 @@ VarDef.prototype.evaluateType = function(classLoader, cb) {
 VarDef.prototype.project = function() {
     return {
         name: this.name
-      , type: this.type + (this.array ? '[]' : '')
+      , type: this.type.project() + (this.array ? '[]' : '')
       , mods: (this.mods ? this.mods.project() : '')
       , javadoc: this.javadoc
     }
@@ -1897,6 +1897,16 @@ function SelectorExpression(primary, connector) {
     this._end();
 }
 util.inherits(SelectorExpression, SimpleNode);
+
+SelectorExpression.prototype.evaluateType = function(classLoader, cb) {
+    if (!this.chain.length)
+        return this.left.evaluateType(classLoader, cb);
+
+    // pick the last element in the chain (I guess?)
+    var last = this.chain[this.chain.length - 1];
+    last.evaluateType(classLoader, cb);
+};
+
 
 SelectorExpression.prototype._push = function(expr) {
     var prev = this.chain.length 

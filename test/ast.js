@@ -1493,7 +1493,7 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("Static imported method", function(done) {
+        it("95, 25: import static -> Fanciest", function(done) {
             var node = ast.locate(95, 25);
             node.evaluateType(loader, function(err, value) {
                 if (err) throw err;
@@ -1503,8 +1503,17 @@ describe("Ast of Foo.java", function() {
             });
         });
 
+        it("96, 14: fluid -> Fanciest", function(done) {
+            var node = ast.locate(96, 14);
+            node.evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Boring$Fanciest');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
         it("overridable methods?"); 
-        it("fluid method calls?"); 
 
         it("overridden methods?"); // Will need to specify args & fallback if missing
     });

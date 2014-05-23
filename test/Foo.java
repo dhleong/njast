@@ -84,7 +84,7 @@ class Foo extends Extended {
     }
 
     void fooSuperclassMethodCall() {
-        fluidMethod(). 
+        fluidMethod().
     }
 
     Foo delegate = new Foo(42);
@@ -93,5 +93,6 @@ class Foo extends Extended {
         delegate.field1.buz().field1.method() // silly
         Fanciest.normalFactory()
         fanciestFactory()
+            . // prep for fluid-style method call
     }
 }
