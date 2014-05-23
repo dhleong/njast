@@ -1342,6 +1342,17 @@ describe("Ast of Foo.java", function() {
             });
         });
 
+
+        it("79, 9: this.", function(done) {
+            ast.locate(79, 9)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo');
+                value.from.should.equal(Ast.FROM_OBJECT);
+                done();
+            });
+        });
+
         it("43, 38: Foo.this.field1.", function(done) {
             ast.locate(43, 38)
             .evaluateType(loader, function(err, value) {
@@ -1493,6 +1504,7 @@ describe("Ast of Foo.java", function() {
         });
 
         it("overridable methods?"); 
+        it("fluid method calls?"); 
 
         it("overridden methods?"); // Will need to specify args & fallback if missing
     });

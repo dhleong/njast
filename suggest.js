@@ -1,6 +1,6 @@
 
-var Analyzer = require('./analyze')
-  , Ast = require('./ast')
+var Ast = require('./proper_ast')
+  , parseFile = Ast.parseFile
   , ClassLoader = require('./classloader');
 
 var CR = '\r'.charCodeAt(0);
@@ -10,8 +10,6 @@ function Suggestor(path, buffer) {
     this._path = path;
     this._buffer = buffer;
     this._loader = ClassLoader.fromSource(path);
-
-    this._analyzer = Analyzer.of(this._path, this._buffer)
 }
 
 Suggestor.prototype.at = function(line, col) {
@@ -29,43 +27,30 @@ Suggestor.prototype.find = function(cb) {
     // locate the last . before the cursor
     var dot = line.substr(0, this._col).lastIndexOf('.');
 
+    var lineNo = this._line;
+    var colNo = this._col;
     var self = this;
     if (~dot) {
-        // TODO if found, analyze preceding item:
-        //          - if object: that object's methods, fields
-        //          - if class: static methods, subclasses
-        //          - if nothing: recurse to previous line?
-        //          - else: assume "this" object's methods, fields
-        this._analyzer
-        .at(this._line, dot-1)
-        .find(function(err, result) {
+        colNo = dot - 1;
+    }
 
+    var loader = this._loader;
+    parseFile(this._path, this._buffer, {
+        strict: false
+    }, function(err, ast) {
+        if (err) return cb(err);
+
+        ast.locate(lineNo, colNo)
+        .evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
-            switch (result.type) {
-            case Ast.EXPRESSION:
-                var exprType = result.resolveExpressionType();
-                if (!exprType)
-                    return cb(new Error("Could not resolve type of " + result.name));
-
-                self._fromClass(exprType.name, ['methods', 'fields'], cb);
-                break;
-
-            case Ast.TYPE:
-                // FIXME check if this type is the return value
-                //  of a method call
-                // console.log(result);
-                self._fromClass(result.name, ['methods', 'fields'], cb);
-                // FIXME else, only STATIC methods, fields, subclasses
-                break;
-            }
+            // FIXME check if this type is the return value
+            //  of a method call
+            // console.log(result);
+            self._fromClass(result.type, ['methods', 'fields'], cb);
+            // FIXME else, only STATIC methods, fields, subclasses
         });
-    } else {
-        // TODO else, suggest fields, local methods, classnames
-
-        console.log("UNEXPECTED 2: " + line);
-        cb(2);
-    }
+    });
 };
 
 Suggestor.prototype._extractLine = function() {
@@ -111,7 +96,7 @@ Suggestor.prototype._extractLine = function() {
 };
 
 Suggestor.prototype._fromClass = function(className, projection, cb) {
-    this._loader.openClass(className, function(err, klass) {
+    this._loader.openClass(className, projection, function(err, klass) {
         if (err) return cb(err);
 
         var projected = projection.reduce(function(obj, field) {
@@ -119,11 +104,11 @@ Suggestor.prototype._fromClass = function(className, projection, cb) {
             return obj;
         }, {});
 
-        if ('methods' in projected) {
-            projected.methods = projected.methods.filter(function(method) {
-                return method.name != '[constructor]';
-            });
-        }
+        // if ('methods' in projected) {
+        //     projected.methods = projected.methods.filter(function(method) {
+        //         return method.name != '[constructor]';
+        //     });
+        // }
 
         cb(undefined, projected);
     });

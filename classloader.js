@@ -72,7 +72,14 @@ function ComposedClassLoader(loaders) {
     this._cached = {};
 }
 
-ComposedClassLoader.prototype.openClass = function(qualifiedName, callback) {
+ComposedClassLoader.prototype.openClass = function(qualifiedName, 
+        projection, callback) {
+
+    if (!callback) {
+        callback = projection;
+        projection = undefined;
+    }
+
     if (qualifiedName in this._cached)
         return callback(null, this._cached[qualifiedName]);
 
@@ -81,7 +88,8 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName, callback) {
     var self = this;
     var loaders = this._loaders.map(function(loader) {
         return function(cb) {
-            loader.openClass(qualifiedName, function(err, result) {
+            loader.openClass(qualifiedName, projection, 
+                    function(err, result) {
                 // cache successful results
                 if (result && !err)
                     self._cached[qualifiedName] = result;
@@ -167,18 +175,31 @@ SourceClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
     });
 };
 
-SourceClassLoader.prototype.openClass = function(qualifiedName, callback) {
+SourceClassLoader.prototype.openClass = function(qualifiedName, 
+        projection, callback) {
+
+    if (!callback) {
+        callback = projection;
+        projection = undefined;
+    }
+
+    var self = this;
     this._getPathForType(qualifiedName, function(err, path) {
         if (err) return callback(err);
 
-        fs.readFile(path, function(err/* , buf */) {
+        fs.readFile(path, function(err, buf) {
             if (err) return callback(err);
 
-            // var ast = new Ast(filePath, buf);
-            // ast.parse(function() {
-            //     callback(null, ast.extractClass(qualifiedName));
-            // });
-            callback(null); // TODO provide something?
+            if (!projection) return callback(null); // we just care that it worked
+
+            // we want a projection
+            parseFile(path, buf, {
+                strict: false
+            }, function(err, ast) {
+                if (err) return callback(err);
+
+                ast.projectType(self, qualifiedName, projection, callback);
+            });
         });
     });
 };

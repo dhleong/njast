@@ -60,6 +60,32 @@ Ast.prototype.getStaticImportType = function(methodName) {
     return path.substr(0, path.indexOf('#'));
 };
 
+/**
+ * Return a projection of the given type
+ *
+ * This is an interface method that should be shared with
+ *  .class-file parsed objects.
+ *
+ * @param projection An array of things to project. This
+ *  may change to a dict so detailed options can be 
+ *  more easily specified (such as 'static only'). If
+ *  not provided, we will simply return "true"
+ */
+Ast.prototype.projectType = function(classLoader, type, projection, cb) {
+    var typeImpl = this.qualifieds[type];
+    if (!typeImpl)
+        return cb(new Error('No such type ' + type + ' in ' + this.tok._path));
+
+    if (!projection)
+        return cb(null, true);
+    
+    // laziness, basically
+    if (typeImpl.body)
+        typeImpl.body.project(classLoader, projection, cb);
+    else
+        typeImpl.project(classLoader, projection, cb);
+};
+
 
 /**
  * Resolve the return type of the method called "name"
@@ -521,6 +547,15 @@ VarDef.prototype.evaluateType = function(classLoader, cb) {
     this.type.evaluateType(classLoader, cb);
 };
 
+VarDef.prototype.project = function() {
+    return {
+        name: this.name
+      , type: this.type + (this.array ? '[]' : '')
+      , mods: (this.mods ? this.mods.project() : undefined)
+      , javadoc: this.javadoc
+    }
+};
+
 
 // IE: VariableInitializer
 VarDef.readInitializer = function(prev) {
@@ -936,6 +971,23 @@ function ClassBody(prev, skipBlockOpen) {
 }
 util.inherits(ClassBody, ScopeNode);
 
+ClassBody.prototype.project = function(classLoader, projection, callback) {
+    var result = {};
+    var self = this;
+    projection.forEach(function(type) {
+        if (!self[type])
+            return;
+
+        // TODO actually pass classLoader
+        result[type] = self[type].map(function(el) {
+            return el.project();
+        });
+    });
+
+    callback(null, result);
+};
+
+
 ClassBody.prototype._getVars = function() {
     return this.fields;
 };
@@ -1028,6 +1080,18 @@ function Method(prev, mods, type, typeParams, name) {
     this._end();
 }
 util.inherits(Method, ScopeNode);
+
+Method.prototype.project = function() {
+    return {
+        name: this.name
+      , qualified: this.qualifiedName
+      , javadoc: this.javadoc
+      , mods: (this.mods ? this.mods.project() : undefined)
+      , returns: this.returns
+      , params: this.params.project()
+    }
+};
+
 
 Method.prototype._getVars = function() {
     return this.params._getVars();
@@ -2289,18 +2353,15 @@ IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
         }
 
         // climb scope to find parent class
-        var scope = this;
-        do {
-            scope = scope.getScope();
-        } while (scope && (!(
-            scope instanceof Class
-            || scope instanceof Enum
-            || scope instanceof AnnotationDecl)))
-        
+        var scope = this.getDeclaringType();
         if (!scope)
             return cb(new Error("Couldn't find containing scope"));
 
-        return scope.evaluateType(classLoader, cb);
+        // return scope.evaluateType(classLoader, cb);
+        return cb(null, {
+            type: scope.qualifiedName
+          , from: Ast.FROM_OBJECT
+        });
     }
 
     // FIXME chain
@@ -2512,6 +2573,13 @@ function FormalParameters(prev) {
 }
 util.inherits(FormalParameters, ScopeNode);
 
+FormalParameters.prototype.project = function() {
+    return this.kids.map(function(def) {
+        return def.project();
+    });
+};
+
+
 FormalParameters.prototype._getVars = function() {
     return this.kids;
 };
@@ -2543,6 +2611,16 @@ function Modifiers(prev) {
     this._end();
 }
 util.inherits(Modifiers, SimpleNode);
+
+Modifiers.prototype.project = function() {
+    return this.kids.map(function(el) {
+        if (typeof(el) == 'string')
+            return el;
+
+        return el.project();
+    }).join(' ');
+};
+
 
 Modifiers.read = function(prev) {
     var tok = prev.tok;
@@ -2586,6 +2664,11 @@ function Annotation(prev) {
     this._end();
 }
 util.inherits(Annotation, SimpleNode);
+
+Annotation.prototype.project = function() {
+    return '@' + this.name; // TODO args?
+};
+
 
 Annotation.prototype._readElement = function() {
     var tok = this.tok;
