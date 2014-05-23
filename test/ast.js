@@ -1327,7 +1327,7 @@ describe("Ast of Foo.java", function() {
             .evaluateType(loader, function(err, value) {
                 should.not.exist(err);
                 value.type.should.equal('net.dhleong.njast.Foo$Fancy');
-                value.from.should.equal(Ast.FROM_CLASS);
+                value.from.should.equal(Ast.FROM_TYPE);
                 done();
             });
         });
@@ -1388,7 +1388,7 @@ describe("Ast of Foo.java", function() {
             .evaluateType(loader, function(err, value) {
                 if (err) throw err;
                 value.type.should.equal('net.dhleong.njast.Boring$Fanciest');
-                value.from.should.equal(Ast.FROM_CLASS);
+                value.from.should.equal(Ast.FROM_TYPE);
                 done();
             });
         });
@@ -1504,8 +1504,8 @@ describe("Ast of Foo.java", function() {
         });
 
         it("96, 14: fluid -> Fanciest", function(done) {
-            var node = ast.locate(96, 14);
-            node.evaluateType(loader, function(err, value) {
+            ast.locate(96, 14)
+            .evaluateType(loader, function(err, value) {
                 if (err) throw err;
                 value.type.should.equal('net.dhleong.njast.Boring$Fanciest');
                 value.from.should.equal(Ast.FROM_METHOD);
@@ -1513,8 +1513,26 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("overridable methods?"); 
+        it("12, 0: Foo (type context)", function(done) {
+            ast.locate(12, 0)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo');
+                value.from.should.equal(Ast.FROM_TYPE);
+                done();
+            });
+        }); 
 
-        it("overridden methods?"); // Will need to specify args & fallback if missing
+        it("101, 12: Foo (anon type context)", function(done) {
+            ast.locate(101, 12)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Foo');
+                value.from.should.equal(Ast.FROM_ANON);
+                done();
+            });
+        }); 
+
+        it("overloaded methods?"); // Will need to specify args & fallback if missing
     });
 });

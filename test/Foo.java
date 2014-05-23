@@ -95,4 +95,10 @@ class Foo extends Extended {
         fanciestFactory()
             . // prep for fluid-style method call
     }
+
+    void anonymous() {
+        new Foo() {
+            // should list overridable methods
+        };
+    }
 }

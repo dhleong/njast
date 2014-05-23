@@ -31,7 +31,9 @@ util.inherits(Ast, events.EventEmitter);
 
 Ast.FROM_OBJECT = 'obj';
 Ast.FROM_METHOD = 'mth';
-Ast.FROM_CLASS  = 'cls';
+Ast.FROM_TYPE   = 'typ';
+/** anonymous type */
+Ast.FROM_ANON   = 'ann';
 
 Ast.prototype.locate = function(line, ch) {
     if (!this._root)
@@ -209,7 +211,7 @@ SimpleNode.prototype.contains = function(line, ch) {
  * "from" constants:
  * - Ast.FROM_METHOD : return type of a method
  * - Ast.FROM_OBJECT : object instance
- * - Ast.FROM_CLASS  : static reference
+ * - Ast.FROM_TYPE  : static reference
  */
 // jshint ignore:start
 SimpleNode.prototype.evaluateType = function(classLoader, cb) { 
@@ -970,6 +972,26 @@ function ClassBody(prev, skipBlockOpen) {
     this._end();
 }
 util.inherits(ClassBody, ScopeNode);
+
+ClassBody.prototype.evaluateType = function(classLoader, cb) {
+    var parent = this.getParent();
+    var type, from;
+    if (parent instanceof Creator) {
+        type = parent.type.name;
+        from = Ast.FROM_ANON;
+    } else {
+        type = parent.qualifiedName;
+        from = Ast.FROM_TYPE;
+    }
+    
+    this.getRoot().resolveType(classLoader, type, function(resolved) {
+        cb(null, {
+            type: resolved,
+            from: from
+        });
+    });
+};
+
 
 ClassBody.prototype.project = function(classLoader, projection, callback) {
     var result = {};
@@ -2387,7 +2409,7 @@ IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
 
         cb(null, {
             type: resolved
-          , from: Ast.FROM_CLASS
+          , from: Ast.FROM_TYPE
         });
     });
 
@@ -3012,7 +3034,8 @@ util.inherits(WildcardTypeArgument, SimpleNode);
 module.exports = {
     FROM_METHOD: Ast.FROM_METHOD,
     FROM_OBJECT: Ast.FROM_OBJECT,
-    FROM_CLASS: Ast.FROM_CLASS,
+    FROM_ANON: Ast.FROM_ANON,
+    FROM_TYPE: Ast.FROM_TYPE,
 
     /**
      * @param options (Optional) A dict with:

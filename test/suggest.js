@@ -134,5 +134,7 @@ describe("Suggestions in Foo.java at", function() {
             done();
         });
     });
+
+    it("overridable methods");
 });
 
