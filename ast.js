@@ -551,7 +551,7 @@ VarDef.prototype.project = function() {
     return {
         name: this.name
       , type: this.type + (this.array ? '[]' : '')
-      , mods: (this.mods ? this.mods.project() : undefined)
+      , mods: (this.mods ? this.mods.project() : '')
       , javadoc: this.javadoc
     }
 };
@@ -1086,8 +1086,8 @@ Method.prototype.project = function() {
         name: this.name
       , qualified: this.qualifiedName
       , javadoc: this.javadoc
-      , mods: (this.mods ? this.mods.project() : undefined)
-      , returns: this.returns
+      , mods: (this.mods ? this.mods.project() : '')
+      , returns: this.returns.project()
       , params: this.params.project()
     }
 };
@@ -2836,6 +2836,11 @@ function BasicType(prev, skipArray) {
 }
 util.inherits(BasicType, TypeNode);
 
+BasicType.prototype.project = function() {
+    return this.name;
+};
+
+
 /**
  * NB: The name property will be the full
  *  path, minus type arguments. The simpleName
@@ -2865,6 +2870,12 @@ function ReferenceType(prev, skipArray, allowDiamond) {
     this._end();
 }
 util.inherits(ReferenceType, TypeNode);
+
+ReferenceType.prototype.project = function() {
+    return this.name;
+};
+
+
 
 ReferenceType.prototype._readQualified = function(state, allowDiamond) {
     var tok = this.tok;

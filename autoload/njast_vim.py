@@ -199,7 +199,7 @@ class Njast(object):
             # arguments
             info += '('
             info += ', '.join([ arg['type'] + ' ' + arg['name'] \
-                        for arg in item['args'] ])
+                        for arg in item['params'] ])
             info += ')'
 
             if item.has_key('javadoc'):

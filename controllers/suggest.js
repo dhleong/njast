@@ -60,6 +60,7 @@ module.exports = function(req, res) {
         // if (formatter)
         //     resolved = formatter(resolved);
 
+        console.log(resolved);
         res.json({
             // TODO proper start/end locations?
             start: {ch: ch}
