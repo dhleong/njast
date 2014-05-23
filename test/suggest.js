@@ -96,7 +96,7 @@ describe("Suggestions in Foo.java at", function() {
             if (err) throw err;
 
             resolved.should.have.property('methods')
-                .that.is.an('array').of.length(7)
+                .that.is.an('array').of.length(8)
                 .with.deep.property('[0]')
                     .that.has.property('name').that.equals('baz');
 
@@ -135,6 +135,20 @@ describe("Suggestions in Foo.java at", function() {
         });
     });
 
-    it("overridable methods");
+    it("overridable methods"/* , function(done) {
+        suggestor
+        .at(12, 4)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.deep.property('methods[0].name')
+                .that.equals('baz');
+
+            // TODO should NOT have fields;
+            // TODO SHOULD have methods from Extended
+
+            done();
+        });
+    }*/);
 });
 
