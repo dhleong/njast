@@ -10,6 +10,10 @@ class Boring {
         Boring prepare() {
             return new Boring();
         }
+
+        static Normal normalFactory() {
+            return new Normal();
+        }
     }
 
     Normal doBoring() {
@@ -19,4 +23,6 @@ class Boring {
     Boring doBar() {
         return this;
     }
+
+    static Fanciest fanciestFactory();
 }

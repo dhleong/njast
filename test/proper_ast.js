@@ -1472,8 +1472,26 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("Static method");
-        it("Static imported method");
+        it("Static method", function(done) {
+            var node = ast.locate(94, 32);
+            node.evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Boring$Normal');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
+        it("Static imported method", function(done) {
+            var node = ast.locate(95, 25);
+            node.evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.Boring$Fanciest');
+                value.from.should.equal(Ast.FROM_METHOD);
+                done();
+            });
+        });
+
         it("overridable methods?"); 
 
         it("overridden methods?"); // Will need to specify args & fallback if missing

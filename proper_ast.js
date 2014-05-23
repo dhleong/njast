@@ -53,6 +53,14 @@ Ast.prototype.getPackage = function() {
 
 };
 
+Ast.prototype.getStaticImportType = function(methodName) {
+    var path = this._root.namedImports[methodName];
+    if (!path) return;
+
+    return path.substr(0, path.indexOf('#'));
+};
+
+
 /**
  * Resolve the return type of the method called "name"
  *  in the given "type," and call through to "cb" when done.
@@ -2372,6 +2380,12 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
     // figure out where we live
     var self = this;
     if (!this._chain) {
+        // statically imported?
+        var root = this.getRoot();
+        var staticImportParent = root.getStaticImportType(this.name);
+        if (staticImportParent) 
+            return self._getReturnType(classLoader, staticImportParent, cb);
+
         // local...?
         var method = this.searchMethodScope(this.name);
         if (method) return _dispatchReturnType(classLoader, method, cb);
@@ -2389,7 +2403,7 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
         
         // resolve the type and return tasks for searching it for the method
         var resolver = function(type, onResolved) {
-            self.getRoot().resolveType(classLoader, type.name, function(resolved) {
+            root.resolveType(classLoader, type.name, function(resolved) {
                 if (!resolved) return onResolved(null);
 
                 // var called = {count:0};
@@ -2427,19 +2441,19 @@ MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
                     + this.name + "(): " + err.message));
             }
 
-            self._getReturnType(classLoader, resolved, cb);
+            self._getReturnType(classLoader, resolved.type, cb);
         });
     }
 };
 
 /**
- * Given a node with a type known to contain
+ * Given a type known to contain
  *  (or... at least extend/implement a type known
  *  to contain this method def), locate that type 
  *  and search it for the method def
  */
-MethodInvocation.prototype._getReturnType = function(classLoader, parent, cb) {
-    this.getRoot().resolveMethodReturnType(classLoader, parent.type, this.name, cb);
+MethodInvocation.prototype._getReturnType = function(classLoader, type, cb) {
+    this.getRoot().resolveMethodReturnType(classLoader, type, this.name, cb);
 };
 
 function _dispatchReturnType(classLoader, m, cb) {

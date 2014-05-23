@@ -1,7 +1,7 @@
 package net.dhleong.njast;
 import net.dhleong.njast.Boring.Fanciest;
 import net.dhleong.njast.subpackage.Extended;
-
+import static net.dhleong.njast.Boring.fanciestFactory;
 class Foo extends Extended {
 
     Fancier field1;
@@ -91,5 +91,7 @@ class Foo extends Extended {
 
     void identifierChain() {
         delegate.field1.buz().field1.method() // silly
+        Fanciest.normalFactory()
+        fanciestFactory()
     }
 }

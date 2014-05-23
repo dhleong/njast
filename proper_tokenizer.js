@@ -435,8 +435,9 @@ var _doExpect = function(token) {
         if (!this._readToken(token)) {
             this.raise(String.fromCharCode(token));
 
-            if (!this.peekBlockClose()) // never skip these!
-                this.read(); // if we got here, we're relaxed; skip whatever it was
+            // actually, skipping CAUSES problems 
+            // if (!this.peekBlockClose()) // never skip these!
+            //     this.read(); // if we got here, we're relaxed; skip whatever it was
         }
     } 
 };
