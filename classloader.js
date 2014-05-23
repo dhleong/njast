@@ -34,18 +34,17 @@ ClassLoader.prototype._getPath = function(className) {
 };
 
 /**
- * DEPRECATED
  * Attempts to locate the qualified class name within this
  *  loader and open a file handle to it. The callback should be:
- *      fn(err, ast:Class)
- *  where Class will at least implement the same interface that 
- *  our source Ast Class implements (IE it could actually be from
- *  a .class file)
- *
+ *      fn(err, projection)
+ *  where the projection is a unified json format across 
+ *  .class loaders and source loaders
+ *  
  * @param qualifiedName Class name to load
+ * @param projection The projection to retrieve from the type
  * @param callback Callback function
  */
-ClassLoader.prototype.openClass = function(/* qualifiedName, callback */) {
+ClassLoader.prototype.openClass = function(/* qualifiedName, projection, callback */) {
     throw new Error("openClass not implemented");
 };
 
@@ -221,7 +220,12 @@ function SourceProjectClassLoader(projectRoot) {
 }
 util.inherits(SourceProjectClassLoader, SourceClassLoader);
 
-
+SourceProjectClassLoader.prototype._getPathForType = function(qualifiedName, cb) {
+    var dirs = this._getPath(qualifiedName);
+    var filePath = path.join(this._root, 'src', path.join.apply(path, dirs));
+    // TODO gradle-style src/main/java ?
+    cb(null, filePath);
+};
 
 
 /**
@@ -263,24 +267,41 @@ function _cached(loader) {
     return new ComposedClassLoader([loader]);
 }
 
+// root -> CL
+var CLASS_LOADER_CACHE = {};
+
 module.exports = {
     /**
      * Create a ClassLoader appropriate for the project
      *  holding "sourceFilePath"
      */
-    fromSource: function(sourceFilePath) {
+    fromSource: function(sourceFilePath, _allowCached) {
+        if (_allowCached === undefined)
+            _allowCached = false;
+
         // find the root dir of the project
         var sourceDir = path.dirname(sourceFilePath);
         var dir = sourceDir.split(path.sep);
         var srcIndex = dir.indexOf('src');
         if (!~srcIndex) {
             // no apparent project root
+            // TODO climb tree until no more .java
+            // TODO see if we have one cached
             return _cached(new SourceDirectoryClassLoader(sourceDir)); 
         }
 
+        // find project dir, check cache
+        var projectDir = path.join.apply(path, dir.slice(0, srcIndex));
+        if (_allowCached && projectDir in CLASS_LOADER_CACHE)
+            return CLASS_LOADER_CACHE[projectDir];
+
         // TODO actually, compose this with any JarClassLoaders there,
         //  source dir for Android, etc.
-        var projectDir = path.join(dir.slice(0, srcIndex));
+        console.log('proj=', projectDir);
         return _cached(new SourceProjectClassLoader(projectDir));
+    },
+
+    cachedFromSource: function(sourceFilePath) {
+        return module.exports.fromSource(sourceFilePath, true);
     }
 }

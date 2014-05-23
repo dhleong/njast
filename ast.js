@@ -254,8 +254,10 @@ SimpleNode.prototype.getKids = function() {
 
 
 SimpleNode.prototype.locate = function(line, ch) {
-    if (!this.contains(line, ch))
+    if (!this.contains(line, ch)) {
+        console.log(this.constructor.name, this.name, this.start, this.end, "does not contain", line, ch);
         return false; // quick reject... WE don't contain, so kids can't
+    }
 
     var kids = this.getKids()
     if (kids) {
