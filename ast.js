@@ -34,6 +34,8 @@ Ast.FROM_METHOD = 'mth';
 Ast.FROM_TYPE   = 'typ';
 /** anonymous type */
 Ast.FROM_ANON   = 'ann';
+/** type body */
+Ast.FROM_BODY   = 'body';
 
 Ast.prototype.locate = function(line, ch) {
     if (!this._root)
@@ -981,7 +983,7 @@ ClassBody.prototype.evaluateType = function(classLoader, cb) {
         from = Ast.FROM_ANON;
     } else {
         type = parent.qualifiedName;
-        from = Ast.FROM_TYPE;
+        from = Ast.FROM_BODY;
     }
     
     this.getRoot().resolveType(classLoader, type, function(resolved) {
@@ -3035,6 +3037,7 @@ module.exports = {
     FROM_METHOD: Ast.FROM_METHOD,
     FROM_OBJECT: Ast.FROM_OBJECT,
     FROM_ANON: Ast.FROM_ANON,
+    FROM_BODY: Ast.FROM_BODY,
     FROM_TYPE: Ast.FROM_TYPE,
 
     /**

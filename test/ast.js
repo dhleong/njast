@@ -1518,7 +1518,7 @@ describe("Ast of Foo.java", function() {
             .evaluateType(loader, function(err, value) {
                 if (err) throw err;
                 value.type.should.equal('net.dhleong.njast.Foo');
-                value.from.should.equal(Ast.FROM_TYPE);
+                value.from.should.equal(Ast.FROM_BODY);
                 done();
             });
         }); 
