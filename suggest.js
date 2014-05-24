@@ -40,15 +40,13 @@ Suggestor.prototype.find = function(cb) {
     }, function(err, ast) {
         if (err) return cb(err);
 
-        ast.locate(lineNo, colNo)
-        .evaluateType(loader, function(err, result) {
+        var node = ast.locate(lineNo, colNo)
+        console.log(node.constructor.name, node.name, node.start, node.end);
+        node.evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
-            // FIXME check if this type is the return value
-            //  of a method call
             // console.log(result);
-            self._fromClass(result.type, ['methods', 'fields'], cb);
-            // FIXME else, only STATIC methods, fields, subclasses
+            self._onTypeResolved(ast, result, cb);
         });
     });
 };
@@ -95,23 +93,21 @@ Suggestor.prototype._extractLine = function() {
 
 };
 
-Suggestor.prototype._fromClass = function(className, projection, cb) {
-    this._loader.openClass(className, projection, function(err, klass) {
-        if (err) return cb(err);
+Suggestor.prototype._onTypeResolved = function(ast, resolved, cb) {
+    var className = resolved.type;
+    var projection = ['methods', 'fields'];
+    // FIXME check if this type is the return value
+    //  of a method call
+    // FIXME else, only STATIC methods, fields, subclasses
 
-        var projected = projection.reduce(function(obj, field) {
-            obj[field] = klass[field];
-            return obj;
-        }, {});
+    if (ast.qualifieds[className]) {
+        // shortcut the classloader
+        ast.projectType(this._loader, className, projection, cb);
+        return;
+    }
 
-        // if ('methods' in projected) {
-        //     projected.methods = projected.methods.filter(function(method) {
-        //         return method.name != '[constructor]';
-        //     });
-        // }
-
-        cb(undefined, projected);
-    });
+    // let the class loader handle it
+    this._loader.openClass(className, projection, cb);
 };
 
 
