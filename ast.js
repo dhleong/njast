@@ -2265,8 +2265,10 @@ NumberLiteral._readFloaty = function(prev, state, buffer) {
     } else {
         // normal
         var next = String.fromCharCode(tok.peek());
-        if (next == 'f' || next == 'F')
+        if (next == 'f' || next == 'F') {
+            tok.read(); // eat the char
             type = 'float';
+        }
     }
 
     return new NumberLiteral(prev, state, buffer, type);

@@ -299,6 +299,8 @@ enum SomeEnum {
 
     static final int MAGIC = 42;
 
+    static final float FLOAT_LITERAL = .8f;
+
     int[] array() default {MAGIC, 2, 1};
 }
 
