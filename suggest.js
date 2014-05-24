@@ -9,7 +9,7 @@ var NL = '\n'.charCodeAt(0);
 function Suggestor(path, buffer) {
     this._path = path;
     this._buffer = buffer;
-    this._loader = ClassLoader.fromSource(path);
+    this._loader = ClassLoader.cachedFromSource(path);
 }
 
 Suggestor.prototype.at = function(line, col) {
@@ -100,6 +100,7 @@ Suggestor.prototype._onTypeResolved = function(ast, resolved, cb) {
     //  of a method call
     // FIXME else, only STATIC methods, fields, subclasses
 
+    // console.log("Resolved type:", className);
     if (ast.qualifieds[className]) {
         // shortcut the classloader
         ast.projectType(this._loader, className, projection, cb);
@@ -107,7 +108,10 @@ Suggestor.prototype._onTypeResolved = function(ast, resolved, cb) {
     }
 
     // let the class loader handle it
-    this._loader.openClass(className, projection, cb);
+    this._loader.openClass(className, projection, function(err, result) {
+        console.log("Projected", className, projection, err, result);
+        cb(err, result);
+    });
 };
 
 

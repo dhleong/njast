@@ -238,6 +238,11 @@ public class FullAst<E, T extends Object & Imported>
                 : contentTypeEl.toString();
     }
 
+    boolean instanceofAnd(Object o) {
+        return o instanceof FullAst
+                && field1.equals(((FullAst)o).field1);
+    }
+
     /*
      * Nested classes
      */

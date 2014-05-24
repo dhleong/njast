@@ -79,6 +79,7 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
         projection = undefined;
     }
 
+    // FIXME match projection
     if (qualifiedName in this._cached)
         return callback(null, this._cached[qualifiedName]);
 
@@ -217,14 +218,53 @@ SourceClassLoader.prototype._getPathForType = function(/* type, cb */) {
  */
 function SourceProjectClassLoader(projectRoot) {
     this._root = projectRoot;
+    this._paths = {};
 }
 util.inherits(SourceProjectClassLoader, SourceClassLoader);
 
 SourceProjectClassLoader.prototype._getPathForType = function(qualifiedName, cb) {
+
+    // since src files could be in some subdirectory,
+    //  we'd like to skip lookups if possible.
+    var known = this._paths[qualifiedName];
+    if (known)
+        return cb(null, known);
+
     var dirs = this._getPath(qualifiedName);
-    var filePath = path.join(this._root, 'src', path.join.apply(path, dirs));
-    // TODO gradle-style src/main/java ?
-    cb(null, filePath);
+    var qualifiedPath = path.join.apply(path, dirs) ;
+
+    // construct array of candidate tasks to check in parallel
+    var candidates = [
+        path.join(this._root, 'src', qualifiedPath)
+      , path.join(this._root, 'src', 'main', 'java', qualifiedPath)
+      , path.join(this._root, 'src', 'debug', 'java', qualifiedPath)
+    ].map(function(fullPath) {
+        return function(callback) {
+            fs.exists(fullPath, function(exists) {
+                callback(null, {
+                    path: fullPath, 
+                    exists: exists
+                });
+            });
+        };
+    });
+
+    var self = this;
+    async.parallel(candidates, function(err, result) {
+        if (err) return cb(err);
+
+        var actualPath = result.reduce(function(last, res) {
+            if (last) return last;
+            if (res.exists) 
+                return res.path;
+        }, null);
+
+        if (!actualPath)
+            return cb(new Error("Could not locate " + qualifiedName));
+
+        self._paths[qualifiedName] = actualPath;
+        cb(null, actualPath);
+    });
 };
 
 
@@ -297,7 +337,9 @@ module.exports = {
 
         // TODO actually, compose this with any JarClassLoaders there,
         //  source dir for Android, etc.
-        console.log('proj=', projectDir);
+
+        if (dir[0] === '')
+            projectDir = path.sep + projectDir;
         return _cached(new SourceProjectClassLoader(projectDir));
     },
 

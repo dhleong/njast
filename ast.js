@@ -3080,6 +3080,7 @@ module.exports = {
 
         var ast = new Ast(path, buffer, options);
         try {
+            console.log(path);
             ast.parse(CompilationUnit);
         } catch(e) {
             callback(e);

@@ -738,6 +738,8 @@ describe("Ast of FullAst.java", function() {
                         });
                 });
 
+                it("instanceof &&");
+
                 it("Array access", function() {
                     var fluid = fullast.body.methods[1];
                     var states = fluid.body.kids;
@@ -1563,21 +1565,21 @@ describe("Ast of Foo.java", function() {
     });
 });
 
-// describe("MinusMessageBase.java", function() {
-//     it("test", function(done) {
-//         var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusMessageBase.java';
-//         fs.readFile(path, function(err, buf) {
-//             if (err) throw err;
-//
-//             parseFile(path, buf, {
-//                 // strict: false
-//             }, function(err, ast) {
-//                 if (err) throw err;
-//
-//                 var node = ast.locate(1066, 19);
-//                 should.exist(node);
-//                 done();
-//             });
-//         });
-//     });
-// });
+describe("MinusUser.java", function() {
+    it("test", function(done) {
+        var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusUser.java';
+        fs.readFile(path, function(err, buf) {
+            if (err) throw err;
+
+            parseFile(path, buf, {
+                // strict: false
+            }, function(err, ast) {
+                if (err) throw err;
+
+                var node = ast.locate(1066, 19);
+                should.exist(node);
+                done();
+            });
+        });
+    });
+});
