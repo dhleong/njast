@@ -266,6 +266,9 @@ public class FullAst<E, T extends Object & Imported>
 
     static class StaticNestedClass {
     }
+
+    enum NestedEnum {
+    }
 }
 
 ;

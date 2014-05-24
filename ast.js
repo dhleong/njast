@@ -789,6 +789,12 @@ function EnumBody(prev) {
 
         // read any class body-type stuff
         this.classBody = new ClassBody(this, true);
+    } else {
+
+        // above, ClassBody reads closer;
+        //  since we're not using that, we
+        //  need to read it ourselves
+        this.tok.expectBlockClose();
     }
 
     this._end();
