@@ -6,8 +6,9 @@
         "test": "cd test && mocha *.js"
     },
     "dependencies": {
-        "async"   : ">=0.2.10",
-        "express" : "3.*"
+        "async"       : ">=0.2.10",
+        "express"     : "4.*",
+        "body-parser" : "1.2.*"
     },
     "devDependencies": {
         "chai"    : "latest",

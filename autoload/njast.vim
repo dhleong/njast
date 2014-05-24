@@ -23,6 +23,31 @@ endif
 " Vim interface
 " ------------------------------------------------------------------------
 
+function! njast#_attemptImplement()
+    " exit insert to grab the word...
+    " stopinsert
+    " let word = expand('<cword>')
+    " " then pop back where we were
+    " call feedkeys('A')
+    exe 'py Njast.attemptImplement()'
+    iunmap <buffer> <c-cr>
+    return ""
+endfunction
+
+function! njast#ImplementMethod()
+    py Njast.fetchImplementations()
+
+    if exists('g:UltiSnipsExpandTrigger')
+        " prepare temp mapping that overrides ultisnips
+        exe 'inoremap <buffer> ' . g:UltiSnipsExpandTrigger 
+            \ . ' <C-R>=njast#_attemptImplement()<CR>'
+    endif
+    
+    " trigger omnicomplete 
+    startinsert
+    call feedkeys("\<c-x>\<c-o>")
+endfunction
+
 function! njast#ShowJavadoc()
     let l:word = expand("<cword>")
     echo l:word

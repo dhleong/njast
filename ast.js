@@ -2933,6 +2933,9 @@ ReferenceType.prototype.project = function() {
     return this.name;
 };
 
+ReferenceType.prototype.resolve = function(classLoader, callback) {
+    this.getRoot().resolveType(classLoader, this.name, callback);
+};
 
 
 ReferenceType.prototype._readQualified = function(state, allowDiamond) {

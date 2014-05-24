@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-var express = require('express');
+var express = require('express')
+  , parseFile = require('./ast').parseFile
+  , ClassLoader = require('./classloader');
 
 // --------------------------------------------------------------------------------
 // configs
@@ -40,16 +42,78 @@ if (DEBUG) {
 // --------------------------------------------------------------------------------
 
 var app = express();
-app.configure(function() {
-    app.use(express.bodyParser());
-    app.use(app.router);
-});
+app.use(require('body-parser')());
 
 // --------------------------------------------------------------------------------
 // prepare routing
 // --------------------------------------------------------------------------------
 
-app.post('/suggest', require('./controllers/suggest')); 
+app.post('/log', function(req, res) {
+    console.log('<<', req.body.data);
+    res.json({})
+});
+
+// middleware that handles request body
+app.use(function(req, res, next) {
+
+    if (!req.body)
+        return res.send(400, "Empty body");
+    else if (!req.body.pos)
+        return res.send(400, "No pos");
+
+    var path = req.body.path;
+    var line = req.body.pos[0];
+    var ch   = req.body.pos[1];
+    var file = req.body.buffer;
+
+    if (!(path && line && file !== undefined && ch !== undefined))
+        return res.send(400);
+
+    req.path = path;
+    req.line = line;
+    req.ch = ch;
+    req.buf = new Buffer(file); // FIXME encoding?
+
+    /** 
+     * Convenience function to get an ast.
+     *  Unlike parseFile, strict defaults to false!
+     */
+    req.ast = function(options, callback) {
+        if (!callback) {
+            callback = options;
+            options = {strict: false};
+        }
+        
+        parseFile(path, req.buf, options, callback);
+    };
+
+    req.classLoader = function() {
+        return ClassLoader.cachedFromSource(path);
+    };
+
+    res.results = function(json) {
+        res.json({
+            // TODO proper start/end locations?
+            start: {ch: ch}
+          , end: {ch: ch} 
+          , results: json
+        });
+    };
+
+    next();
+});
+
+// connect all controllers
+require('fs').readdir('./controllers', function(err, files) {
+    if (err) throw err;
+
+    files.forEach(function(file) {
+        var path = '/' + file.substr(0, file.indexOf('.'));
+        if (path == '/')
+            return;
+        app.post(path, require('./controllers' + path)); 
+    });
+});
 
 // --------------------------------------------------------------------------------
 // start server on any random port and dump it so we know

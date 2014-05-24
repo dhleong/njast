@@ -25,31 +25,10 @@ var Formatters = {
 
 module.exports = function(req, res) {
     
-    // console.log(req.headers, req.body);
-
-    if (!req.body)
-        return res.send(400, "Empty body");
-    else if (!req.body.pos)
-        return res.send(400, "No pos");
-
-    var path = req.body.path;
-    var line = req.body.pos[0];
-    var ch   = req.body.pos[1];
-    // var file = req.files.buffer;
-    var file = req.body.buffer;
-
-    // var formatter;
-    // if (req.body.format && req.body.format in Formatters)
-    //     formatter = Formatters[req.body.format];
-
-    if (!(path && line && file !== undefined && ch !== undefined))
-        return res.send(400);
-
-    console.log('Suggest request @', path, ':', line, ch);
+    console.log('Suggest request @', req.path, ':', req.line, req.ch);
     
-    var buf = new Buffer(file); // FIXME encoding?
-    Suggestor.of(path, buf)
-    .at(line, ch)
+    Suggestor.of(req.path, req.buf)
+    .at(req.line, req.ch)
     .find(function(err, resolved)  {
         console.log("err?", err);
 
@@ -61,12 +40,7 @@ module.exports = function(req, res) {
         //     resolved = formatter(resolved);
 
         console.log(resolved);
-        res.json({
-            // TODO proper start/end locations?
-            start: {ch: ch}
-          , end: {ch: ch} 
-          , results: resolved
-        });
+        res.results(resolved);
         console.log('Suggested', resolved);
     });
 }

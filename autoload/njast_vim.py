@@ -16,7 +16,12 @@ class Njast(object):
         else:
             self.port = self._startServer()
 
+        self._lastImplementations = None
+
     def _ensureCompletionCached(self):
+        if self._lastImplementations is not None:
+            return
+
         cached = vim.eval("b:njastLastCompletionPos")
         curRow, curCol = vim.current.window.cursor
         curLine = vim.current.buffer[curRow - 1]
@@ -28,6 +33,9 @@ class Njast(object):
             return
 
         data = self._run('suggest', [curRow, curCol])
+        self._inflateCompletion(data, curRow, curCol, curLine)
+
+    def _inflateCompletion(self, data, curRow, curCol, curLine):
         if data is None: 
             # cancel silently, but stay in complete mode;
             #   hopefully ycm will work
@@ -54,6 +62,49 @@ class Njast(object):
             "end": end,
             "word": curLine[start:end]
         }))
+
+    def _fetchImplementations(self):
+        curRow, curCol = vim.current.window.cursor
+        curLine = vim.current.buffer[curRow - 1]
+
+        data = self._run('implement', [curRow, curCol])
+        self._inflateCompletion(data, curRow, curCol, curLine)
+
+        self._lastImplementations = {}
+        if data:
+            for methods in data['results']['methods']:
+                self._lastImplementations[methods['name']] = methods
+
+    def _attemptImplement(self):
+        _, col = vim.current.window.cursor
+        word = vim.current.line[:col].strip()
+
+        if not self._lastImplementations.has_key(word):
+            self._lastImplementations = None
+            return
+
+        method = self._lastImplementations[word]
+        self._lastImplementations = None
+
+        # build ultisnips buffer and use it
+        buf = '@Override\n'
+        buf += method['mods']
+        buf += ' ' + method['returns']
+        buf += ' ' + method['name']
+        buf += '('
+        buf += ', '.join([ 'final ' + p['type'] + ' ' + p['name'] \
+                        for p in method['params'] ])
+        buf += ') {\n'
+        buf += '\t${1:// TODO Auto-generated method stub}\n'
+        buf += '}'
+        
+        # safely use UltiSnips manager, if available
+        try:
+            UltiSnips_Manager.expand_anon(buf, trigger=word)
+        except: pass
+        
+    def _log(self, message):
+        self._makeRequest('log', {'data': message})
 
     def _makeRequest(self, type, doc):
         try:
@@ -218,7 +269,10 @@ def _gen_method(name):
         return getattr(inst, name)(*args)
     return method
     
-SHORTCUTS = ['stop', 'run', 'ensureCompletionCached']
+SHORTCUTS = ['stop', 'run', 
+    'ensureCompletionCached', 
+    'fetchImplementations',
+    'attemptImplement']
 for methodName in SHORTCUTS:
     method = _gen_method('_' + methodName)
 
