@@ -550,7 +550,14 @@ function VarDef(prev, mods, type, name, isInitable) {
 util.inherits(VarDef, SimpleNode);
 
 VarDef.prototype.evaluateType = function(classLoader, cb) {
-    this.type.evaluateType(classLoader, cb);
+    this.type.evaluateType(classLoader, function(err, evaluated) {
+        if (err) return cb(err);
+
+        cb(null, {
+            type: evaluated.type
+          , from: Ast.FROM_OBJECT
+        });
+    });
 };
 
 VarDef.prototype.project = function() {
@@ -1813,9 +1820,9 @@ CastExpression.read = function(prev) {
     // var left = Expression.read(prev);
     // if (!left)
     //     left = Type.read(prev);
-    var left =  Type.read(prev);
+    var left = Type.read(prev);
     if (!left)
-        left =Expression.read(prev);
+        left = Expression.read(prev);
     tok.expectParenClose();
     
     if (tok.peekDot()) {
@@ -2859,7 +2866,7 @@ TypeNode.prototype.evaluateType = function(classLoader, cb) {
     
         cb(null, {
             type: type
-          , from: Ast.FROM_OBJECT
+          , from: Ast.FROM_TYPE
           , array: self.array
         });
     });

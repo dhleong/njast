@@ -100,7 +100,7 @@ chai.use(function(_chai, utils) {
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.aerror = function () {
+console.error = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -728,7 +728,14 @@ describe("Ast of FullAst.java", function() {
                     var method = ast.qualifieds['net.dhleong.njast.FullAst#genericCast'];
                     should.exist(method);
 
-                    // TODO
+                    method.body.kids.should.be.an('array').of.length(1)
+                    .with.deep.property('[0]')
+                        .that.is.assignment({
+                            left: 'actual',
+                            right: {
+                                'chain[0].name': 'cast'
+                            }
+                        });
                 });
 
                 it("Array access", function() {
