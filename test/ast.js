@@ -833,6 +833,18 @@ describe("Ast of FullAst.java", function() {
                         }
                     });
                 });
+
+                it("Fancy ternary", function() {
+                    var method = ast.qualifieds[
+                        'net.dhleong.njast.FullAst#fancyTernary'
+                    ];
+                    method.body.kids[0].should.be.assignment({
+                        left: 'contentTypeRaw',
+                        right: {
+                            'constructor.name': 'TernaryExpression'
+                        }
+                    });
+                });
             });
 
             describe("Control Flow:", function() {

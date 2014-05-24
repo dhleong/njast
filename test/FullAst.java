@@ -231,6 +231,13 @@ public class FullAst<E, T extends Object & Imported>
                 .cast((FullAst<? extends Imported, Imported>) null);
     }
 
+    void fancyTernary(NestedClass<?> contentTypeEl) {
+        final String contentTypeRaw = 
+            (contentTypeEl == null || contentTypeEl.isJsonNull())
+                ? null // umm...?
+                : contentTypeEl.toString();
+    }
+
     /*
      * Nested classes
      */
@@ -252,6 +259,9 @@ public class FullAst<E, T extends Object & Imported>
             Foo.super.overridable();
         }
 
+        boolean boolMethod() {
+            return false;
+        }
     }
 
     static class StaticNestedClass {

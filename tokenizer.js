@@ -652,8 +652,8 @@ Tokenizer.prototype.raise = function(expecting) {
                  + this._line + ',' + this._col;
     
     if (expecting) {
-        message += '; peek=' + String.fromCharCode(this._peekChar())
-                 + '; Expecting=' + expecting;
+        message += '; peek=`' + String.fromCharCode(this._peekChar())
+                 + '`; Expecting=`' + expecting + '`';
     }
 
     var err = this._error(message);

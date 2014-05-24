@@ -1820,9 +1820,13 @@ CastExpression.read = function(prev) {
     // var left = Expression.read(prev);
     // if (!left)
     //     left = Type.read(prev);
+    var state = tok.prepare();
     var left = Type.read(prev);
-    if (!left)
+    if (!(left && tok.peekParenClose())) {
+        // can't have just been a type
+        tok.restore(state);
         left = Expression.read(prev);
+    }
     tok.expectParenClose();
     
     if (tok.peekDot()) {
