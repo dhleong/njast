@@ -8,7 +8,8 @@ module.exports = function(req, res) {
     
     // console.log(req.headers, req.body);
 
-    console.log('Implement suggestions request @', req.path, ':', req.line, req.ch);
+    console.log('Implement suggestions request @', 
+        req.body.path, ':', req.line, req.ch);
     
     req.ast(function(err, ast) {
         if (err) return res.send(400, err.message);

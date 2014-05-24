@@ -25,9 +25,9 @@ var Formatters = {
 
 module.exports = function(req, res) {
     
-    console.log('Suggest request @', req.path, ':', req.line, req.ch);
+    console.log('Suggest request @', req.body.path, ':', req.line, req.ch);
     
-    Suggestor.of(req.path, req.buf)
+    Suggestor.of(req.body.path, req.buf)
     .at(req.line, req.ch)
     .find(function(err, resolved)  {
         console.log("err?", err);
