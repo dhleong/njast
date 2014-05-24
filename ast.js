@@ -1747,7 +1747,7 @@ Expression._expression2 = function(prev) {
         return;
 
     if (prev.tok.readString("instanceof")) 
-        return new InstanceOfExpression(prev, expr3);
+        expr3 = new InstanceOfExpression(prev, expr3);
 
     // infix op
     var opFactory = prev.tok.readInfixOp;
@@ -3080,7 +3080,6 @@ module.exports = {
 
         var ast = new Ast(path, buffer, options);
         try {
-            console.log(path);
             ast.parse(CompilationUnit);
         } catch(e) {
             callback(e);
