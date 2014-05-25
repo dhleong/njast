@@ -18,6 +18,18 @@ class Njast(object):
 
         self._lastImplementations = None
 
+    def _gotoDefinition(self):
+        data = self._run('define')
+        if not data:
+            Njast.displayError("Could not resolve definition")
+            return
+        if data.has_key('error'):
+            Njast.displayError(data['error'])
+            return
+
+        cmd = 'edit +%d %s' % (data['line'], data['path'])
+        vim.command(cmd)
+
     def _ensureCompletionCached(self):
         if self._lastImplementations is not None:
             return
@@ -128,6 +140,8 @@ class Njast(object):
 
         if pos is None:
             row, col = vim.current.window.cursor
+            if vim.eval('mode()') == 'n':
+                col += 1
             # pos = {'line': row, 'ch': col}
             pos = [row, col]
 
@@ -271,6 +285,7 @@ def _gen_method(name):
     
 SHORTCUTS = ['stop', 'run', 
     'ensureCompletionCached', 
+    'gotoDefinition',
     'fetchImplementations',
     'attemptImplement']
 for methodName in SHORTCUTS:

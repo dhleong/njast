@@ -24,14 +24,13 @@ endif
 " ------------------------------------------------------------------------
 
 function! njast#_attemptImplement()
-    " exit insert to grab the word...
-    " stopinsert
-    " let word = expand('<cword>')
-    " " then pop back where we were
-    " call feedkeys('A')
     exe 'py Njast.attemptImplement()'
     iunmap <buffer> <c-cr>
     return ""
+endfunction
+
+function! njast#GotoDefinition()
+    py Njast.gotoDefinition()
 endfunction
 
 function! njast#ImplementMethod()
@@ -104,6 +103,8 @@ function! njast#Enable()
     py Njast.get()
 
     nnoremap K :call njast#ShowJavadoc()<cr>
+    nnoremap gd :call njast#GotoDefinition()<cr>
+
     " if g:tern_map_keys
     "   call tern#DefaultKeyMap(g:tern_map_prefix)
     " endif
