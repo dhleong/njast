@@ -1362,10 +1362,7 @@ function SwitchStatement(prev) {
 
     tok.expectBlockOpen();
     while (!tok.readBlockClose()) {
-        var current = {
-            labels: this._readLabels()
-          , kids: [] 
-        };
+        var current = new SwitchGroup(prev, this._readLabels());
 
         if (!current.labels)
             tok.raise("switch labels");
@@ -1411,6 +1408,16 @@ SwitchStatement.prototype._readLabels = function() {
         tok.expectColon();
     }
 };
+
+function SwitchGroup(prev, labels) {
+    SimpleNode.call(this, prev);
+
+    this.labels = labels;
+    this.kids = [];
+
+    this._end();
+}
+util.inherits(SwitchGroup, SimpleNode);
 
 
 function IfStatement(prev) {

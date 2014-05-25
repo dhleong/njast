@@ -1259,6 +1259,25 @@ describe("Ast of FullAst.java", function() {
         });
     });
 
+    describe("resolves declaring type at", function() {
+        before(function() {
+            loader = require('../classloader').fromSource('FullAst.java');
+        });
+
+        it("120, 13: FullAst (it's overridden!)", function(done) {
+            ast.locate(120, 13)
+            .resolveDeclaringType(loader, function(err, type) {
+                if (err) throw err;
+                type.should.equal('net.dhleong.njast.FullAst');
+                done();
+            });
+        });
+        it("176, 15: FullAst (super.)");
+        it("183, 31: SomeAnnotation (constant)");
+        it("206, 59: FullInterface (cast)");
+        it("248, 16: Extended");
+        it("249, 18: static method");
+    });
 });
 
 describe("Ast of Foo.java", function() {

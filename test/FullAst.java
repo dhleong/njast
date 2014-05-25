@@ -233,7 +233,7 @@ public class FullAst<E, T extends Object & Imported>
 
     void fancyTernary(NestedClass<?> contentTypeEl) {
         final String contentTypeRaw = 
-            (contentTypeEl == null || contentTypeEl.isJsonNull())
+            (contentTypeEl == null || contentTypeEl.boolMethod())
                 ? null // umm...?
                 : contentTypeEl.toString();
     }
@@ -241,6 +241,12 @@ public class FullAst<E, T extends Object & Imported>
     boolean instanceofAnd(Object o) {
         return o instanceof FullAst
                 && field1.equals(((FullAst)o).field1);
+    }
+
+    /** Mostly to test declaring type resolution */
+    void fieldExtendedMethod() {
+        field1.fluidMethod();
+        Extended.createExtended();
     }
 
     /*
