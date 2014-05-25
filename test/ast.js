@@ -1259,9 +1259,31 @@ describe("Ast of FullAst.java", function() {
         });
     });
 
-    describe("resolves declaring type at", function() {
-        before(function() {
+    describe("evaluates type at", function() {
+        before(function(done) {
             loader = require('../classloader').fromSource('FullAst.java');
+
+            // force the right base dir (I know, this is crap)
+            loader.openClass('net.dhleong.njast.FullAst', done);
+        });
+
+        // NB we're calling a method declared in the superclass (Extended)
+        //  of the type we're using it from (Imported)
+        it("248, 16 -> Extended", function(done) {
+            ast.locate(248, 16)
+            .evaluateType(loader, function(err, resolved) {
+                if (err) throw err;
+                resolved.type.should.equal('net.dhleong.njast.subpackage.Extended');
+                done();
+            });
+        });
+    });
+
+    describe("resolves declaring type at", function() {
+        before(function(done) {
+            loader = require('../classloader').fromSource('FullAst.java');
+            // force the right base dir (I know, this is crap)
+            loader.openClass('net.dhleong.njast.FullAst', done);
         });
 
         it("120, 13: FullAst (it's overridden!)", function(done) {
@@ -1275,7 +1297,16 @@ describe("Ast of FullAst.java", function() {
         it("176, 15: FullAst (super.)");
         it("183, 31: SomeAnnotation (constant)");
         it("206, 59: FullInterface (cast)");
-        it("248, 16: Extended");
+
+        it("248, 16: Extended", function(done) {
+            ast.locate(248, 16)
+            .resolveDeclaringType(loader, function(err, type) {
+                if (err) throw err;
+                type.should.equal('net.dhleong.njast.subpackage.Extended');
+                done();
+            });
+        });
+
         it("249, 18: static method");
     });
 });
@@ -1530,7 +1561,7 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("Static method", function(done) {
+        it("94, 32: static method", function(done) {
             var node = ast.locate(94, 32);
             node.evaluateType(loader, function(err, value) {
                 if (err) throw err;
@@ -1550,7 +1581,7 @@ describe("Ast of Foo.java", function() {
             });
         });
 
-        it("96, 14: fluid -> Fanciest", function(done) {
+        it("96, 14: static factory -> Fanciest", function(done) {
             ast.locate(96, 14)
             .evaluateType(loader, function(err, value) {
                 if (err) throw err;

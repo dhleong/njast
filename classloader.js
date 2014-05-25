@@ -39,9 +39,22 @@ ClassLoader.prototype._getPath = function(className) {
  *      fn(err, projection)
  *  where the projection is a unified json format across 
  *  .class loaders and source loaders
+ *
+ * The projection can be provided in two modes: general and 
+ *  specific. In general mode, you provide an array of keys
+ *  to extract from the type:
+ *      methods, fields
+ *  The result will be a dict with those keys above as keys,
+ *   and an array of matching items as the values
+ *
+ * In specific mode, you provide a dict such as:
+ *      {method: "foo"}
+ *  to search for a specific item in this type hierarchy.
+ *  The result will be the projection for that item only,
+ *  if found. 
  *  
  * @param qualifiedName Class name to load
- * @param projection The projection to retrieve from the type
+ * @param projection The projection to retrieve from the type.
  * @param callback Callback function
  */
 ClassLoader.prototype.openClass = function(/* qualifiedName, projection, callback */) {
@@ -91,7 +104,8 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
             loader.openClass(qualifiedName, projection, 
                     function(err, result) {
                 // cache successful results
-                if (result && !err)
+                // FIXME merge the projection types
+                if (result && !err && Array.isArray(projection))
                     self._cached[qualifiedName] = result;
 
                 // call through

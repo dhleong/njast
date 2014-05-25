@@ -37,6 +37,22 @@ Ast.FROM_ANON   = 'ann';
 /** type body */
 Ast.FROM_BODY   = 'body';
 
+/**
+ * Convenience when you're not sure if "type" is a string
+ *  or a node. The callback will always be fired
+ *  as if from SimpleNode.evaluateType (IE: with an err
+ *  value first, and a dict with {type:path} second)
+ */
+Ast.prototype._evaluateType = function(classLoader, type, cb) {
+    if (type instanceof SimpleNode)
+        return type.evaluateType(classLoader, cb);
+
+    this.resolveType(classLoader, type, function(resolved) {
+        cb(null, {type: resolved});
+    });
+};
+
+
 Ast.prototype.locate = function(line, ch) {
     if (!this._root)
         throw new Error("Ast not parsed yet");
@@ -88,6 +104,61 @@ Ast.prototype.projectType = function(classLoader, type, projection, cb) {
         typeImpl.body.project(classLoader, projection, cb);
     else
         typeImpl.project(classLoader, projection, cb);
+};
+
+/**
+ * Search the parent types (if any) of the given type
+ *  by resolving those types and applying the given
+ *  searcher callback to them.
+ *
+ * @param type A Type node (Class, Interface, etc.),
+ *  or the fully-qualified string path of such a type.
+ * @param searcher A function which accepts two arguments:
+ *  a resolved type path, and a callback method to call
+ *  with the results of your searcher function. The callback
+ *  is a standard node-style fn(err, result) callback.
+ */
+Ast.prototype.searchParents = function(classLoader, type, searcher, callback) {
+    if (typeof(type) == 'string')
+        type = this.qualifieds[type];
+    if (!type)
+        return callback(new Error('Could not resolve ' + type));
+
+    var candidates = [];
+    if (type.extends)
+        candidates.push(type.extends);
+    if (type.implements && Array.isArray(type.implements))
+        candidates = candidates.concat(type.implements);
+    
+    // resolve the type and return tasks for searching it for the method
+    var root = this;
+    var resolver = function(type, onResolved) {
+        root.resolveType(classLoader, type.name, function(resolved) {
+            if (!resolved) return onResolved(null);
+
+            onResolved(null, function(onMethodLocated) {
+                searcher(resolved, onMethodLocated);
+            });
+        });
+    }
+
+    // resolve candidate type names into tasks to apply to your searcher
+    async.map(candidates, resolver, function(err, resolverTasks) {
+        if (err) return callback(err);
+
+        // call tasks in parallel
+        async.parallel(resolverTasks, function(err, results) {
+            if (err) return callback(err);
+
+            var result = results.reduce(function(last, item) {
+                if (last) return last;
+                return item;
+            }, null);
+
+            if (!result) return callback(new Error("Unable to find " + type.name));
+            callback(null, result);
+        });
+    });
 };
 
 
@@ -560,13 +631,34 @@ VarDef.prototype.evaluateType = function(classLoader, cb) {
     });
 };
 
-VarDef.prototype.project = function() {
-    return {
+VarDef.prototype.project = function(classLoader, cb) {
+    var base = {
         name: this.name
-      , type: this.type.project() + (this.array ? '[]' : '')
-      , mods: (this.mods ? this.mods.project() : '')
       , javadoc: this.javadoc
-    }
+    };
+
+    var self = this;
+    async.parallel([
+        function(done) {
+            self.type.project(classLoader, function(err, type) {
+                if (err) return done(err);
+
+                base.type = type + self.array ? '[]' : '';
+                done();
+            });
+        },
+        function(done) {
+            if (!this.mods) return done();
+            this.mods.project(classLoader, function(err, res) {
+                if (err) return done(err);
+
+                base.mods = res;
+                done();
+            });
+        }
+    ], function(err) {
+        cb(err, base);
+    });
 };
 
 
@@ -1011,19 +1103,49 @@ ClassBody.prototype.evaluateType = function(classLoader, cb) {
 
 
 ClassBody.prototype.project = function(classLoader, projection, callback) {
-    var result = {};
     var self = this;
-    projection.forEach(function(type) {
-        if (!self[type])
-            return;
+    var result;
+    if (Array.isArray(projection)) {
+        result = {};
+        var tasks = projection.reduce(function(res, type) {
+            if (!self[type])
+                return res;
 
-        // TODO actually pass classLoader
-        result[type] = self[type].map(function(el) {
-            return el.project();
+            res[type] = function(cb) {
+                async.map(self[type], function(item, mapped) {
+                    item.project(classLoader, mapped);
+                }, cb);
+            };
+
+            return res;
+        }, {});
+
+        async.parallel(tasks, callback);
+    } else {
+        // ex: {method: "foo"} or {field: "bar"}
+        var mode = Object.keys(projection)[0];
+        var target = projection[mode];
+
+        // TODO param types?
+        var key = mode + 's';
+        if (!this[key])
+            return callback(new Error("Invalid mode " + mode));
+
+        var filtered = this[key].filter(function(item) {
+            return item.name == target;
         });
-    });
 
-    callback(null, result);
+        if (!(filtered && filtered.length)) {
+            // search parent types for it
+            return this.getRoot().searchParents(classLoader, this.getParent(),
+                function(parent, resolve) {
+                    classLoader.openClass(parent, projection, resolve);
+                }, callback);
+        }
+
+        // found it!
+        filtered[0].project(classLoader, callback);
+    }
 };
 
 
@@ -1120,15 +1242,44 @@ function Method(prev, mods, type, typeParams, name) {
 }
 util.inherits(Method, ScopeNode);
 
-Method.prototype.project = function() {
-    return {
+Method.prototype.project = function(classLoader, cb) {
+    var base = {
         name: this.name
       , qualified: this.qualifiedName
       , javadoc: this.javadoc
-      , mods: (this.mods ? this.mods.project() : '')
-      , returns: this.returns.project()
-      , params: this.params.project()
-    }
+      , mods: ''
+    };
+
+    var self = this;
+    async.parallel([
+        function(done) {
+            if (!self.mods) return done();
+            self.mods.project(classLoader, function(err, proj) {
+                if (err) return done(err);
+
+                base.mods = proj;
+                done();
+            });
+        },
+        function(done) {
+            self.returns.project(classLoader, function(err, proj) {
+                if (err) return done(err);
+
+                base.returns = proj;
+                done();
+            });
+        },
+        function(done) {
+            self.params.project(classLoader, function(err, proj) {
+                if (err) return done(err);
+
+                base.params = proj;
+                done();
+            });
+        }
+    ], function(err) {
+        cb(err, base);
+    });
 };
 
 
@@ -2502,74 +2653,69 @@ function MethodInvocation(prev, state, name, typeArgs) {
 }
 util.inherits(MethodInvocation, SimpleNode);
 
-MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
-    // figure out where we live
+function _declaringFromQualified(method) {
+    var declaring = method.qualified || method.qualifiedName;
+    return declaring.substr(0, declaring.indexOf('#'));
+}
+
+MethodInvocation.prototype.resolveDeclaringType = function(classLoader, cb) {
     var self = this;
     if (!this._chain) {
         // statically imported?
         var root = this.getRoot();
         var staticImportParent = root.getStaticImportType(this.name);
         if (staticImportParent) 
-            return self._getReturnType(classLoader, staticImportParent, cb);
+            return cb(null, staticImportParent, null);
 
         // local...?
         var method = this.searchMethodScope(this.name);
-        if (method) return _dispatchReturnType(classLoader, method, cb);
+        if (method) return cb(null, _declaringFromQualified(method), method);
         
         // superclass or interfaces
-        var candidates = [];
         var type = this.getDeclaringType();
         if (!type)
             return cb(new Error("Couldn't determine declaring type for " + this.name));
 
-        if (type.extends)
-            candidates.push(type.extends);
-        if (type.implements && Array.isArray(type.implements))
-            candidates = candidates.concat(type.implements);
-        
-        // resolve the type and return tasks for searching it for the method
-        var resolver = function(type, onResolved) {
-            root.resolveType(classLoader, type.name, function(resolved) {
-                if (!resolved) return onResolved(null);
-
-                // var called = {count:0};
-                onResolved(null, function(onMethodLocated) {
-                    classLoader.resolveMethodReturnType(resolved, self.name, onMethodLocated);
-                    // classLoader.resolveMethodReturnType(resolved, self.name, function(err, res) {
-                    //     console.log("Called", called.count++);
-                    //     onMethodLocated(null, {from:'a',type: 'hi' + called.count});
-                    // });
-                });
-            });
-        }
-
-        // resolve candidate type names into tasks to get return type
-        async.map(candidates, resolver, function(err, resolverTasks) {
+        root.searchParents(classLoader, type, function(parent, resolve) {
+            classLoader.openClass(parent, {method: self.name}, resolve);
+        }, function(err, method) {
             if (err) return cb(err);
 
-            // call tasks in parallel
-            async.parallel(resolverTasks, function(err, results) {
-                if (err) return cb(err);
-
-                var result = results.reduce(function(last, item) {
-                    if (last) return last;
-                    return item;
-                });
-
-                if (!result) return cb(new Error("Unable to find " + type.name + "#" + self.name));
-                cb(null, result);
-            });
+            cb(null, _declaringFromQualified(method), method); 
         });
     } else {
         this._chain.evaluateType(classLoader, function(err, resolved) {
             if (err) {
                 return cb(new Error("Could not resolve " 
-                    + this.name + "(): " + err.message));
+                    + self.name + "(): " + err.message));
             }
 
-            self._getReturnType(classLoader, resolved.type, cb);
+            // ask the classloader to find it
+            classLoader.openClass(resolved.type, {method:self.name}, 
+            function(err, method) {
+                if (err) return cb(err);
+
+                cb(null, _declaringFromQualified(method), method); 
+            });
+            // cb(new Error("INCOMPLETE; " + resolved));
         });
     }
+};
+
+MethodInvocation.prototype.evaluateType = function(classLoader, cb) {
+    // figure out where we live
+    var self = this;
+    this.resolveDeclaringType(classLoader, function(err, type, method) {
+        if (err) return cb(err);
+
+        if (method === null) {
+            // static-imported
+            return self._getReturnType(classLoader, type, cb);
+        }
+        
+        // self._getReturnType(classLoader, method.returns, cb);
+        _dispatchReturnType(classLoader, method, cb);
+    });
 };
 
 /**
@@ -2590,6 +2736,15 @@ function _dispatchReturnType(classLoader, m, cb) {
         });
     }
 
+    if (!(m instanceof SimpleNode)) {
+        // this is an object which should already be fully resolved
+        return cb(null, {
+            type: m.returns
+          , from: Ast.FROM_METHOD
+        });
+    }
+
+    // it's a SimpleNode... evaluate the type
     m.returns.evaluateType(classLoader, function(err, resolved) {
         if (err) return cb(err);
         cb(null, {
@@ -2638,10 +2793,10 @@ function FormalParameters(prev) {
 }
 util.inherits(FormalParameters, ScopeNode);
 
-FormalParameters.prototype.project = function() {
-    return this.kids.map(function(def) {
-        return def.project();
-    });
+FormalParameters.prototype.project = function(classLoader, cb) {
+    async.map(this.kids, function(def, cb) {
+        def.project(classLoader, cb);
+    }, cb);
 };
 
 
@@ -2677,13 +2832,16 @@ function Modifiers(prev) {
 }
 util.inherits(Modifiers, SimpleNode);
 
-Modifiers.prototype.project = function() {
-    return this.kids.map(function(el) {
+Modifiers.prototype.project = function(classLoader, cb) {
+    async.map(this.kids, function(el, cb) {
         if (typeof(el) == 'string')
-            return el;
+            return cb(null, el);
 
-        return el.project();
-    }).join(' ');
+        el.project(classLoader, cb);
+    }, function(err, items) {
+        if (err) return cb(err);
+        cb(null, items.join(' '));
+    })
 };
 
 
@@ -2730,8 +2888,8 @@ function Annotation(prev) {
 }
 util.inherits(Annotation, SimpleNode);
 
-Annotation.prototype.project = function() {
-    return '@' + this.name; // TODO args?
+Annotation.prototype.project = function(classLoader, cb) {
+    cb(null, '@' + this.name); // TODO args?
 };
 
 
@@ -2901,8 +3059,8 @@ function BasicType(prev, skipArray) {
 }
 util.inherits(BasicType, TypeNode);
 
-BasicType.prototype.project = function() {
-    return this.name;
+BasicType.prototype.project = function(classLoader, cb) {
+    cb(null, this.name);
 };
 
 
@@ -2936,8 +3094,10 @@ function ReferenceType(prev, skipArray, allowDiamond) {
 }
 util.inherits(ReferenceType, TypeNode);
 
-ReferenceType.prototype.project = function() {
-    return this.name;
+ReferenceType.prototype.project = function(classLoader, callback) {
+    this.getRoot().resolveType(classLoader, this.name, function(type) {
+        callback(null, type);
+    });
 };
 
 ReferenceType.prototype.resolve = function(classLoader, callback) {
