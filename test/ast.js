@@ -1277,6 +1277,8 @@ describe("Ast of FullAst.java", function() {
                 done();
             });
         });
+
+        it("183, 31: SomeAnnotation.MAGIC -> int");
     });
 
     describe("resolves declaring type at", function() {
@@ -1304,7 +1306,15 @@ describe("Ast of FullAst.java", function() {
             });
         });
 
-        it("183, 31: SomeAnnotation (constant)");
+        it("183, 31: SomeAnnotation (constant)", function(done) {
+            ast.locate(183, 31)
+            .resolveDeclaringType(loader, function(err, type) {
+                if (err) throw err;
+                type.should.equal('net.dhleong.njast.SomeAnnotation');
+                done();
+            });
+        });
+
         it("206, 59: FullInterface (cast)");
 
         it("248, 16: Extended", function(done) {

@@ -2625,6 +2625,10 @@ IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
     // SimpleNode.prototype.evaluateType.call(this, classLoader, cb);
 };
 
+IdentifierExpression.prototype.resolveDeclaringType = function(classLoader, cb) {
+    cb(new Error("UNIMPLEMENTED"));
+};
+
 
 IdentifierExpression.read = function(prev) {
     var tok = prev.tok;
