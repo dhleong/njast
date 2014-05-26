@@ -1112,9 +1112,13 @@ ClassBody.prototype.project = function(classLoader, projection, callback) {
                 return res;
 
             res[type] = function(cb) {
-                async.map(self[type], function(item, mapped) {
-                    item.project(classLoader, mapped);
-                }, cb);
+                if (Array.isArray(self[type])) {
+                    async.map(self[type], function(item, mapped) {
+                        item.project(classLoader, mapped);
+                    }, cb);
+                } else {
+                    self[type].project(classLoader, cb);
+                }
             };
 
             return res;
@@ -2169,6 +2173,27 @@ function SuperExpression(prev, state) {
     this._end();
 }
 util.inherits(SuperExpression, SimpleNode);
+
+SuperExpression.prototype.evaluateType = function(classLoader, cb) {
+    if (this._chain) {
+        this._chain.evaluateType(classLoader, function(err, resolved) {
+            // ask the classloader to find it
+            classLoader.openClass(resolved.type, ['extends'], 
+            function(err, projection) {
+                if (err) return cb(err);
+                if (!projection.extends) 
+                    return cb(new Error("No supertype of " + resolved.type));
+                cb(null, projection.extends);
+            });
+        });
+    } else {
+        var type = this.getDeclaringType();
+        if (!type) return cb(new Error("Could not get declaring type for super"));
+        if (!type.extends) return cb(new Error("No supertype of " + type.name));
+        type.extends.evaluateType(classLoader, cb);
+    }
+};
+
 
 function TernaryExpression(prev, question) {
     SimpleNode.call(this, prev);

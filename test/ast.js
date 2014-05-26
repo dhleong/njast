@@ -1294,7 +1294,16 @@ describe("Ast of FullAst.java", function() {
                 done();
             });
         });
-        it("176, 15: FullAst (super.)");
+
+        it("176, 15: FullBase (super.)", function(done) {
+            ast.locate(176, 15)
+            .resolveDeclaringType(loader, function(err, type) {
+                if (err) throw err;
+                type.should.equal('net.dhleong.njast.subpackage.FullBase');
+                done();
+            });
+        });
+
         it("183, 31: SomeAnnotation (constant)");
         it("206, 59: FullInterface (cast)");
 
