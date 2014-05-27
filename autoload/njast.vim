@@ -100,7 +100,7 @@ function! njast#Enable()
     " let b:ternBufferSentAt = -1
     " let b:ternInsertActive = 0
     setlocal omnifunc=njast#Complete
-    py Njast.get()
+    py Njast.init()
 
     nnoremap K :call njast#ShowJavadoc()<cr>
     nnoremap gd :call njast#GotoDefinition()<cr>

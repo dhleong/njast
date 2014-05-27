@@ -54,7 +54,7 @@ app.post('/log', function(req, res) {
 });
 
 // middleware that handles request body
-app.use(function(req, res, next) {
+var bufferParser = function(req, res, next) {
 
     if (!req.body)
         return res.send(400, "Empty body");
@@ -101,7 +101,7 @@ app.use(function(req, res, next) {
     };
 
     next();
-});
+};
 
 // connect all controllers
 require('fs').readdir('./controllers', function(err, files) {
@@ -111,7 +111,12 @@ require('fs').readdir('./controllers', function(err, files) {
         var path = '/' + file.substr(0, file.indexOf('.'));
         if (path == '/')
             return;
-        app.post(path, require('./controllers' + path)); 
+
+        var controller = require('./controllers' + path);
+        var middleware = controller.usesBuffers === false
+            ? []
+            : bufferParser;
+        app.post(path, middleware, controller); 
     });
 });
 

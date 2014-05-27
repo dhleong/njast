@@ -1,5 +1,6 @@
 
 import vim, os, platform, subprocess, urllib2, json, re, time
+from threading import Thread
 
 class Njast(object):
 
@@ -15,6 +16,7 @@ class Njast(object):
             self.port = 3000
         else:
             self.port = self._startServer()
+        self.proc = None
 
         self._lastImplementations = None
 
@@ -118,7 +120,7 @@ class Njast(object):
     def _log(self, message):
         self._makeRequest('log', {'data': message})
 
-    def _makeRequest(self, type, doc):
+    def _makeRequest(self, type, doc, raiseErrors=True):
         try:
           # float(vim.eval("g:tern_request_timeout"))
             url = 'http://localhost:' + str(self.port) + '/' + type
@@ -129,10 +131,31 @@ class Njast(object):
                 data=json.dumps(doc), \
                 headers={'Content-Type':'application/json'})
             res = urllib2.urlopen(req, timeout=self.TIMEOUT)
+            if res.getcode() == 204:
+                return True # indicate success somehow
+
             return json.loads(res.read())
         except urllib2.HTTPError, error:
-            Njast.displayError(error.read())
+            if raiseErrors:
+                Njast.displayError(error.read())
             return None
+
+    def _asyncRequest(self, type, doc):
+        """Create a request via _makeRequest and 
+        run it asynchronously. This is just designed
+        to update the server's state without slowing
+        down vim; it cannot be used to retrieve any data
+
+        :type: Endpoint to hit
+        :doc: dict with json data to send
+
+        """
+        kwargs = {
+            'type': type,
+            'doc': doc,
+            'raiseErrors': False
+        }
+        Thread(target=self._makeRequest, kwargs=kwargs).start()
 
     def _run(self, type, pos=None):
         """Run a command
@@ -167,11 +190,13 @@ class Njast(object):
         """Stops the njast server, if started
         """
         
-        if self.proc is None: return
-        self.proc.stdin.close()
-        self.proc.kill()
-        self.proc.wait()
+        proc = self.proc
         self.proc = None
+        if proc is None: return
+
+        proc.stdin.close()
+        proc.kill()
+        proc.wait()
 
 
     def _startServer(self):
@@ -238,6 +263,17 @@ class Njast(object):
         newInstance = Njast()
         cls._instance = newInstance
         return newInstance
+
+    @classmethod
+    def init(cls):
+        """Initialize Njast with a new buffer
+        :returns: @todo
+
+        """
+        path = vim.current.buffer.name
+        
+        njast = cls.get()
+        njast._asyncRequest('init', {'path': path})
 
     class SuggestFormat:
         """Formats suggestions by types"""
