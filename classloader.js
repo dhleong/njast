@@ -5,7 +5,8 @@ var async = require('async')
   , fs = require('fs')
   
   , Ast = require('./ast')  
-  , parseFile = Ast.parseFile;
+  , parseFile = Ast.parseFile
+  , readFile = Ast.readFile;
 
 /**
  * Base ClassLoader interface; mostly for the
@@ -32,6 +33,20 @@ ClassLoader.prototype._getPath = function(className) {
 
     return split;
 };
+
+/**
+ * Attempt to read an Ast at the given path. 
+ *  Mostly, this is for providing caching
+ *
+ * @param path (required) Path to the file
+ * @param buf (required) Pre-read buffer to use;
+ *  if none available, simply pass "null"
+ * @param cb (required) Callback when ready
+ */
+ClassLoader.prototype.openAst = function(/* path, buf, options, cb */) {
+    throw new Error("openAst not implemented");
+};
+
 
 /**
  * Attempts to locate the qualified class name within this
@@ -75,6 +90,19 @@ ClassLoader.prototype.resolveMethodReturnType = function(/* type, name, cb */) {
 };
 
 /**
+ * Update the cache for the given path with an object.
+ *  This is mostly used to pre-cache the AST for
+ *  a script file, as the cache for JarClassLoader is
+ *  unlikely to need updating
+ *
+ * @return True if the cache was updated
+ */
+ClassLoader.prototype.putCache = function(/* path, object */) {
+    throw new Error("putCache not implemented");
+};
+
+
+/**
  * The ComposedClassLoader doesn't do any loading itself; instead
  *  it composes multiple ClassLoader implementations and provides
  *  caching
@@ -83,6 +111,28 @@ function ComposedClassLoader(loaders) {
     this._loaders = loaders;
     this._cached = {};
 }
+
+ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
+    var loaders = this._loaders.map(function(loader) {
+        return function(resolve) {
+            loader.openAst(path, buf, options, resolve);
+        };
+    });
+
+    async.parallel(loaders, function(err, results) {
+        if (err) return callback(err);
+
+        // reduce results into the first successful one
+        var result = results.reduce(function(last, item) {
+            if (last) return last;
+            return item;
+        });
+
+        // finally, call the actual callback
+        callback(err, result);
+    });
+};
+
 
 ComposedClassLoader.prototype.openClass = function(qualifiedName, 
         projection, callback) {
@@ -127,6 +177,16 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
     });
 };
 
+ComposedClassLoader.prototype.putCache = function(path, obj) {
+    this._loaders.some(function(loader) {
+        if (loader.putCache(path, obj))
+            return true;
+
+        return false;
+    });
+};
+
+
 ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
     var qualifiedName = type + '#' + name; // TODO args?
     if (qualifiedName in this._cached)
@@ -167,24 +227,38 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
  * Base class for ClassLoaders that read source files
  */
 function SourceClassLoader() {
+    this._astCache = {};
 }
 util.inherits(SourceClassLoader, ClassLoader);
+
+SourceClassLoader.prototype.openAst = function(path, buf, options, cb) {
+
+    var cached = this._astCache[path];
+    if (cached) return cb(null, cached);
+
+    if (buf) {
+        parseFile(path, buf, options, cb);
+    } else {
+        readFile(path, options, cb);
+    }
+};
+
 
 SourceClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
     var self = this;
     this._getPathForType(type, function(err, path) {
         if (err) return cb(err);
+
+        var cached = this._astCache[path];
+        if (cached)
+            return cached.resolveMethodReturnType(self, type, name, cb);
         
-        fs.readFile(path, function(err, buf) {
+        readFile(path, {
+            strict: false
+        }, function(err, ast) {
             if (err) return cb(err);
 
-            parseFile(path, buf, {
-                strict: false
-            }, function(err, ast) {
-                if (err) return cb(err);
-                
-                ast.resolveMethodReturnType(self, type, name, cb);
-            });
+            ast.resolveMethodReturnType(self, type, name, cb);
         });
     });
 };
@@ -218,6 +292,11 @@ SourceClassLoader.prototype.openClass = function(qualifiedName,
     });
 };
 
+SourceClassLoader.prototype.putCache = function(path, ast) {
+    if (~path.indexOf(this._root))
+        this._astCache[path] = ast;
+};
+
 
 SourceClassLoader.prototype._getPathForType = function(/* type, cb */) {
     throw new Error(this.constructor.name + " must implement _getPathForType");
@@ -231,6 +310,8 @@ SourceClassLoader.prototype._getPathForType = function(/* type, cb */) {
  *  as expected from a 'src' directory in a project root
  */
 function SourceProjectClassLoader(projectRoot) {
+    SourceClassLoader.call(this);
+
     this._root = projectRoot;
     this._paths = {};
 }
@@ -288,6 +369,8 @@ SourceProjectClassLoader.prototype._getPathForType = function(qualifiedName, cb)
  *  in the given directory
  */
 function SourceDirectoryClassLoader(dir) {
+    SourceClassLoader.call(this);
+
     this._root = dir;
 }
 util.inherits(SourceDirectoryClassLoader, SourceClassLoader);
@@ -314,6 +397,16 @@ function JarClassLoader(jarPath) {
     this._jar = jarPath;
 }
 util.inherits(JarClassLoader, ClassLoader);
+
+JarClassLoader.prototype.openAst = function(path, buf, options, callback) {
+    // we can't open ast
+    callback(null, null);
+};
+
+
+JarClassLoader.prototype.putCache = function() {
+    // nop; we won't need to update cache
+};
 
 
 /** wrap any loader in a ComposedClassLoader for caching */

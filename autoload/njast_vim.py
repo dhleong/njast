@@ -279,9 +279,12 @@ class Njast(object):
         """Formats suggestions by types"""
         @staticmethod
         def fields(item):
-            info = item['mods'] + \
-                    ' ' + item['type'] + \
-                    ' ' + item['name']
+            mods = ''
+            if item.has_key('mods'):
+                mods = item['mods'] + ' '
+            info = mods + \
+                    item['type'] + ' ' + \
+                    item['name']
             if item.has_key('javadoc'):
                 info += '\n\n' + item['javadoc']
                 

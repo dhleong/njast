@@ -34,6 +34,14 @@ Suggestor.prototype.find = function(cb) {
         colNo = dot - 1;
     }
 
+    // TODO We *need* to parse AST directly, as the
+    //  file may not have been saved yet, so the
+    //  cache may be old; however, we don't need the 
+    //  full AST here. We can parse a partial buffer,
+    //  and then rely on a cached AST for resolution
+    // TODO However, the suggest controller *could*
+    //  provide us with the ast, so the middleware
+    //  can take care of the partial AST dirty work
     var loader = this._loader;
     parseFile(this._path, this._buffer, {
         strict: false
