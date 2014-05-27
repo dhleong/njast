@@ -105,6 +105,11 @@ function! njast#Enable()
     nnoremap K :call njast#ShowJavadoc()<cr>
     nnoremap gd :call njast#GotoDefinition()<cr>
 
+    augroup NjastBuffer
+        autocmd! * <buffer>
+        autocmd BufWritePost <buffer> :py Njast.init()
+    augroup END
+
     " if g:tern_map_keys
     "   call tern#DefaultKeyMap(g:tern_map_prefix)
     " endif
