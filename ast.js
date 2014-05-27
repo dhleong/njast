@@ -1,5 +1,6 @@
 
-var events = require('events')
+var fs = require('fs')
+  , events = require('events')
   , util = require('util')
   , async = require('async')
   , Tokenizer = require('./tokenizer');
@@ -3309,5 +3310,21 @@ module.exports = {
             return;
         }
         callback(null, ast);
+    },
+
+    /**
+     * Convenience for when you don't already have a buffer
+     */
+    readFile: function(path, options, callback) {
+        if (!callback) {
+            callback = options;
+            options = {};
+        }
+
+        fs.readFile(path, function(err, buf) {
+            if (err) return callback(err);
+
+            return module.exports.parseFile(path, buf, options, callback);
+        });
     }
 }

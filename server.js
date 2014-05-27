@@ -45,13 +45,8 @@ var app = express();
 app.use(require('body-parser')());
 
 // --------------------------------------------------------------------------------
-// prepare routing
+// middleware
 // --------------------------------------------------------------------------------
-
-app.post('/log', function(req, res) {
-    console.log('<<', req.body.data);
-    res.json({})
-});
 
 // middleware that handles request body
 var bufferParser = function(req, res, next) {
@@ -102,6 +97,16 @@ var bufferParser = function(req, res, next) {
 
     next();
 };
+
+// --------------------------------------------------------------------------------
+// prepare routing
+// --------------------------------------------------------------------------------
+
+// util endpoint
+app.post('/log', function(req, res) {
+    console.log('<<', req.body.data, req.body.obj);
+    res.json({})
+});
 
 // connect all controllers
 require('fs').readdir('./controllers', function(err, files) {

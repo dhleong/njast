@@ -66,7 +66,10 @@ class Njast(object):
             formatter = getattr(Njast.SuggestFormat, type)
             for entry in entries:
 
-                completions.append(formatter(entry))
+                try:
+                    completions.append(formatter(entry))
+                except:
+                    self._log("Error formatting", entry)
 
         vim.command("let b:njastLastCompletion = " + json.dumps(completions))
         start, end = (data["start"]["ch"], data["end"]["ch"])
@@ -117,8 +120,8 @@ class Njast(object):
             UltiSnips_Manager.expand_anon(buf, trigger=word)
         except: pass
         
-    def _log(self, message):
-        self._makeRequest('log', {'data': message})
+    def _log(self, message, obj=None):
+        self._makeRequest('log', {'data': message, 'obj': obj})
 
     def _makeRequest(self, type, doc, raiseErrors=True):
         try:
@@ -279,9 +282,12 @@ class Njast(object):
         """Formats suggestions by types"""
         @staticmethod
         def fields(item):
-            info = item['mods'] + \
-                    ' ' + item['type'] + \
-                    ' ' + item['name']
+            mods = ''
+            if item.has_key('mods'):
+                mods = item['mods'] + ' '
+            info = mods + \
+                    item['type'] + ' ' + \
+                    item['name']
             if item.has_key('javadoc'):
                 info += '\n\n' + item['javadoc']
                 
@@ -293,8 +299,12 @@ class Njast(object):
 
         @staticmethod
         def methods(item):
+            returns = item['returns']
+            if returns is None:
+                returns = '(unknown)'
+                
             info = item['mods'] + \
-                    ' ' + item['returns'] + \
+                    ' ' + returns + \
                     ' ' + item['name']
 
             # arguments
