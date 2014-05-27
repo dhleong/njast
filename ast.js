@@ -35,7 +35,7 @@ Ast.FROM_TYPE   = 'typ';
 /** anonymous type */
 Ast.FROM_ANON   = 'ann';
 /** type body */
-Ast.FROM_BODY   = 'body';
+Ast.FROM_BODY   = 'bod';
 
 /**
  * Convenience when you're not sure if "type" is a string
@@ -251,13 +251,14 @@ function SimpleNode(prev) {
     this.tok = prev.tok;
     this.start = prev.tok.getPos();
     this._root.log("Created", this.constructor.name, this.start, this.name);
+    this.log = this._root.log;
 }
 
 /** Call at the end of parsing */
 SimpleNode.prototype._end = function() {
     this.end = this.tok.getPos();
     this.publish();
-    this._root.log("END", this.constructor.name, this.end, this.name);
+    this.log("END", this.constructor.name, this.end, this.name);
 }
 
 SimpleNode.prototype.contains = function(line, ch) {
@@ -326,7 +327,7 @@ SimpleNode.prototype.getKids = function() {
 
 SimpleNode.prototype.locate = function(line, ch) {
     if (!this.contains(line, ch)) {
-        console.log(this.constructor.name, this.name, this.start, this.end, "does not contain", line, ch);
+        this.log(this.constructor.name, this.name, this.start, this.end, "does not contain", line, ch);
         return false; // quick reject... WE don't contain, so kids can't
     }
 
@@ -2540,7 +2541,7 @@ function Arguments(prev) {
         this.kids = [];
 
         do {
-            this.kids.push(Expression.read(prev));
+            this.kids.push(Expression.read(this));
         } while (tok.readComma());
 
         tok.expectParenClose();
@@ -2626,7 +2627,30 @@ IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
 };
 
 IdentifierExpression.prototype.resolveDeclaringType = function(classLoader, cb) {
-    cb(new Error("UNIMPLEMENTED"));
+    if (this._chain) {
+        // is this sufficient?
+        this._chain.resolveDeclaringType(classLoader, cb);
+        return;
+    }
+
+    // am I actually a type?
+    this.getRoot().resolveType(classLoader, this.name, function(resolved) {
+        if (resolved) return cb(null, resolved);
+
+        // nope... I'm definitely a var
+        cb(new Error("UNIMPLEMENTED"));
+    });
+
+//     var parent = this.getParent();
+//     console.log("I am", this.constructor.name, this.name);
+//     console.log(this.name, 
+//         this.start, this.end,
+//         parent.constructor.name,
+//         parent.start, parent.end,
+//         parent.kids.length,
+//         parent.kids[0].constructor.name,
+//         parent.kids[0].left.name);
+//     cb(new Error("UNIMPLEMENTED"));
 };
 
 
@@ -3044,7 +3068,7 @@ function TypeNode(prev, skipArray) {
 
     var tok = this.tok;
     this.name = tok.readIdentifier();
-    this.simpleName = this.name; // Simple name will drop all TypeArguments
+    this.simpleName = this.name; // Simple name will drop all typearguments
 
     if (!this.name)
         tok.raiseUnsupported("Empty name for " + this.constructor.name);

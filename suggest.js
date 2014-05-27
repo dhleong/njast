@@ -41,7 +41,7 @@ Suggestor.prototype.find = function(cb) {
         if (err) return cb(err);
 
         var node = ast.locate(lineNo, colNo)
-        console.log(node.constructor.name, node.name, node.start, node.end);
+        // console.log(node.constructor.name, node.name, node.start, node.end);
         node.evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
