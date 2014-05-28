@@ -231,12 +231,19 @@ var Commentor = {
  */
 function Tokenizer(path, buffer, options) {
     this._path = path;
-    this._fp = buffer;
-    this._start = buffer.offset;
     this._strict = true;
     this._level = Tokenizer.Level.DEFAULT;
 
-    this._line = 1;
+    if (buffer.text) {
+        this._type = buffer.type;
+        this._fp = buffer.text;
+    } else {
+        this._type = 'full';
+        this._fp = buffer;
+    }
+    this._start = buffer.offset;
+
+    this._line = buffer.start || 1;
     this._col = 1;
     this._pos = 0;
 
@@ -272,6 +279,11 @@ Tokenizer.Level = {
 Tokenizer.prototype.getJavadoc = function() {
     return Commentor.clear();
 };
+
+Tokenizer.prototype.isPartialBuffer = function() {
+    return this._type == 'part';
+};
+
 
 /** 
  * Prepare to do some reading; skips whitespace, consumes comments.

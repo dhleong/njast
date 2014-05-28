@@ -8,6 +8,10 @@ class Njast(object):
 
     DEBUG = True
     TIMEOUT = 1
+
+    # lines
+    MAX_FULL_BUFFER_SIZE = 750
+
     _instance = None
 
     def __init__(self):
@@ -179,7 +183,7 @@ class Njast(object):
             'pos': pos
         }
         # TODO partial buffers?
-        doc['buffer'] = Njast.bufferSlice(vim.current.buffer)
+        doc['buffer'] = Njast.extractBuffer()
 
         data = None
         try:
@@ -249,6 +253,34 @@ class Njast(object):
             text += buf[first] + "\n"
             first += 1
         return text
+
+    @staticmethod
+    def extractBuffer():
+        """Extract the appropriate buffer type/amount
+        :returns: @todo
+
+        """
+
+        # TODO if we haven't changed anything,
+        #  maybe we don't need any buffer
+
+        buf = vim.current.buffer
+        lines = len(buf)
+
+        if lines < Njast.MAX_FULL_BUFFER_SIZE:
+            return {
+                'type': 'full',
+                'text': Njast.bufferSlice(buf)
+            }
+        
+        # TODO okay, extract a partial buffer
+        start = 1
+        end = lines
+        return {
+            'type': 'part',
+            'text': Njast.bufferSlice(buf, start, end),
+            'start': start
+        }
 
     @staticmethod
     def displayError(err):

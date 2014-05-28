@@ -249,7 +249,7 @@ SourceClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
     this._getPathForType(type, function(err, path) {
         if (err) return cb(err);
 
-        var cached = this._astCache[path];
+        var cached = self._astCache[path];
         if (cached)
             return cached.resolveMethodReturnType(self, type, name, cb);
         

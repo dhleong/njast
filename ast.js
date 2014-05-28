@@ -64,7 +64,8 @@ Ast.prototype.locate = function(line, ch) {
 /** Generally called for you... */
 Ast.prototype.parse = function(startType) {
 
-    this._root = startType.read(this, this.tok);
+    this._root = startType.read(this);
+    return this._root;
 };
 
 Ast.prototype.getPackage = function() {
@@ -73,6 +74,11 @@ Ast.prototype.getPackage = function() {
         return this._root.package;
 
 };
+
+Ast.prototype.getParent = function() {
+    return null; // never
+};
+
 
 Ast.prototype.getStaticImportType = function(methodName) {
     var path = this._root.namedImports[methodName];
@@ -328,7 +334,7 @@ SimpleNode.prototype.getKids = function() {
 
 SimpleNode.prototype.locate = function(line, ch) {
     if (!this.contains(line, ch)) {
-        this.log(this.constructor.name, this.name, this.start, this.end, "does not contain", line, ch);
+        console.log(this.constructor.name, this.name, this.start, this.end, "does not contain", line, ch);
         return false; // quick reject... WE don't contain, so kids can't
     }
 
@@ -343,10 +349,7 @@ SimpleNode.prototype.locate = function(line, ch) {
             return matching[0].locate(line, ch);
         } else if (matching.length > 1) {
             matching.forEach(function(el) {
-                el._root = null;
-                el._prev = null;
-                el.tok = null;
-                console.log(require('util').inspect(el));
+                console.log(el.toJSON());
             });
             throw new Error("Multiple("
                 + matching.length 
@@ -387,6 +390,29 @@ SimpleNode.prototype.start_from = function(state) {
         ch: state.col
     };
 };
+
+/** Convert a node into a readible JSON dict (AT LAST!) */
+SimpleNode.prototype.toJSON = function() {
+    var json = {__type__: this.constructor.name};
+    var self = this;
+    Object.keys(this).forEach(function(key) {
+        if (key.charAt(0) == '_' || key == 'tok')
+            return;
+
+        json[key] = _toJson(self[key]);
+    });
+
+    return json;
+};
+
+function _toJson(obj) {
+    if (obj instanceof SimpleNode)
+        return obj.toJSON();
+    else if (Array.isArray(obj))
+        return obj.map(_toJson);
+    else
+        return obj;
+}
 
 SimpleNode.prototype.getDeclaringType = function() {
     var scope = this.getScope();
@@ -461,8 +487,10 @@ SimpleNode.prototype._qualify = function(separator) {
             qualifiedParent = qualifiedParent.getParent();
         }
 
-        if (!qualifiedParent)
+        if (!qualifiedParent) {
             this.tok.raise("Qualified parent for " + this.name);
+            return; // non-strict parsing
+        }
 
         if (parent instanceof Block) {
             // Apparently classes can be declared inside a block.
@@ -577,6 +605,12 @@ VariableDeclNode.prototype._readDeclarations = function(firstName) {
 
     tok.expectSemicolon();
 };
+
+VariableDeclNode.prototype.getKids = function() {
+    // parent may dup the type node, etc.
+    return this.kids;
+};
+
 
 /**
  * JavadocNode is a drop-in replacement for SimpleNode
@@ -1037,7 +1071,7 @@ util.inherits(AnnotationMethod, JavadocNode);
 /**
  * 
  */
-function ClassBody(prev, skipBlockOpen) {
+function ClassBody(prev, skipBlockOpen, autoRead) {
     ScopeNode.call(this, prev);
 
     // shortcut indexes of declared things
@@ -1055,10 +1089,17 @@ function ClassBody(prev, skipBlockOpen) {
     // read statements
     var tok = this.tok;
 
+    if (autoRead === false) {
+        // this is basically used by Method as a quick
+        //  way to parse *one* thing for partial buffers
+        this._end(); // I guess? Probably doesn't matter
+        return;
+    }
+
     if (!skipBlockOpen)
         tok.expectBlockOpen();
 
-    while (!tok.readBlockClose()) {
+    while (!(tok.readBlockClose() || tok.isEof())) {
         var el = this._readDeclaration();
         if (!el) continue;
 
@@ -1101,6 +1142,12 @@ ClassBody.prototype.evaluateType = function(classLoader, cb) {
             from: from
         });
     });
+};
+
+ClassBody.prototype.getKids = function() {
+    // the default implementation would do lots of
+    //  duplicate work, looking at our typed arrays
+    return this.kids;
 };
 
 
@@ -1208,6 +1255,14 @@ ClassBody.prototype._readMember = function(mods) {
     return new FieldDecl(this, mods, type, typeParams, ident);
 };
 
+/**
+ * NB strictly for reading partial buffers
+ */
+ClassBody.read = function(ast) {
+    return new ClassBody(ast, true);
+}
+
+
 function Method(prev, mods, type, typeParams, name) {
     ScopeNode.call(this, prev);
 
@@ -1298,11 +1353,28 @@ Method.prototype.getMethod = function() {
     return null;
 };
 
-
-
 Method.prototype.isConstructor = function() {
     return this.returns == null;
 };
+
+/** NB For partial buffers ONLY */
+Method.read = function(ast) {
+    var cb = new ClassBody(ast, true, false);
+
+    // just in case, kill all upcoming semicolons
+    for (;;) {
+        if (!ast.tok.readSemicolon())
+            break;
+    } 
+
+    // read a decl
+    var decl = cb._readDeclaration();
+
+    if (!(decl instanceof Method))
+        return;
+
+    return decl;
+}
 
 
 function FieldDecl(prev, mods, type, typeParams, name) {
@@ -3289,6 +3361,10 @@ module.exports = {
     FROM_TYPE: Ast.FROM_TYPE,
 
     /**
+     * @param buffer Either a node Buffer, or a dict with:
+     *  - type: 'full' or 'part'; if 'part,' 'start' is required
+     *  - text: a Buffer
+     *  - start: First line of the buffer
      * @param options (Optional) A dict with:
      *  - strict: (default: true) Whether to bail
      *      immediately on error
@@ -3304,7 +3380,18 @@ module.exports = {
 
         var ast = new Ast(path, buffer, options);
         try {
-            ast.parse(CompilationUnit);
+            if (!ast.tok.isPartialBuffer()) {
+                // easy case
+                ast.parse(CompilationUnit);
+            } else {
+                // also not too bad
+                ast.parse(ClassBody);
+            }
+
+            // FIXME if partial buffer, we need to replace
+            // the root node with one from ClassLoader
+            // (IE: possibly cached, but definitely with
+            // *some* full AST)
         } catch(e) {
             callback(e);
             return;

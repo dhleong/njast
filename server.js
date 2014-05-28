@@ -64,10 +64,16 @@ var bufferParser = function(req, res, next) {
     if (!(path && line && file !== undefined && ch !== undefined))
         return res.send(400);
 
+    if (typeof(file) == 'string')
+        file = {type: 'full', text: file};
+
     req.path = path;
     req.line = line;
     req.ch = ch;
-    req.buf = new Buffer(file); // FIXME encoding?
+    req.start = 0;
+    req.buf = file
+    req.buf.text = new Buffer(file.text); // FIXME encoding?
+    console.log(file.type, file.start);
 
     /** 
      * Convenience function to get an ast.

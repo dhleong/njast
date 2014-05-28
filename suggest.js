@@ -7,8 +7,10 @@ var CR = '\r'.charCodeAt(0);
 var NL = '\n'.charCodeAt(0);
 
 function Suggestor(path, buffer) {
+    // FIXME the buffer may be a dict with a "type"
     this._path = path;
     this._buffer = buffer;
+    this._raw = buffer.text || buffer;
     this._loader = ClassLoader.cachedFromSource(path);
 }
 
@@ -67,9 +69,9 @@ Suggestor.prototype._extractLine = function() {
 
         var oldLine = line;
 
-        var token = this._buffer[off];
-        var nextToken = off + 1 < this._buffer.length
-            ? this._buffer[off+1]
+        var token = this._raw[off];
+        var nextToken = off + 1 < this._raw.length
+            ? this._raw[off+1]
             : undefined;
 
         if (token == NL) {
@@ -94,7 +96,7 @@ Suggestor.prototype._extractLine = function() {
 
             else if (line > this._line)
                 // our line has ended!
-                return this._buffer.toString("utf-8", lineStart, off);
+                return this._raw.toString("utf-8", lineStart, off);
         }
     }
 
