@@ -1382,6 +1382,8 @@ function FieldDecl(prev, mods, type, typeParams, name) {
 
     if (mods)
         this.start = mods.start;
+    else if (type)
+        this.start = type.start;
     this.mods = mods;
     this.type = type;
     this.typeParams = typeParams;

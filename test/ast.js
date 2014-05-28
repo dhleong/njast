@@ -1389,8 +1389,8 @@ describe("Ast of Foo.java", function() {
         });
 
         it("7, 18: Fancier", function(done) {
-            ast.locate(7, 18)
-            .evaluateType(loader, function(err, value) {
+            var node = ast.locate(7, 18)
+            node.evaluateType(loader, function(err, value) {
                 should.not.exist(err);
                 value.type.should.equal('net.dhleong.njast.Foo$Fancy$Fancier');
                 value.from.should.equal(Ast.FROM_OBJECT);
