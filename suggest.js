@@ -10,6 +10,7 @@ function Suggestor(path, buffer) {
     // FIXME the buffer may be a dict with a "type"
     this._path = path;
     this._buffer = buffer;
+    this._start = buffer.start || 1;
     this._raw = buffer.text || buffer;
     this._loader = ClassLoader.cachedFromSource(path);
 }
@@ -25,6 +26,13 @@ Suggestor.prototype.find = function(cb) {
     
     // extract the current line of text
     var line = this._extractLine();
+    if (!line) {
+        return cb(new Error('Could not find line ' 
+            + this._line 
+            + ' (start:' + this._start + ')'));
+    }
+
+    console.log("Found line!", line);
 
     // locate the last . before the cursor
     var dot = line.substr(0, this._col).lastIndexOf('.');
@@ -47,11 +55,13 @@ Suggestor.prototype.find = function(cb) {
     var loader = this._loader;
     parseFile(this._path, this._buffer, {
         strict: false
+      , debug: true
     }, function(err, ast) {
         if (err) return cb(err);
 
+        console.log("Locating...");
         var node = ast.locate(lineNo, colNo)
-        // console.log(node.constructor.name, node.name, node.start, node.end);
+        console.log("Found", node.toJSON());
         node.evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
@@ -62,10 +72,13 @@ Suggestor.prototype.find = function(cb) {
 };
 
 Suggestor.prototype._extractLine = function() {
-    var line = 1;
+    var line = this._start;
     var lineStart = -1;
     var off = 0;
     while (true) {
+
+        if (off > this._raw.length)
+            return null;
 
         var oldLine = line;
 

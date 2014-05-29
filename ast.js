@@ -726,7 +726,7 @@ VarDef.readArrayInitializer = function(prev) {
 
     var items = [];
 
-    while (!tok.readBlockClose()) {
+    while (!(tok.readBlockClose() || tok.isEof())) {
         var init = VarDef.readInitializer(prev);
         if (init)
             items.push(init);
@@ -1030,7 +1030,7 @@ function AnnotationBody(prev) {
 
     this.tok.expectBlockOpen();
     var last;
-    while (!this.tok.readBlockClose()) {
+    while (!(this.tok.readBlockClose() || this.tok.isEof())) {
         last = this._readDeclaration();
         if (last)
             this.kids.push(last);
@@ -1424,7 +1424,7 @@ function Block(prev) {
 
     var tok = this.tok;
     tok.expectBlockOpen();
-    while (!tok.readBlockClose()) {
+    while (!(tok.readBlockClose() || tok.isEof())) {
         var stmt = BlockStatement.read(this);
         if (stmt)
             this.kids.push(stmt);
@@ -1606,7 +1606,7 @@ function SwitchStatement(prev) {
     this.kids = [];
 
     tok.expectBlockOpen();
-    while (!tok.readBlockClose()) {
+    while (!(tok.readBlockClose() || tok.isEof())) {
         var current = new SwitchGroup(prev, this._readLabels());
 
         if (!current.labels)
@@ -1615,7 +1615,8 @@ function SwitchStatement(prev) {
         while (!(tok.peekBlockClose()
                 || tok.readString('break')
                 || tok.peekString('case')
-                || tok.peekString('default'))) {
+                || tok.peekString('default')
+                || tok.isEof())) {
             var stmt = BlockStatement.read(this);
             if (!stmt)
                 break;
@@ -2433,7 +2434,7 @@ StringLiteral.read = function(prev) {
     var buffer = '';
     var last = null;
     var next;
-    for (;;) {
+    while (!tok.isEof()) {
         next = String.fromCharCode(tok.read());
         if (last != '\\' && next == target)
             break;
@@ -2909,7 +2910,7 @@ function FormalParameters(prev) {
     this.kids = [];
 
     var tok = this.tok;
-    while (!tok.readParenClose()) {
+    while (!(tok.readParenClose() || tok.isEof())) {
 
         // simple way to capture final/Annotation
         var mods = Modifiers.read(this);

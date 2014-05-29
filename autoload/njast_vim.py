@@ -11,6 +11,8 @@ class Njast(object):
 
     # lines
     MAX_FULL_BUFFER_SIZE = 750
+    BASE_PARTIAL_PREV = 50
+    BASE_PARTIAL_NEXT = 50
 
     _instance = None
 
@@ -274,12 +276,16 @@ class Njast(object):
             }
         
         # TODO okay, extract a partial buffer
-        start = 1
-        end = lines
+        line, curCol = vim.current.window.cursor
+        start = None
+        end = None
+
+        if start is None: start = max(0, line - Njast.BASE_PARTIAL_PREV)
+        if end is None: end = min(lines, line + Njast.BASE_PARTIAL_NEXT)
         return {
             'type': 'part',
             'text': Njast.bufferSlice(buf, start, end),
-            'start': start
+            'start': start + 1 # these lines are zero-indexed
         }
 
     @staticmethod

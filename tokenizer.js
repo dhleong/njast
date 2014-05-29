@@ -646,7 +646,7 @@ Tokenizer.prototype.readQualified = function() {
 
 /** Return TRUE if we've reached EOF */
 Tokenizer.prototype.isEof = function() {
-    return this._pos >= this._fp.length;
+    return this._pos + 1 >= this._fp.length;
 };
 
 
