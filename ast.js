@@ -468,6 +468,24 @@ SimpleNode.prototype.searchScope = function(identifier) {
 
         scope = scope.getScope();
     }
+
+    // all the hacks...
+    var root = this._root._root;
+    if (this._root._part && root instanceof CompilationUnit) {
+        // we were looking in the partial buffer;
+        //  let's find our scope in the root!
+        var closeEnough = root.locate(this.start.line, this.start.ch + 1)
+        if (closeEnough) {
+            return closeEnough.searchScope(identifier);
+        }
+
+        // no? Okay, well at least look for fields
+        for (var i=0; i < root.types.length; i++) {
+            var type = root.types[i];
+            if (type.contains(this.start.line, this.start.ch+1))
+                return type.body.getVar(identifier);
+        }
+    }
 };
 
 /**
@@ -481,6 +499,17 @@ SimpleNode.prototype.searchMethodScope = function(name) {
             return found;
 
         scope = scope.getScope();
+    }
+
+    // all the hacks again...
+    var root = this._root._root;
+    if (this._root._part && root instanceof CompilationUnit) {
+        // we were looking in the partial buffer;
+        //  let's find our scope in the root!
+        var closeEnough = root.locate(this.start.line, this.start.ch + 1)
+        if (closeEnough) {
+            return closeEnough.searchMethodScope(name);
+        }
     }
 };
 
