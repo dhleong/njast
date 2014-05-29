@@ -58,13 +58,26 @@ Ast.prototype.locate = function(line, ch) {
     if (!this._root)
         throw new Error("Ast not parsed yet");
 
+    if (this._part) {
+        var located = this._part.locate(line, ch);
+        if (located)
+            return located;
+    }
+
     return this._root.locate(line, ch);
 };
 
 /** Generally called for you... */
 Ast.prototype.parse = function(startType) {
 
-    this._root = startType.read(this);
+    if (startType == CompilationUnit)
+        this._root = startType.read(this);
+    else {
+        // clear it, in case our parse fails
+        this._part = undefined;
+        this._part = startType.read(this);
+    }
+
     return this._root;
 };
 
@@ -248,9 +261,10 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
  */
 function SimpleNode(prev) {
     this._prev = prev;
-    this._root = prev._root;
-    if (!this._root) {
+    if (prev instanceof Ast) {
         this._root = prev;
+    } else {
+        this._root = prev._root;
     }
     if (!(this._root instanceof Ast))
         throw Error("Root is wrong!" + this._root.constructor.name);
@@ -3380,20 +3394,31 @@ module.exports = {
             options = {};
         }
 
+        if ('part' == buffer.type) {
+            // partial buffer! We need the base ast
+            // and then we'll parse on top. Generally,
+            // the base Ast should already be cached
+            require('./classloader').cachedFromSource(path)
+            .openAst(path, options, function(err, ast) {
+                if (err) return callback(err);
+
+                try {
+                    ast.tok = new Tokenizer(path, buffer, options);
+                    ast.parse(ClassBody);
+                } catch (e) {
+                    callback(e);
+                    return;
+                }
+
+                callback(null, ast);
+            });
+            return;
+        }
+
         var ast = new Ast(path, buffer, options);
         try {
-            if (!ast.tok.isPartialBuffer()) {
-                // easy case
-                ast.parse(CompilationUnit);
-            } else {
-                // also not too bad
-                ast.parse(ClassBody);
-            }
+            ast.parse(CompilationUnit);
 
-            // FIXME if partial buffer, we need to replace
-            // the root node with one from ClassLoader
-            // (IE: possibly cached, but definitely with
-            // *some* full AST)
         } catch(e) {
             callback(e);
             return;

@@ -113,6 +113,26 @@ function ComposedClassLoader(loaders) {
 }
 
 ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
+
+    if (!callback) {
+        if (!options) {
+            // no buf, no options
+            callback = buf;
+            buf = null;
+            options = null;
+        } else {
+            callback = options;
+
+            // either buf or options
+            if (buf instanceof Buffer || buf.type)
+                options = null;
+            else {
+                options = buf;
+                buf = null;
+            }
+        }
+    }
+
     var loaders = this._loaders.map(function(loader) {
         return function(resolve) {
             loader.openAst(path, buf, options, resolve);
