@@ -159,12 +159,16 @@ class Njast(object):
         :doc: dict with json data to send
 
         """
-        kwargs = {
-            'type': type,
-            'doc': doc,
-            'raiseErrors': False
-        }
-        Thread(target=self._makeRequest, kwargs=kwargs).start()
+
+        # build a quick closure to call the request
+        #  silently, in case the server isn't running
+        #  or whatever
+        def safe_caller():
+            try:
+                self._makeRequest(type, doc, raiseErrors=False)
+            except: pass
+            
+        Thread(target=safe_caller).start()
 
     def _run(self, type, pos=None):
         """Run a command
