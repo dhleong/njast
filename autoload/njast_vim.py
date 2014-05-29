@@ -283,12 +283,48 @@ class Njast(object):
         line, curCol = vim.current.window.cursor
         start = None
         end = None
+        mode = 'block'
+
+        regex = re.compile(r"(for|while|if)[ ]*\(")
+        depth = 0
+        upper = max(0, line - Njast.BASE_PARTIAL_PREV)
+        for i in range(line, upper, -1):
+            cur = buf[i]
+            if start is None:
+                # still looking for start...
+                # did we find the start of a method/class?
+                if cur.find("{") >= 0 and regex.match(cur) is None \
+                        and (cur == upper \
+                            or regex.match(buf[i-1]) is None): # handle if\n{ folks
+                    # ignore nested stuff... it won't start our context!
+                    if depth == 0:
+                        # Njast.log("Start @", i)
+                        start = i
+                        mode = 'body'
+                        if cur.find(")") < 0 or cur.find("(") >= 0:
+                            break
+                        # otherwise, we have an incomplete FormalParams
+                        continue
+
+                    else:
+                        depth -= 1
+
+                if cur.find("}") >= 0: # could be both in and out on same line!
+                    depth += 1
+                # else:
+                #     Njast.log("No match", cur)
+            else:
+                # Njast.log("Search for params start!", cur)
+                if cur.find("(") >= 0:
+                    start = i
+                    break
 
         if start is None: start = max(0, line - Njast.BASE_PARTIAL_PREV)
         if end is None: end = min(lines, line + Njast.BASE_PARTIAL_NEXT)
         return {
             'type': 'part',
             'text': Njast.bufferSlice(buf, start, end),
+            'mode': mode,
             'start': start + 1 # these lines are zero-indexed
         }
 
@@ -371,7 +407,7 @@ def _gen_method(name):
         return getattr(inst, name)(*args)
     return method
     
-SHORTCUTS = ['stop', 'run', 
+SHORTCUTS = ['stop', 'run', 'log',
     'ensureCompletionCached', 
     'gotoDefinition',
     'fetchImplementations',

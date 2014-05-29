@@ -26,6 +26,8 @@ var Formatters = {
 module.exports = function(req, res) {
     
     console.log('Suggest request @', req.body.path, ':', req.line, req.ch);
+
+    // console.log("START", req.buf.start, req.buf.text.toString('utf-8'));
     
     Suggestor.of(req.body.path, req.buf)
     .at(req.line, req.ch)

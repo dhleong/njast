@@ -60,8 +60,7 @@ Ast.prototype.locate = function(line, ch) {
 
     if (this._part) {
         var located = this._part.locate(line, ch);
-        if (located)
-            return located;
+        return located;
     }
 
     return this._root.locate(line, ch);

@@ -55,13 +55,17 @@ Suggestor.prototype.find = function(cb) {
     var loader = this._loader;
     parseFile(this._path, this._buffer, {
         strict: false
-      , debug: true
+      // , debug: true
     }, function(err, ast) {
         if (err) return cb(err);
 
         console.log("Locating...");
         var node = ast.locate(lineNo, colNo)
-        console.log("Found", node.toJSON());
+        if (!node) {
+            console.log("... nothing :(");
+            return cb(new Error("Unable to locate node at " + lineNo + "," + colNo));
+        }
+        console.log("Found", require('util').inspect(node.toJSON(), {depth:5}));
         node.evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
