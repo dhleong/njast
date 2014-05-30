@@ -43,6 +43,6 @@ module.exports = function(req, res) {
 
         console.log(resolved);
         res.results(resolved);
-        console.log('Suggested', resolved);
+        console.log('Suggested', require('util').inspect(resolved, {depth:5}));
     });
 }
