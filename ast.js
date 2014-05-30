@@ -721,7 +721,7 @@ VarDef.prototype.project = function(classLoader, cb) {
             self.type.project(classLoader, function(err, type) {
                 if (err) return done(err);
 
-                base.type = type;
+                base.type = type || self.type.name;
                 for (var i=0; i < self.type.array; i++)
                     base.type += '[]';
                 done();
