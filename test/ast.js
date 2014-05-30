@@ -69,7 +69,7 @@ chai.use(function(_chai, utils) {
 
         Object.keys(def.left).forEach(function(prop) {
             new chai.Assertion(obj).to.have.property('left')
-                .with.property(prop)
+                .with.deep.property(prop)
                     .that.equals(def.left[prop]);
         });
 
@@ -755,6 +755,20 @@ describe("Ast of FullAst.java", function() {
                           , 'left.chain[1].constructor.name': 'ArrayAccessExpression' 
                           , 'left.chain[1].value.value': '1'
                         }
+                    });
+                });
+
+                it("Fancy array assignment", function() {
+                    var method = ast
+                        .qualifieds['net.dhleong.njast.FullAst#moreTests'];
+                    var states = method.body.kids;
+                    var array = states[0];
+                    array.should.be.assignment({
+                        left: {
+                            // selector expression, so...
+                            'left.name': 'singleArray'
+                        }
+                      , value: '0'
                     });
                 });
 
@@ -1635,17 +1649,19 @@ describe("Ast of Foo.java", function() {
 });
 
 // describe("MinusUser.java", function() {
-//     it("test", function(done) {
-//         var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusUser.java';
+//     it.only("test", function(done) {
+//         // var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusUser.java';
+//         var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/ui/EmojiHelper.java';
 //         fs.readFile(path, function(err, buf) {
 //             if (err) throw err;
-//
+//             console.log("parsing!");
 //             parseFile(path, buf, {
-//                 // strict: false
+//                 strict: false
+//               , debug: true
 //             }, function(err, ast) {
 //                 if (err) throw err;
-//
-//                 var node = ast.locate(1066, 19);
+//                 console.log("PARSED!");
+//                 var node = ast.locate(196, 9);
 //                 should.exist(node);
 //                 done();
 //             });

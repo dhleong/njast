@@ -3203,8 +3203,13 @@ TypeNode.prototype._readArray = function() {
         return; // nop
 
     var tok = this.tok;
+    var state = tok.save();
     while (tok.readBracketOpen()) {
-        tok.expectBracketClose();
+        if (!tok.readBracketClose()) {
+            tok.restore(state);
+            return;
+        }
+
         this.array++;
     }
 };

@@ -87,6 +87,13 @@ describe("Partial ASTs", function() {
         node.should.have.deep.property('constructor.name')
             .that.equals("Method");
     });
+
+    partial('void method(Unresolved foo) { foo. }', function(ast) {
+        var node = ast.locate(1, 31);
+        node.should.have.deep.property('constructor.name')
+            .that.equals("IdentifierExpression");
+
+    });
 });
 
 

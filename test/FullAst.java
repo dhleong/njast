@@ -280,6 +280,14 @@ public class FullAst<E, T extends Object & Imported>
 
     enum NestedEnum {
     }
+
+    void moreTests() {
+
+        // this would crash, but whatever
+        singleArray[singleInt++] = 0;
+
+    }
+
 }
 
 ;
