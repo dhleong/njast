@@ -5,6 +5,26 @@ var fs = require('fs')
   , async = require('async')
   , Tokenizer = require('./tokenizer');
 
+function indent(level) {
+    var buf = '';
+    for (var i=0; i < level; i++) {
+        buf += '  ';
+    }
+    return buf;
+}
+
+var _debugIndent = 0;
+function _debugLogger() {
+    var args = Array.prototype.slice.apply(arguments);
+
+    if (args[0] == 'CREATED')
+        args.unshift(indent(_debugIndent++));
+    else if (args[0] == 'END')
+        args.unshift(indent(--_debugIndent));
+
+    console.log.apply(console, args);
+}
+
 function Ast(path, buffer, options) {
     // this._path = path;
     // this._fp = buffer;
@@ -15,7 +35,7 @@ function Ast(path, buffer, options) {
     this.qualifieds = {};
 
     if (options && options.debug) {
-        this.log = console.log.bind(console);
+        this.log = _debugLogger;
     } else {
         this.log = function(){};
     }
@@ -270,7 +290,7 @@ function SimpleNode(prev) {
 
     this.tok = prev.tok;
     this.start = prev.tok.getPos();
-    this._root.log("Created", this.constructor.name, this.start, this.name);
+    this._root.log("CREATED", this.constructor.name, this.start, this.name);
     this.log = this._root.log;
 }
 
@@ -1145,7 +1165,7 @@ function ClassBody(prev, skipBlockOpen, autoRead) {
 
     while (!(tok.readBlockClose() || tok.isEof())) {
         var el = this._readDeclaration();
-        if (!el) continue;
+        if (!el) break; // probably end of a partial buffer
 
         this.kids.push(el);
 
@@ -1258,8 +1278,10 @@ ClassBody.prototype._getMethods = function() {
 
 ClassBody.prototype._readDeclaration = function() {
     var tok = this.tok;
-    if (tok.readSemicolon())
-        return;
+
+    // never return from boring semicolons
+    while (tok.readSemicolon())
+        continue;
 
     var mods = Modifiers.read(this);
     if (tok.peekBlockOpen()) {
@@ -1458,6 +1480,8 @@ function Block(prev) {
         var stmt = BlockStatement.read(this);
         if (stmt)
             this.kids.push(stmt);
+        else
+            break;
     }
 
     this._end();
@@ -2396,10 +2420,12 @@ Primary.read = function(prev) {
 
 /** Factory for literals */
 var Literal = {
-    _Value: function(prev, value) {
+    _Value: function(prev, state, value) {
         SimpleNode.call(this, prev);
 
+        this.start_from(state);
         this.value = value;
+        this._end();
     },
     
     read: function(prev) {
@@ -2408,6 +2434,7 @@ var Literal = {
         var peeked = String.fromCharCode(tok.peek());
 
         var lit;
+        var state = tok.prepare();
         switch (peeked) {
         case '"':
         case "'":
@@ -2418,15 +2445,15 @@ var Literal = {
         case 'f':
             if (!tok.readString("false"))
                 return;
-            return new Literal._Value(prev, false);
+            return new Literal._Value(prev, state, false);
         case 'n':
             if (!tok.readString("null"))
                 return;
-            return new Literal._Value(prev, null);
+            return new Literal._Value(prev, state, null);
         case 't':
             if (!tok.readString("true"))
                 return;
-            return new Literal._Value(prev, true);
+            return new Literal._Value(prev, state, true);
         }
 
         return NumberLiteral.read(prev);
