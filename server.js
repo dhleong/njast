@@ -61,8 +61,10 @@ var bufferParser = function(req, res, next) {
     var ch   = req.body.pos[1];
     var file = req.body.buffer;
 
-    if (!(path && line && file !== undefined && ch !== undefined))
+    if (!(path && line && file !== undefined && ch !== undefined)) {
+        console.log("400!", path, line, ch, file);
         return res.send(400);
+    }
 
     if (typeof(file) == 'string')
         file = {type: 'full', text: file};

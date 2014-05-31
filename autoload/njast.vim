@@ -51,24 +51,35 @@ function! njast#ShowJavadoc()
     let l:word = expand("<cword>")
     echo l:word
 
-    silent topleft new '--javadoc--'
+    let l:window = winnr()
+    let l:buffer = bufnr('%')
+
+    " silent topleft new '--javadoc--'
+    pclose
 
     " some settings
-    setlocal buftype=nofile bufhidden=wipe noswapfile ft=java modifiable nowrap
+    new 
+    setlocal buftype=nofile bufhidden=wipe ft=java 
+    setlocal noswapfile nowrap previewwindow
     nnoremap <buffer> q ZQ
-    nnoremap <buffer> K ZQ
-    nnoremap <buffer> <esc> ZQ
-    nnoremap <buffer> <tab> <C-W>j
+    " nnoremap <buffer> K ZQ
+    " nnoremap <buffer> <esc> ZQ
+    " nnoremap <buffer> <tab> <C-W>p
+
+    " fetch doc
+    exe 'py Njast.showJavadoc(' . l:window . ', ' . l:buffer . ')'
 
     " resize window to match output
+    let l:max_height = 30 " TODO config'able, possbly as percentage
     let l:lines = line('$')
-    if l:lines > 30
+    if l:lines > l:max_height
         " limit size
-        let l:lines = 30 
+        let l:lines = l:max_height
     endif
     execute 'resize' l:lines
 
-
+    " pop back
+    wincmd p
 endfunction
 
 

@@ -38,6 +38,28 @@ class Njast(object):
         cmd = 'edit +%d %s' % (data['line'], data['path'])
         vim.command(cmd)
 
+    def _showJavadoc(self, winno, bufno):
+        win = vim.windows[winno-1] # indexing is different
+        buf = vim.buffers[bufno]   # indexing is the same (?!)
+
+        data = self._run('document', vimWindow=win, vimBuffer=buf)
+        if not data:
+            Njast.appendText("Could not resolve definition")
+            return
+        if data.has_key('error'):
+            Njast.appendText(data['error'])
+            return
+
+        formatted = None
+        if data['type'] == 'var':
+            formatted = Njast.SuggestFormat.fields(data['result'])
+        elif data['type'] == 'method':
+            formatted = Njast.SuggestFormat.methods(data['result'])
+        else:
+            Njast.appendText("Unexpected object type %s" % data['type'])
+            
+        Njast.appendText(formatted['info'])
+
     def _ensureCompletionCached(self):
         if self._lastImplementations is not None:
             return
@@ -170,12 +192,17 @@ class Njast(object):
             
         Thread(target=safe_caller).start()
 
-    def _run(self, type, pos=None):
+    def _run(self, type, pos=None, vimWindow=None, vimBuffer=None):
         """Run a command
         """
 
+        if vimWindow is None:
+            vimWindow = vim.current.window
+        if vimBuffer is None:
+            vimBuffer = vim.current.buffer
+
         if pos is None:
-            row, col = vim.current.window.cursor
+            row, col = vimWindow.cursor
             if vim.eval('mode()') == 'n':
                 col += 1
             # pos = {'line': row, 'ch': col}
@@ -185,11 +212,10 @@ class Njast(object):
         # seq = vim.eval("undotree()['seq_cur']")
         
         doc = {
-            'path': vim.eval("expand('%:p')"), 
-            'pos': pos
+            'path': vimBuffer.name,
+            'pos': pos,
+            'buffer': Njast.extractBuffer(vimWindow, vimBuffer)
         }
-        # TODO partial buffers?
-        doc['buffer'] = Njast.extractBuffer()
 
         data = None
         try:
@@ -250,6 +276,15 @@ class Njast(object):
                 output += line
 
     @staticmethod
+    def appendText(text):
+        """Append text to the current buffer
+
+        :text: Text to append
+
+        """
+        vim.current.buffer.append(text.split('\n'))
+
+    @staticmethod
     def bufferSlice(buf, first=0, last=None):
         text = ""
         if last is None:
@@ -261,7 +296,7 @@ class Njast(object):
         return text
 
     @staticmethod
-    def extractBuffer():
+    def extractBuffer(vimWindow, buf):
         """Extract the appropriate buffer type/amount
         :returns: @todo
 
@@ -270,7 +305,6 @@ class Njast(object):
         # TODO if we haven't changed anything,
         #  maybe we don't need any buffer
 
-        buf = vim.current.buffer
         lines = len(buf)
 
         if lines < Njast.MAX_FULL_BUFFER_SIZE:
@@ -280,7 +314,7 @@ class Njast(object):
             }
         
         # TODO okay, extract a partial buffer
-        line, curCol = vim.current.window.cursor
+        line, curCol = vimWindow.cursor
         start = None
         end = None
         mode = 'block'
@@ -408,10 +442,12 @@ def _gen_method(name):
     return method
     
 SHORTCUTS = ['stop', 'run', 'log',
+    'attemptImplement',
     'ensureCompletionCached', 
-    'gotoDefinition',
     'fetchImplementations',
-    'attemptImplement']
+    'gotoDefinition',
+    'showJavadoc'
+    ]
 for methodName in SHORTCUTS:
     method = _gen_method('_' + methodName)
 
