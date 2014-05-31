@@ -1574,7 +1574,7 @@ describe("Ast of Foo.java", function() {
         });
 
         it("short daisy chain", function(done) {
-            ast.locate(93, 28)
+            ast.locate(93, 29)
             .evaluateType(loader, function(err, value) {
                 if (err) throw err;
                 value.type.should.equal('net.dhleong.njast.Foo');

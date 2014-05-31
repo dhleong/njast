@@ -6,7 +6,6 @@ class Njast(object):
 
     """Manages interactions with Njast server"""
 
-    DEBUG = True
     TIMEOUT = 1
 
     # lines
@@ -18,11 +17,15 @@ class Njast(object):
 
     def __init__(self):
         """Private constructor; prefer the #get() singleton accessor """
-        if self.DEBUG:
-            self.port = 3000
+
+        self.proc = None
+        if vim.eval('exists("g:njast#port")') != '0':
+            # specifying g:njast#port triggers debug
+            #  mode, where we only connect to that port.
+            #  Otherwise, we'll start up our own!
+            self.port = vim.eval("g:njast#port")
         else:
             self.port = self._startServer()
-        self.proc = None
 
         self._lastImplementations = None
 
@@ -256,7 +259,6 @@ class Njast(object):
             env["PATH"] += ":/usr/local/bin"
         command = vim.eval('g:njast#command') # node (path)
         dir = os.path.dirname(command[1])
-        Njast.displayError(command[1] + " :: " + dir)
         proc = subprocess.Popen(command,
                               env=env, cwd=dir,
                               stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -265,6 +267,7 @@ class Njast(object):
         while True:
             line = proc.stdout.readline()
             if not line:
+                self.displayError(command[1] + " :: " + dir)
                 self.displayError("Failed to start server" +\
                     (output and ":\n" + output))
                 self.last_failed = time.time()

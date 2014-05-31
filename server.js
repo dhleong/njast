@@ -8,15 +8,16 @@ var express = require('express')
 // configs
 // --------------------------------------------------------------------------------
 
-var DEBUG = true;
+// var DEBUG = true;
 var HTTP_PORT; // undefined picks a random port
 HTTP_PORT = 3000; // for testing convenience
 
 
 // --------------------------------------------------------------------------------
-// re-route logging (for now, anyway)
+// re-route logging (actually, we can just run this externally)
 // --------------------------------------------------------------------------------
 
+/*  // this crashes node when run within vim for some reason...
 if (DEBUG) {
     var fs = require('fs');
     var dir = '/Users/dhleong/code/njast';
@@ -36,6 +37,7 @@ if (DEBUG) {
         process.stdout.write(line + '\n');
     }
 }
+*/
 
 // --------------------------------------------------------------------------------
 // prepare express
