@@ -1329,6 +1329,15 @@ describe("Ast of FullAst.java", function() {
             });
         });
 
+        it("203, 22: FullAst (instance var)", function(done) {
+            ast.locate(203, 22)
+            .resolveDeclaringType(loader, function(err, type) {
+                if (err) throw err;
+                type.should.equal('net.dhleong.njast.FullAst');
+                done();
+            });
+        });
+
         it("206, 59: FullInterface (cast)");
 
         it("248, 16: Extended", function(done) {

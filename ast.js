@@ -228,6 +228,7 @@ Ast.prototype.resolveMethodReturnType = function(classLoader, type, name, cb) {
 };
 
 
+
 Ast.prototype.resolveType = function(classLoader, type, cb) {
     
     if (Tokenizer.isPrimitive(type))
@@ -448,6 +449,7 @@ function _toJson(obj) {
 }
 
 SimpleNode.prototype.getDeclaringType = function() {
+    var method;
     var scope = this.getScope();
     while (scope) {
         var parent = scope.getParent();
@@ -458,7 +460,27 @@ SimpleNode.prototype.getDeclaringType = function() {
             return parent;
         }
 
+        if (!method && parent instanceof Method) {
+            method = parent;
+        }
+
         scope = scope.getScope();
+    }
+
+    // Nope... are we a partial AST?
+    var root = this._root._root;
+    if (this._root._part && root instanceof CompilationUnit) {
+        // yep. see if our method is somewhere in there
+
+        // we were looking in the partial buffer;
+        //  let's find our scope in the root!
+        var closeEnough = root.locate(this.start.line, this.start.ch + 1)
+        if (closeEnough) {
+            return closeEnough.getDeclaringType();
+        }
+
+        // nope....
+        console.log("Check root for ", method.qualifiedName);
     }
 };
 
@@ -2781,10 +2803,24 @@ IdentifierExpression.prototype.resolveDeclaringType = function(classLoader, cb) 
     }
 
     // am I actually a type?
+    var self = this;
     this.getRoot().resolveType(classLoader, this.name, function(resolved) {
         if (resolved) return cb(null, resolved);
 
-        // nope... I'm definitely a var
+        // nope... I'm definitely a var. Did we declare it here?
+        var varDef = self.searchScope(self.name);
+        if (varDef) {
+            var declaring = varDef.getDeclaringType();
+            if (declaring && declaring.qualifiedName)
+                cb(null, declaring.qualifiedName);
+            else if (declaring)
+                cb(new Error('Could not resolve type ' + declaring.name));
+            else
+                cb(new Error('Could not resolve declaring type of ' + varDef.name));
+            return;
+
+        }
+
         cb(new Error("UNIMPLEMENTED"));
     });
 
