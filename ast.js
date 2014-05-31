@@ -3345,6 +3345,14 @@ ReferenceType.prototype.resolve = function(classLoader, callback) {
     this.getRoot().resolveType(classLoader, this.name, callback);
 };
 
+ReferenceType.prototype.resolveDeclaringType = function(classLoader, cb) {
+    var self = this;
+    this.resolve(classLoader, function(type) {
+        if (!type) return cb(new Error("Could not resolve " + self.name));
+        cb(null, type);
+    });
+};
+
 
 ReferenceType.prototype._readQualified = function(state, allowDiamond) {
     var tok = this.tok;
