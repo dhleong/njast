@@ -4,25 +4,6 @@
 
 var Suggestor = require('../suggest');
 
-/*
-var Formatters = {
-    flat: function(data) {
-        var formatted = [];
-
-        var _append = function(data) {
-            if (data.name)
-                formatted.push(data.name);
-        }
-
-        Object.keys(data).forEach(function(type) {
-            var completions = data[type];
-            completions.forEach(_append);
-        });
-        return formatted;
-    }
-}
-*/
-
 module.exports = function(req, res) {
     
     console.log('Suggest request @', req.body.path, ':', req.line, req.ch);
@@ -41,7 +22,6 @@ module.exports = function(req, res) {
         // if (formatter)
         //     resolved = formatter(resolved);
 
-        console.log(resolved);
         res.results(resolved);
         console.log('Suggested', require('util').inspect(resolved, {depth:5}));
     });

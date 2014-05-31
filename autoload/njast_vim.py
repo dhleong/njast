@@ -35,8 +35,15 @@ class Njast(object):
             Njast.displayError(data['error'])
             return
 
-        cmd = 'edit +%d %s' % (data['line'], data['path'])
-        vim.command(cmd)
+        word = vim.eval("expand('<cword>')")
+
+        if data['path'] == vim.current.buffer.name:
+            vim.command('norm %dG' % data['line'])
+        else:
+            cmd = 'edit +%d %s' % (data['line'], data['path'])
+            vim.command(cmd)
+        vim.command('silent! call feedkeys("/\\\<%s\\\>\<CR>")' % word)
+        vim.command('echo ""')
 
     def _showJavadoc(self, winno, bufno):
         win = vim.windows[winno-1] # indexing is different
@@ -87,10 +94,6 @@ class Njast(object):
 
         completions = []
         for type, entries in data["results"].iteritems():
-            # TODO
-            # completions.append({"word": rec["name"],
-            #                     "menu": tern_asCompletionIcon(rec.get("type")),
-            #                     "info": tern_typeDoc(rec) })
             formatter = getattr(Njast.SuggestFormat, type)
             for entry in entries:
 
@@ -313,7 +316,7 @@ class Njast(object):
                 'text': Njast.bufferSlice(buf)
             }
         
-        # TODO okay, extract a partial buffer
+        # okay, extract a partial buffer
         line, curCol = vimWindow.cursor
         start = None
         end = None

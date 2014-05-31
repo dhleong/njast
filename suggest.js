@@ -7,7 +7,7 @@ var CR = '\r'.charCodeAt(0);
 var NL = '\n'.charCodeAt(0);
 
 function Suggestor(path, buffer) {
-    // FIXME the buffer may be a dict with a "type"
+    // NB the buffer may be a dict with a "type"
     this._path = path;
     this._buffer = buffer;
     this._start = buffer.start || 1;
@@ -44,14 +44,8 @@ Suggestor.prototype.find = function(cb) {
         colNo = dot - 1;
     }
 
-    // TODO We *need* to parse AST directly, as the
-    //  file may not have been saved yet, so the
-    //  cache may be old; however, we don't need the 
-    //  full AST here. We can parse a partial buffer,
-    //  and then rely on a cached AST for resolution
-    // TODO However, the suggest controller *could*
-    //  provide us with the ast, so the middleware
-    //  can take care of the partial AST dirty work
+    // parseFile does the right thing 
+    //  if our buffer is partial
     var loader = this._loader;
     parseFile(this._path, this._buffer, {
         strict: false

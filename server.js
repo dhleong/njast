@@ -75,7 +75,6 @@ var bufferParser = function(req, res, next) {
     req.start = 0;
     req.buf = file
     req.buf.text = new Buffer(file.text); // FIXME encoding?
-    console.log(file.type, file.start);
 
     /** 
      * Convenience function to get an ast.

@@ -49,8 +49,6 @@ endfunction
 
 function! njast#ShowJavadoc()
     let l:word = expand("<cword>")
-    echo l:word
-
     let l:window = winnr()
     let l:buffer = bufnr('%')
 
@@ -113,8 +111,8 @@ function! njast#Enable()
     setlocal omnifunc=njast#Complete
     py Njast.init()
 
-    nnoremap K :call njast#ShowJavadoc()<cr>
-    nnoremap gd :call njast#GotoDefinition()<cr>
+    nnoremap <buffer> K :call njast#ShowJavadoc()<cr>
+    nnoremap <buffer> gd :call njast#GotoDefinition()<cr>
 
     augroup NjastBuffer
         autocmd! * <buffer>
