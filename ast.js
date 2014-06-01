@@ -297,7 +297,7 @@ function SimpleNode(prev) {
 
 /** Call at the end of parsing */
 SimpleNode.prototype._end = function() {
-    this.end = this.tok.getPos();
+    this.end = this.tok.getLastPos();
     this.publish();
     this.log("END", this.constructor.name, this.end, this.name);
 }
@@ -3050,6 +3050,7 @@ function Modifiers(prev) {
     this.kids = [];
 
     var tok = this.tok;
+    var end = tok.getPos();
     while (!tok.isEof()) {
         var annotation = Annotation.read(this);
         if (annotation) {
@@ -3057,6 +3058,7 @@ function Modifiers(prev) {
             continue;
         }
 
+        end = tok.getPos();
         var ident = tok.peekIdentifier();
         if (!Tokenizer.isModifier(ident)) 
             break;
@@ -3065,6 +3067,7 @@ function Modifiers(prev) {
     }
 
     this._end();
+    this.end = end;
 }
 util.inherits(Modifiers, SimpleNode);
 

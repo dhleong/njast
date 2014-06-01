@@ -296,6 +296,7 @@ Tokenizer.prototype.prepare = function() {
 };
 
 Tokenizer.prototype._skipBlank = function() {
+    this._preSkip = this.save();
     var off = this._pos;
     while (off < this._fp.length) {
         var token = this._fp[off];
@@ -339,6 +340,7 @@ Tokenizer.prototype._skipBlank = function() {
 
 /** Restore to position state */
 Tokenizer.prototype.restore = function(state) {
+    this._preSkip = undefined;
     this._pos = state.pos;
     this._col = state.col;
     this._line = state.line;
@@ -649,6 +651,16 @@ Tokenizer.prototype.isEof = function() {
     return this._pos + 1 >= this._fp.length;
 };
 
+Tokenizer.prototype.getLastPos = function() {
+    var last = this._preSkip;
+    if (!last)
+        return this.getPos();
+
+    return {
+        line: last.line
+      , ch: last.col
+    }
+};
 
 Tokenizer.prototype.getPos = function() {
     return {

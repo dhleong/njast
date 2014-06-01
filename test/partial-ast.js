@@ -95,11 +95,11 @@ describe("Partial ASTs", function() {
 
     });
 
+    /** Mostly to ensure no overlap on first char of Imported */
     partial('final Imported object;', function(ast) {
         var node = ast.locate(1, 7);
         node.should.have.deep.property('constructor.name')
             .that.equals("ReferenceType");
-
     });
 });
 
