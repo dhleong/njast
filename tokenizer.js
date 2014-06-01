@@ -700,7 +700,7 @@ Tokenizer.prototype._error = function(message, withPos) {
     
     var err = new Error(message);
     err.line = this._line;
-    err.col = this._line;
+    err.col = this._col;
     this.errors.push(err);
 
     return err;
