@@ -32,7 +32,7 @@ Suggestor.prototype.find = function(cb) {
             + ' (start:' + this._start + ')'));
     }
 
-    console.log("Found line!", line);
+    // console.log("Found line!", line);
 
     // locate the last . before the cursor
     var dot = line.substr(0, this._col).lastIndexOf('.');
@@ -53,13 +53,13 @@ Suggestor.prototype.find = function(cb) {
     }, function(err, ast) {
         if (err) return cb(err);
 
-        console.log("Locating...");
+        // console.log("Locating...");
         var node = ast.locate(lineNo, colNo)
         if (!node) {
             console.log("... nothing :(");
             return cb(new Error("Unable to locate node at " + lineNo + "," + colNo));
         }
-        console.log("Found", require('util').inspect(node.toJSON(), {depth:5}));
+        // console.log("Found", require('util').inspect(node.toJSON(), {depth:5}));
         node.evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
