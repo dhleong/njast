@@ -961,6 +961,19 @@ function Class(prev, mods) {
 }
 util.inherits(Class, JavadocNode);
 
+Class.prototype.project = function(classLoader, cb) {
+    var base = {
+        name: this.name
+      , qualified: this.qualifiedName
+      , javadoc: this.javadoc
+      , mods: ''
+    };
+
+    // TODO others (extends, implements, etc)
+    cb(null, base);
+};
+
+
 function Enum(prev, mods) {
     JavadocNode.call(this, prev);
 

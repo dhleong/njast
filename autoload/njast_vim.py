@@ -63,10 +63,20 @@ class Njast(object):
         formatted = None
         if data['type'] == 'var':
             formatted = Njast.SuggestFormat.fields(data['result'])
-        elif data['type'] == 'method':
-            formatted = Njast.SuggestFormat.methods(data['result'])
         else:
-            Njast.appendText("Unexpected object type %s" % data['type'])
+            format = data['type']
+            if format[-1] == 's':
+                format += 'es'
+            else:
+                format += 's'
+
+            formatter = getattr(Njast.SuggestFormat, format, None)
+
+            if formatter is not None:
+                formatted = formatter(data['result'])
+            else:
+                Njast.appendText("Unexpected object type %s" % data['type'])
+                return
             
         Njast.appendText(formatted['info'])
 
@@ -401,7 +411,28 @@ class Njast(object):
         njast._asyncRequest('init', {'path': path})
 
     class SuggestFormat:
-        """Formats suggestions by types"""
+        """Formats suggestions, etc. by type"""
+
+        @staticmethod
+        def classes(item):
+            mods = ''
+            if item.has_key('mods'):
+                mods = item['mods'] + ' '
+            info = mods + \
+                    item['qualified']
+            if item.has_key('extends'):
+                info += ' extends ' + item['extends']
+            if item.has_key('implements'):
+                info += ' implements ' + ', '.join(item['implements'])
+            if item.has_key('javadoc'):
+                info += '\n\n' + item['javadoc']
+
+            return {
+                'word': item['name'],
+                'menu': 'class: ' + item['qualified'],
+                'info': info
+            }
+
         @staticmethod
         def fields(item):
             mods = ''

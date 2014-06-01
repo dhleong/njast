@@ -4,6 +4,19 @@
  */
 
 function project(res, loader, type, node) {
+    if (!node.project) {
+        console.error(node.constructor.name, "does NOT implement project()");
+        res.json({
+            type: 'var'
+          , result: {
+                name: node.name
+              , type: '(project not implemented for ' + node.constructor.name + ')' 
+              , javadoc: node.javadoc
+            }
+        });
+    }
+
+    // console.log("PROJECT", node.toJSON());
     node.project(loader, function(err, projection) {
         if (err) return res.send(400, err.message);
         
@@ -29,7 +42,11 @@ module.exports = function(req, res) {
 
             var declaring = ast.qualifieds[type];
             if (declaring) {
-                // yes, it's local... search by scope
+                // yes, it's local... is it a type?
+                if (declaring.name == node.name)
+                    return project(res, loader, 'class', declaring);
+
+                // search by scope
                 var varDef = node.searchScope(node.name)
                 if (varDef)
                     return project(res, loader, 'var', varDef);
