@@ -651,17 +651,6 @@ Tokenizer.prototype.isEof = function() {
     return this._pos + 1 >= this._fp.length;
 };
 
-Tokenizer.prototype.getLastPos = function() {
-    var last = this._preSkip;
-    if (!last)
-        return this.getPos();
-
-    return {
-        line: last.line
-      , ch: last.col
-    }
-};
-
 Tokenizer.prototype.getPos = function() {
     return {
         line: this._line

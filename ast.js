@@ -297,7 +297,7 @@ function SimpleNode(prev) {
 
 /** Call at the end of parsing */
 SimpleNode.prototype._end = function() {
-    this.end = this.tok.getLastPos();
+    this.end = this.tok.getPos();
     this.publish();
     this.log("END", this.constructor.name, this.end, this.name);
 }
