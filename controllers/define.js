@@ -7,6 +7,9 @@
 
 module.exports = function(req, res) {
     
+    console.log("START", req.buf.start, req.buf.text.toString('utf-8'));
+    console.log("MODE", req.buf.mode);
+
     var loader = req.classLoader();
     req.ast(function(err, ast) {
         if (err) return res.send(400, err.message);

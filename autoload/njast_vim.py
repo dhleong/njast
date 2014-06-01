@@ -321,6 +321,7 @@ class Njast(object):
         
         # okay, extract a partial buffer
         line, curCol = vimWindow.cursor
+        line -= 1 # python lines start at 0
         start = None
         end = None
         mode = 'block'
@@ -338,7 +339,7 @@ class Njast(object):
                             or regex.match(buf[i-1]) is None): # handle if\n{ folks
                     # ignore nested stuff... it won't start our context!
                     if depth == 0:
-                        # Njast.log("Start @", i)
+                        # Njast.log("Start @", [i, depth])
                         start = i
                         mode = 'body'
                         if cur.find(")") < 0 or cur.find("(") >= 0:
@@ -347,12 +348,15 @@ class Njast(object):
                         continue
 
                     else:
+                        # Njast.log("Pop depth", depth)
                         depth -= 1
 
                 if cur.find("}") >= 0: # could be both in and out on same line!
                     depth += 1
+                #     Njast.log("BumpDepth", [depth, cur])
                 # else:
                 #     Njast.log("No match", cur)
+                #     Njast.log("Depth=", depth)
             else:
                 # Njast.log("Search for params start!", cur)
                 if cur.find("(") >= 0:

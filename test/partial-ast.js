@@ -94,6 +94,13 @@ describe("Partial ASTs", function() {
             .that.equals("IdentifierExpression");
 
     });
+
+    partial('final Imported object;', function(ast) {
+        var node = ast.locate(1, 7);
+        node.should.have.deep.property('constructor.name')
+            .that.equals("ReferenceType");
+
+    });
 });
 
 
