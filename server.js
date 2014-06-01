@@ -95,6 +95,40 @@ var bufferParser = function(req, res, next) {
         return ClassLoader.cachedFromSource(path);
     };
 
+    /** same stuff for document and define, so... */
+    req.resolveDeclaringNode = function(cb) {
+
+        var loader = req.classLoader();
+        req.ast(function(err, ast) {
+            if (err) return res.send(400, err.message);
+
+            var node = ast.locate(req.line, req.ch);
+            node.resolveDeclaringType(loader, function(err, type) {
+                if (err) return res.send(400, err.message);
+
+                var declaring = ast.qualifieds[type];
+                if (declaring) {
+                    // yes, it's local... is it a type?
+                    if (declaring.name == node.name)
+                        // class, enum, etc.
+                        return cb(declaring.constructor.name.toLowerCase(), declaring);
+
+                    // search by scope
+                    var varDef = node.searchScope(node.name)
+                    if (varDef)
+                        return cb('var', varDef);
+
+                    var method = node.searchMethodScope(node.name);
+                    if (method)
+                        return cb('method', method);
+                }
+
+                // TODO parent types?
+                res.json({error:"Not implemented; found: " + node.constructor.name + " in " + type});
+            });
+        });
+    };
+
     res.results = function(json) {
         res.json({
             // TODO proper start/end locations?
