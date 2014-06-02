@@ -21,6 +21,7 @@ var STAR = VALS.next();
 for (var i = 0; i < 3; i++) {
     NAME_RANGES.push([VALS.next(), VALS.next()]);
 }
+var NUMBERS = NAME_RANGES[0];
 var OTHER_NAME_CHARS = [ 
     VALS.next(),
     VALS.next()
@@ -742,7 +743,14 @@ function isIdentifier(existing, charCode) {
     if (!charCode)
         charCode = existing;
 
-    // TODO first char is special
+    // first char is special
+    if (existing === '' 
+            && charCode >= NUMBERS[0]
+            && charCode <= NUMBERS[1]) {
+        // cannot be a number
+        return false;
+    }
+
     for (var i = 0; i < NAME_RANGES.length; i++) {
         if (charCode >= NAME_RANGES[i][0] && charCode <= NAME_RANGES[i][1])
             return true;

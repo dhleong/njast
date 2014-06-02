@@ -28,6 +28,7 @@ class Njast(object):
             self.port = self._startServer()
 
         self._lastImplementations = None
+        self._lastMissing = None
 
     def _gotoDefinition(self):
         data = self._run('define')
@@ -79,6 +80,12 @@ class Njast(object):
                 return
             
         Njast.appendText(formatted['info'])
+
+    def _onInterval(self):
+        """Called periodically
+
+        """
+        self.log("Interval", self._lastMissing)
 
     def _ensureCompletionCached(self):
         if self._lastImplementations is not None:
@@ -187,7 +194,7 @@ class Njast(object):
                 Njast.displayError(error.read())
             return None
 
-    def _asyncRequest(self, type, doc):
+    def _asyncRequest(self, type, doc, callback=None):
         """Create a request via _makeRequest and 
         run it asynchronously. This is just designed
         to update the server's state without slowing
@@ -195,6 +202,7 @@ class Njast(object):
 
         :type: Endpoint to hit
         :doc: dict with json data to send
+        :callback: if provided, called on complete
 
         """
 
@@ -203,8 +211,15 @@ class Njast(object):
         #  or whatever
         def safe_caller():
             try:
-                self._makeRequest(type, doc, raiseErrors=False)
-            except: pass
+                data = self._makeRequest(type, doc, raiseErrors=False)
+            except: 
+                if callback is not None:
+                    callback(None) # so we know it failed
+                return
+
+            # data fetched successfully! Called here
+            # so we don't suppress errors thrown by the callback
+            callback(data)
             
         Thread(target=safe_caller).start()
 
@@ -406,9 +421,16 @@ class Njast(object):
 
         """
         path = vim.current.buffer.name
-        
+
         njast = cls.get()
-        njast._asyncRequest('init', {'path': path})
+
+        def on_result(data):
+            Njast.log("init result!", data)
+            if not data: return
+            if data.has_key('missing'):
+                njast._lastMissing = data['missing']
+        
+        njast._asyncRequest('init', {'path': path}, callback=on_result)
 
     class SuggestFormat:
         """Formats suggestions, etc. by type"""
@@ -487,6 +509,7 @@ SHORTCUTS = ['stop', 'run', 'log',
     'ensureCompletionCached', 
     'fetchImplementations',
     'gotoDefinition',
+    'onInterval',
     'showJavadoc'
     ]
 for methodName in SHORTCUTS:

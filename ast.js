@@ -58,8 +58,13 @@ function Ast(path, buffer, options) {
         //  I suspect some nodes are being incorrectly
         //  parsed as Types when they should be Identifiers...
         this.on('referencetype', function(node) {
-            if (!(node.name in candidates))
-                candidates[node.name] = node;
+            var name = node.firstName;
+            var first = name.charAt(0);
+            var second = name.charAt(1);
+            if (first == first.toUpperCase()
+                    && second == second.toLowerCase()) {
+                candidates[name] = node;
+            }
         });
         this.on('identifierexpression', function(node) {
             var first = node.name.charAt(0);
@@ -74,20 +79,28 @@ function Ast(path, buffer, options) {
         this.on('end', function() {
             // check candidates in parallel
             async.map(Object.keys(candidates), function(name, cb) {
+                var node = candidates[name];
+                if (node._chain) {
+                    // don't need to worry; only _chain needs importing
+                    return cb(null, null);
+                }
+
                 self.resolveType(loader, name, function(type) {
                     if (type) return cb(null, null);
 
-                    var node = candidates[name];
                     cb(null, {
                         pos: node.start
                       , name: node.name
+                      , chain: node._chain ? "CHAIN" : undefined
                     });
                 });
             }, function(err, results) {
 
                 // save and publish
-                self.missing = results;
-                self.emit('missing', results);
+                self.missing = results.filter(function(el) {
+                    return el;
+                });
+                self.emit('missing', self.missing);
             });
         });
     }
@@ -3402,6 +3415,7 @@ function ReferenceType(prev, skipArray, allowDiamond) {
     var tok = this.tok;
 
     // <TypeArguments> . etc.
+    this.firstName = this.simpleName; // don't forget
     this.typeArgs = TypeArguments.read(this, allowDiamond);
     var state = tok.prepare();
     if (tok.readDot()) {

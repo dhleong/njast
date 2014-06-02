@@ -117,6 +117,7 @@ function! njast#Enable()
     augroup NjastBuffer
         autocmd! * <buffer>
         autocmd BufWritePost <buffer> :py Njast.init()
+        autocmd CursorHold,CursorHoldI <buffer> :py Njast.onInterval()
     augroup END
 
     " if g:tern_map_keys

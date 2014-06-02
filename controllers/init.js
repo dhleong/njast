@@ -6,15 +6,28 @@ var ClassLoader = require('../classloader')
   , readFile = require('../ast').readFile;
 
 module.exports = function(req, res) {
-    res.send(204);
 
+    var loader = ClassLoader.cachedFromSource(path);
     var path = req.body.path;
-    readFile(path, function(err, ast) {
-        if (err) return console.error(err);
+    readFile(path, {
+        strict: false
+      , checkImports: true
+      , loader: loader
+    }, function(err, ast) {
+        if (err) {
+            res.send(400, err.message);
+            return console.error(err);
+        }
 
         console.log("init: cached", path);
-        ClassLoader.cachedFromSource(path)
-            .putCache(path, ast);
+        loader.putCache(path, ast);
+
+        // TODO suggest imports, actually
+        ast.on('missing', function(missing) {
+            res.json({
+                missing: missing
+            });
+        });
     });
 }
 
