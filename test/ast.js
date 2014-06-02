@@ -1358,18 +1358,16 @@ describe("Ast of Foo.java", function() {
         ast = null;
         loader = require('../classloader').fromSource('Foo.java');
 
-        fs.readFile('Foo.java', function(err, fp) {
-            parseFile('Foo.java', fp, {
-                strict: false
-            }, function(err, _ast) {
-                if (err) {
-                    // should.not.exist(err);
-                    throw err;
-                }
+        Ast.readFile('Foo.java', {
+            strict: false
+        }, function(err, _ast) {
+            if (err) {
+                // should.not.exist(err);
+                throw err;
+            }
 
-                ast = _ast;
-                done();
-            });
+            ast = _ast;
+            done();
         });
     });
 

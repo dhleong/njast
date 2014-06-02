@@ -46,7 +46,51 @@ function Ast(path, buffer, options) {
     })
     .on('toplevel', function(node) {
         self.toplevel.push(node);
-    });
+    })
+
+    if (options.checkImports) {
+        var loader = options.loader || 
+            require('./classloader').cachedFromSource(path);
+
+        var candidates = {};
+
+        // FIXME: Lots of false positives, here.
+        //  I suspect some nodes are being incorrectly
+        //  parsed as Types when they should be Identifiers...
+        this.on('referencetype', function(node) {
+            if (!(node.name in candidates))
+                candidates[node.name] = node;
+        });
+        this.on('identifierexpression', function(node) {
+            var first = node.name.charAt(0);
+            var second = node.name.charAt(1);
+            if (first == first.toUpperCase()
+                    && second == second.toLowerCase()) {
+                // probably a Type
+                candidates[node.name] = node;
+            }
+        });
+
+        this.on('end', function() {
+            // check candidates in parallel
+            async.map(Object.keys(candidates), function(name, cb) {
+                self.resolveType(loader, name, function(type) {
+                    if (type) return cb(null, null);
+
+                    var node = candidates[name];
+                    cb(null, {
+                        pos: node.start
+                      , name: node.name
+                    });
+                });
+            }, function(err, results) {
+
+                // save and publish
+                self.missing = results;
+                self.emit('missing', results);
+            });
+        });
+    }
 }
 util.inherits(Ast, events.EventEmitter);
 
@@ -89,14 +133,16 @@ Ast.prototype.locate = function(line, ch) {
 /** Generally called for you... */
 Ast.prototype.parse = function(startType) {
 
-    if (startType == CompilationUnit)
-        this._root = startType.read(this);
-    else {
+    if (startType == CompilationUnit) {
+        this._root = CompilationUnit.prepare(this);
+        this._root.read();
+    } else {
         // clear it, in case our parse fails
         this._part = undefined;
         this._part = startType.read(this);
     }
 
+    this.emit('end', this);
     return this._root;
 };
 
@@ -266,11 +312,16 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
         }
     }
 
-    // must be another class in this package (?)
+    // probably another class in this package 
+    var self = this;
     var thisPackage = path + '.' + type;
     classLoader.openClass(thisPackage, function(err) {
         if (err) return cb(null); // couldn't resolve...
 
+        // yep! cache it for future reference...
+        self._root.namedImports[type] = thisPackage;
+
+        // ...and notify
         cb(thisPackage);
     });
 };
@@ -811,7 +862,11 @@ VarDef.readArrayInitializer = function(prev) {
 
 
 /**
- * Root AST node of a java file
+ * Root AST node of a java file. To facilitate
+ *  proper observers accessing namedImports, etc.,
+ *  CompilationUnit has slightly different instantiation
+ *  semantics. First, use CompilationUnit.prepare()
+ *  to get the node, then call unit.read() on the instance
  */
 function CompilationUnit(ast, mods, package) {
     SimpleNode.call(this, ast);
@@ -822,6 +877,10 @@ function CompilationUnit(ast, mods, package) {
     this.imports = [];
     this.types = [];
     this.namedImports = {};
+}
+util.inherits(CompilationUnit, SimpleNode);
+
+CompilationUnit.prototype.read = function() {
 
     var tok = this.tok;
     tok.expectSemicolon();
@@ -887,9 +946,8 @@ function CompilationUnit(ast, mods, package) {
 
     this._end();
 }
-util.inherits(CompilationUnit, SimpleNode);
 
-CompilationUnit.read = function(ast) {
+CompilationUnit.prepare = function(ast) {
     var mods = Modifiers.read(ast);
     if (ast.tok.readString("package")) {
         return new CompilationUnit(ast, mods, ast.tok.readQualified());
@@ -3510,6 +3568,13 @@ module.exports = {
      *  - level: (default: 7) JDK compatibility level. See: Tokenizer.Level
      *  - line: (default: 1) Line on which input starts 
      *  - ch: (default: 1) Column/character on which input starts
+     *  - checkImports: (default: false) Experimental; checks
+     *      expressions and Types to make sure they're accesible
+     *      (IE: imported, or in same package). If `true`, the results
+     *      will be in the `missing` array on the Ast root, and an
+     *      event `missing` will be emitted
+     *  - loader: A ClassLoader to use when checking imports. If not
+     *      provided, we will fetch a cached one if needed
      */
     parseFile: function(path, buffer, options, callback) {
         if (!callback) {
