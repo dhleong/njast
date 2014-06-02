@@ -626,6 +626,7 @@ Tokenizer.prototype.peekBracketClose = _peekMethod('BracketClose');
 Tokenizer.prototype.peekGenericOpen  = _peekMethod('GenericOpen');
 Tokenizer.prototype.peekGenericClose = _peekMethod('GenericClose');
 
+Tokenizer.prototype.peekInfixOp = _peekMethod('InfixOp');
 Tokenizer.prototype.peekString = _peekMethod('String');
 
 Tokenizer.prototype.readQualified = function() {

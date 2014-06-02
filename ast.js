@@ -2235,7 +2235,7 @@ CastExpression.read = function(prev) {
     }
     tok.expectParenClose();
     
-    if (tok.peekDot()) {
+    if (tok.peekDot() || tok.peekInfixOp()) {
         // this is kind of shitty, but necessary for sane parsing.
         // EX: ((Foo) obj).bar();
         // the stuff inside the paren is a nice CastExpression, 
@@ -2243,6 +2243,10 @@ CastExpression.read = function(prev) {
         // whose right is a SelectorExpression. Since we
         // expect SelectorExpression to be first, this minor
         // hack will make that happen
+        //
+        // Also, we don't want to confuse infix ops following
+        //  parens with being something that they're not
+        //  (esp: NonWildcardTypeArguments)
         return left; 
     }
 

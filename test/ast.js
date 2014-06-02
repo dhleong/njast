@@ -861,6 +861,19 @@ describe("Ast of FullAst.java", function() {
                         }
                     });
                 });
+
+                it("Paren With Infix", function() {
+                    var method = ast.qualifieds[
+                        'net.dhleong.njast.FullAst#moreTests'
+                    ];
+                    method.body.kids[1].should.be.assignment({
+                        left: 'canScrollDown',
+                        right: {
+                            'constructor.name': 'Expression',
+                            'chain[0][0]': '<'
+                        }
+                    });
+                });
             });
 
             describe("Control Flow:", function() {

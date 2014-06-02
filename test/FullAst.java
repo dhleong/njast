@@ -281,11 +281,13 @@ public class FullAst<E, T extends Object & Imported>
     enum NestedEnum {
     }
 
-    void moreTests() {
+    void moreTests(int count, int max) {
 
         // this would crash, but whatever
         singleArray[singleInt++] = 0;
 
+
+        boolean canScrollDown = (singleArray[0] + count) < max;
     }
 
 }
