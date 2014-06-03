@@ -7,27 +7,20 @@ var ClassLoader = require('../classloader')
 
 module.exports = function(req, res) {
 
+    // nothing to see here, move along...
+    res.send(204);
+
     var loader = ClassLoader.cachedFromSource(path);
     var path = req.body.path;
     readFile(path, {
         strict: false
-      , checkImports: true
-      , loader: loader
     }, function(err, ast) {
-        if (err) {
-            res.send(400, err.message);
-            return console.error(err);
-        }
+        if (err) return console.error(err); 
 
         console.log("init: cached", path);
         loader.putCache(path, ast);
 
-        // TODO suggest imports, actually
-        ast.on('missing', function(missing) {
-            res.json({
-                missing: missing
-            });
-        });
+        // TODO begin pre-caching/indexing
     });
 }
 

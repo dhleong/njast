@@ -219,7 +219,8 @@ class Njast(object):
 
             # data fetched successfully! Called here
             # so we don't suppress errors thrown by the callback
-            callback(data)
+            if callback is not None:
+                callback(data)
             
         Thread(target=safe_caller).start()
 
@@ -305,6 +306,22 @@ class Njast(object):
                 return port
             else:
                 output += line
+
+    def _update(self):
+        """Update the server's cache with our current file;
+        expects to be run from BufWritePost
+        """
+
+        # may not need to be async
+        path = vim.current.buffer.name
+
+        def on_result(data):
+            Njast.log("update result!", data)
+            if not data: return
+            if data.has_key('missing'):
+                self._lastMissing = data['missing']
+        
+        self._asyncRequest('update', {'path': path}, callback=on_result)
 
     @staticmethod
     def appendText(text):
@@ -424,13 +441,13 @@ class Njast(object):
 
         njast = cls.get()
 
-        def on_result(data):
-            Njast.log("init result!", data)
-            if not data: return
-            if data.has_key('missing'):
-                njast._lastMissing = data['missing']
+        # def on_result(data):
+        #     Njast.log("init result!", data)
+        #     if not data: return
+        #     if data.has_key('missing'):
+        #         njast._lastMissing = data['missing']
         
-        njast._asyncRequest('init', {'path': path}, callback=on_result)
+        njast._asyncRequest('init', {'path': path})
 
     class SuggestFormat:
         """Formats suggestions, etc. by type"""
@@ -510,7 +527,8 @@ SHORTCUTS = ['stop', 'run', 'log',
     'fetchImplementations',
     'gotoDefinition',
     'onInterval',
-    'showJavadoc'
+    'showJavadoc',
+    'update'
     ]
 for methodName in SHORTCUTS:
     method = _gen_method('_' + methodName)

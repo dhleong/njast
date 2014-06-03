@@ -116,7 +116,7 @@ function! njast#Enable()
 
     augroup NjastBuffer
         autocmd! * <buffer>
-        autocmd BufWritePost <buffer> :py Njast.init()
+        autocmd BufWritePost <buffer> :py Njast.update()
         autocmd CursorHold,CursorHoldI <buffer> :py Njast.onInterval()
     augroup END
 
