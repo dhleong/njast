@@ -8,6 +8,9 @@ class Njast(object):
 
     TIMEOUT = 1
 
+    # it's async; take more time if you need
+    ASYNC_TIMEOUT = 5
+
     # lines
     MAX_FULL_BUFFER_SIZE = 750
     BASE_PARTIAL_PREV = 50
@@ -174,7 +177,11 @@ class Njast(object):
     def _log(self, message, obj=None):
         self._makeRequest('log', {'data': message, 'obj': obj})
 
-    def _makeRequest(self, type, doc, raiseErrors=True):
+    def _makeRequest(self, type, doc, raiseErrors=True, timeout=None):
+        
+        if timeout is None:
+            timeout = self.TIMEOUT
+
         try:
           # float(vim.eval("g:tern_request_timeout"))
             url = 'http://localhost:' + str(self.port) + '/' + type
@@ -184,7 +191,7 @@ class Njast(object):
             req = urllib2.Request(url, \
                 data=json.dumps(doc), \
                 headers={'Content-Type':'application/json'})
-            res = urllib2.urlopen(req, timeout=self.TIMEOUT)
+            res = urllib2.urlopen(req, timeout=timeout)
             if res.getcode() == 204:
                 return True # indicate success somehow
 
@@ -192,6 +199,10 @@ class Njast(object):
         except urllib2.HTTPError, error:
             if raiseErrors:
                 Njast.displayError(error.read())
+            return None
+        except urllib2.URLError:
+            # probably, connection refused
+            Njast._instance = None
             return None
 
     def _asyncRequest(self, type, doc, callback=None):
@@ -211,8 +222,11 @@ class Njast(object):
         #  or whatever
         def safe_caller():
             try:
-                data = self._makeRequest(type, doc, raiseErrors=False)
-            except: 
+                data = self._makeRequest(type, doc, \
+                    raiseErrors=False, \
+                    timeout=Njast.ASYNC_TIMEOUT)
+            except Exception, e: 
+                Njast.log('ASYNC ERROR', e.message)
                 if callback is not None:
                     callback(None) # so we know it failed
                 return
@@ -428,7 +442,9 @@ class Njast(object):
             return cls._instance
 
         newInstance = Njast()
-        cls._instance = newInstance
+        if newInstance.port:
+            # only save it if it succesfully connected
+            cls._instance = newInstance
         return newInstance
 
     @classmethod

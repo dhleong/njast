@@ -6,6 +6,7 @@
         "test": "cd test && mocha *.js"
     },
     "dependencies": {
+        "glob"        : "4.*",
         "async"       : ">=0.2.10",
         "express"     : "4.*",
         "body-parser" : "1.2.*"

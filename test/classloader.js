@@ -101,4 +101,14 @@ describe("ClassLoader", function() {
             done();
         });
     });
+
+    it("suggests NotImport", function() {
+        loader.suggestImport('NotImported', function(err, suggestions) {
+            should.not.exist(err);
+
+            suggestions.should.be.an('array').of.length(1)
+                .and.contain('net.dhleong.njast.subpackage2.NotImported');
+
+        });
+    });
 });

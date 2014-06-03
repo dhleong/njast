@@ -1,5 +1,6 @@
 
 var async = require('async')
+  , glob = require('glob')
   , util = require('util')
   , path = require('path')
   , fs = require('fs')
@@ -101,6 +102,14 @@ ClassLoader.prototype.putCache = function(/* path, object */) {
     throw new Error("putCache not implemented");
 };
 
+/**
+ * Scan this ClassLoader for importable types with the given name
+ */
+ClassLoader.prototype.suggestImport = function(/* name, callback */) {
+    throw new Error("suggestImport not implemented");
+};
+
+
 
 /**
  * The ComposedClassLoader doesn't do any loading itself; instead
@@ -110,6 +119,7 @@ ClassLoader.prototype.putCache = function(/* path, object */) {
 function ComposedClassLoader(loaders) {
     this._loaders = loaders;
     this._cached = {};
+    this._importables = {};
 }
 
 ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
@@ -243,6 +253,36 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
     });
 }
 
+ComposedClassLoader.prototype.suggestImport = function(name, callback) {
+    if (name in this._importables)
+        return callback(null, this._importables[name]);
+
+    var loaders = this._loaders.map(function(loader) {
+        return function(onSuggest) {
+            loader.suggestImport(name, onSuggest);
+        };
+    });
+
+    var self = this;
+    async.parallel(loaders, function(err, results) {
+        if (err) return callback(err);
+
+        var result = results.reduce(function(last, items) {
+            for (var i = 0, len = items.length; i < len; i++) {
+                var item = items[i];
+                if (!~last.indexOf(item))
+                    last.push(item);
+            }
+            return last;
+        }, []);
+
+        // cache and return
+        self._importables[name] = result;
+        callback(null, result);
+    });
+};
+
+
 /**
  * Base class for ClassLoaders that read source files
  */
@@ -317,9 +357,83 @@ SourceClassLoader.prototype.putCache = function(path, ast) {
         this._astCache[path] = ast;
 };
 
+SourceClassLoader.prototype.suggestImport = function(name, callback) {
+    var suggestions = [];
+
+    // basically, we have to scan each file looking for "name."
+    var len = name.length;
+    this.walkTypes(function(type) {
+        // console.log(type.indexOf(name), type.length - len);
+        if (type.indexOf(name) == type.length - len)
+            suggestions.push(type);
+    }, function(err) {
+        callback(err, suggestions);
+    });
+};
+
+/**
+ * Walk across all Type names known to this ClassLoader with
+ *  the given iterator. The iterator is a function that takes
+ *  a `name`, which is the fully-qualified Type name, and a `callback`,
+ *  which should be called when you're done. If called with
+ *  a truth-y value (including an Error), the iteration will stop.
+ *
+ * onComplete will be called when walking is done with any error
+ *  that was passed from iterator
+ *
+ * The iterator can optionally not accept a callback, in which
+ *  case every single type will be walked
+ */
+SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
+    // wraps the iterator and does the right thing
+    function iterate(type, onEach) {
+        if (iterator.length == 1) {
+            iterator(type);
+            onEach();
+        } else {
+            iterator(type, onEach);
+        }
+    }
+
+    this._getSearchPaths().forEach(function(dir) {
+        var search = dir + path.sep + '**' + path.sep + '*.java';
+        glob(search, function(err, files) {
+            if (err) return onComplete(err);
+
+            async.each(files, function(file, onEach) {
+                // load the AST and iterate
+                //  over the qualifieds array
+                readFile(file, {
+                    strict: false
+                }, function(err, ast) {
+                    if (err) return onEach(err);
+
+                    async.each(Object.keys(ast.qualifieds), function(type, cb) {
+                        if (~type.indexOf('#'))
+                            return cb(); // method or field
+
+                        iterate(type, cb);
+                    }, function(err) {
+                        onEach(err);
+                    });
+                });
+            }, function(err) {
+                onComplete(err);
+            });
+        });
+    });
+};
+
 
 SourceClassLoader.prototype._getPathForType = function(/* type, cb */) {
     throw new Error(this.constructor.name + " must implement _getPathForType");
+};
+
+/**
+ * @return An [] of possible root search paths. They don't have to exist
+ */
+SourceClassLoader.prototype._getSearchPaths = function() {
+    throw new Error(this.constructor.name + " must implement _getSearchPaths");
 };
 
 
@@ -346,14 +460,12 @@ SourceProjectClassLoader.prototype._getPathForType = function(qualifiedName, cb)
         return cb(null, known);
 
     var dirs = this._getPath(qualifiedName);
-    var qualifiedPath = path.join.apply(path, dirs) ;
+    var qualifiedPath = path.join.apply(path, dirs);
 
     // construct array of candidate tasks to check in parallel
-    var candidates = [
-        path.join(this._root, 'src', qualifiedPath)
-      , path.join(this._root, 'src', 'main', 'java', qualifiedPath)
-      , path.join(this._root, 'src', 'debug', 'java', qualifiedPath)
-    ].map(function(fullPath) {
+    var candidates = this._getSearchPaths()
+    .map(function(basePath) {
+        var fullPath = path.join(basePath, qualifiedPath);
         return function(callback) {
             fs.exists(fullPath, function(exists) {
                 callback(null, {
@@ -382,6 +494,15 @@ SourceProjectClassLoader.prototype._getPathForType = function(qualifiedName, cb)
     });
 };
 
+SourceProjectClassLoader.prototype._getSearchPaths = function() {
+    return [
+        path.join(this._root, 'src')
+      , path.join(this._root, 'src', 'main', 'java')
+      , path.join(this._root, 'src', 'debug', 'java')
+    ];
+};
+
+
 
 /**
  * The SourceDirectoryClassLoader loads classes via
@@ -405,6 +526,10 @@ SourceDirectoryClassLoader.prototype._getPathForType = function(qualifiedName, c
     var fileName = path.join.apply(path, dirs.slice(this.packageLen));
     var filePath = path.join(this._root, fileName);
     cb(null, filePath);
+};
+
+SourceDirectoryClassLoader.prototype._getSearchPaths = function() {
+    return [this._root];
 };
 
 
