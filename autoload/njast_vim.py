@@ -31,7 +31,7 @@ class Njast(object):
             self.port = self._startServer()
 
         self._lastImplementations = None
-        self._lastMissing = None
+        self._lastUpdate = None
 
     def _gotoDefinition(self):
         data = self._run('define')
@@ -88,7 +88,17 @@ class Njast(object):
         """Called periodically
 
         """
-        self.log("Interval", self._lastMissing)
+        if not self._lastUpdate:
+            return
+        self.log("Interval", self._lastUpdate)
+        for key, items in self._lastUpdate.iteritems():
+            handler = getattr(Njast.UpdateHandler, key, None)
+            if handler is not None:
+                handler(items)
+
+        # it's been handled!
+        self._lastUpdate = None
+            
 
     def _ensureCompletionCached(self):
         if self._lastImplementations is not None:
@@ -331,9 +341,7 @@ class Njast(object):
 
         def on_result(data):
             Njast.log("update result!", data)
-            if not data: return
-            if data.has_key('missing'):
-                self._lastMissing = data['missing']
+            self._lastUpdate = data
         
         self._asyncRequest('update', {'path': path}, callback=on_result)
 
@@ -461,7 +469,7 @@ class Njast(object):
         #     Njast.log("init result!", data)
         #     if not data: return
         #     if data.has_key('missing'):
-        #         njast._lastMissing = data['missing']
+        #         njast._lastUpdate = data['missing']
         
         njast._asyncRequest('init', {'path': path})
 
@@ -529,6 +537,35 @@ class Njast(object):
                 'menu': 'method: ' + item['qualified'],
                 'info': info
             }
+
+    class UpdateHandler:
+        
+        @classmethod
+        def missing(cls, items):
+            for item in items:
+                Njast.log("Handling missing", item)
+                if len(item['imports']) == 1:
+                    # auto-import
+                    path = item['imports'][0]
+                    vim.command("echom 'Auto-imported %s'" % path)
+
+                    cls._insertImport(vim.current.buffer, path)
+
+        @staticmethod
+        def _insertImport(buf, path):
+
+            typedef = re.compile('class|enum|interface')
+            insert = 0
+            for i in xrange(0, len(buf)):
+                line = buf[i]
+                if line.find('import') >= 0:
+                    insert = i
+                    break
+                if typedef.match(line):
+                    insert = i-1
+                    break
+
+            buf.append('import %s;' % path, insert)
 
 # generate classmethod shortcuts
 def _gen_method(name):
