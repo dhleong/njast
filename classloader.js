@@ -119,7 +119,6 @@ ClassLoader.prototype.suggestImport = function(/* name, callback */) {
 function ComposedClassLoader(loaders) {
     this._loaders = loaders;
     this._cached = {};
-    this._importables = {};
 }
 
 ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
@@ -208,6 +207,7 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
 };
 
 ComposedClassLoader.prototype.putCache = function(path, obj) {
+
     this._loaders.some(function(loader) {
         if (loader.putCache(path, obj))
             return true;
@@ -254,8 +254,6 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
 }
 
 ComposedClassLoader.prototype.suggestImport = function(name, callback) {
-    if (name in this._importables)
-        return callback(null, this._importables[name]);
 
     var loaders = this._loaders.map(function(loader) {
         return function(onSuggest) {
@@ -263,7 +261,6 @@ ComposedClassLoader.prototype.suggestImport = function(name, callback) {
         };
     });
 
-    var self = this;
     async.parallel(loaders, function(err, results) {
         if (err) return callback(err);
 
@@ -276,8 +273,6 @@ ComposedClassLoader.prototype.suggestImport = function(name, callback) {
             return last;
         }, []);
 
-        // cache and return
-        self._importables[name] = result;
         callback(null, result);
     });
 };
@@ -288,6 +283,8 @@ ComposedClassLoader.prototype.suggestImport = function(name, callback) {
  */
 function SourceClassLoader() {
     this._astCache = {};
+    this._allCachedTypes = undefined; // not cached, yet
+    this._fileToTypes = undefined; // not cached, yet
 }
 util.inherits(SourceClassLoader, ClassLoader);
 
@@ -353,11 +350,47 @@ SourceClassLoader.prototype.openClass = function(qualifiedName,
 };
 
 SourceClassLoader.prototype.putCache = function(path, ast) {
-    if (~path.indexOf(this._root))
+    if (~path.indexOf(this._root)) {
         this._astCache[path] = ast;
+
+        // invalidate types cache for this obj.
+        if (!this._fileToTypes)
+            return;
+
+        var existing = this._fileToTypes[path];
+        var newtypes = Object.keys(ast.qualifieds);
+        var self = this;
+
+        // first, check for deleted types
+        var gone = existing.filter(function(type) {
+            return !~newtypes.indexOf(type);
+        });
+        gone.forEach(function(type) {
+            var idx = existing.indexOf(type);
+            existing.splice(idx, 1);
+
+            idx = self._allCachedTypes.indexOf(type);
+            if (idx >= 0) // should be
+                self._allCachedTypes.splice(idx, 1);
+        });
+
+        // now, check for new types
+        newtypes.forEach(function(qualified) {
+            if (!isType(qualified))
+                return;
+
+            if (!~existing.indexOf(qualified)) {
+                // new type
+                existing.push(qualified);
+                self._allCachedTypes.push(qualified);
+            }
+        });
+    }
+
 };
 
 SourceClassLoader.prototype.suggestImport = function(name, callback) {
+
     var suggestions = [];
 
     // basically, we have to scan each file looking for "name."
@@ -367,6 +400,7 @@ SourceClassLoader.prototype.suggestImport = function(name, callback) {
         if (type.indexOf(name) == type.length - len)
             suggestions.push(type);
     }, function(err) {
+
         callback(err, suggestions);
     });
 };
@@ -385,9 +419,10 @@ SourceClassLoader.prototype.suggestImport = function(name, callback) {
  *  case every single type will be walked
  */
 SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
+    
     // wraps the iterator and does the right thing
     function iterate(type, onEach) {
-        if (iterator.length == 1) {
+        if (iterator.length <= 1) {
             iterator(type);
             onEach();
         } else {
@@ -395,6 +430,15 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
         }
     }
 
+    // use cached types
+    if (this._allCachedTypes) {
+        async.each(this._allCachedTypes, iterate, onComplete);
+        return;
+    }
+
+    var allTypes = [];
+    var fileTypes = {};
+    var self = this;
     this._getSearchPaths().forEach(function(dir) {
         var search = dir + path.sep + '**' + path.sep + '*.java';
         glob(search, function(err, files) {
@@ -408,16 +452,27 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
                 }, function(err, ast) {
                     if (err) return onEach(err);
 
-                    async.each(Object.keys(ast.qualifieds), function(type, cb) {
-                        if (~type.indexOf('#'))
+                    var thisTypes = [];
+                    async.each(Object.keys(ast.qualifieds), function(qualified, cb) {
+                        if (!isType(qualified))
                             return cb(); // method or field
 
-                        iterate(type, cb);
+                        thisTypes.push(qualified);
+                        allTypes.push(qualified);
+                        iterate(qualified, cb);
                     }, function(err) {
                         onEach(err);
+
+                        fileTypes[file] = thisTypes;
                     });
                 });
             }, function(err) {
+
+                if (!err) {
+                    self._allCachedTypes = allTypes;
+                    self._fileToTypes = fileTypes;
+                }
+                    
                 onComplete(err);
             });
         });
@@ -598,4 +653,9 @@ module.exports = {
     cachedFromSource: function(sourceFilePath) {
         return module.exports.fromSource(sourceFilePath, true);
     }
+}
+
+function isType(qualified) {
+    // if '#,' this is a field or method
+    return !~qualified.indexOf('#');
 }

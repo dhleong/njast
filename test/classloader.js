@@ -112,3 +112,51 @@ describe("ClassLoader", function() {
         });
     });
 });
+
+describe("SourceClassLoader", function() {
+    
+    it("caches types", function(done) {
+        var sourceLoader = loader._loaders[0];
+        sourceLoader.walkTypes(function() {}, function(err) {
+            should.not.exist(err);
+
+            should.exist(sourceLoader._fileToTypes);
+
+            var foo = sourceLoader._fileToTypes['./Foo.java'];
+            should.exist(foo);
+            foo.should.contain('net.dhleong.njast.Foo$Fancy$Fancier');
+            sourceLoader._allCachedTypes
+                .should.contain('net.dhleong.njast.Foo$Fancy$Fancier');
+
+            done();
+        });
+    });
+
+    it("updates cached types on put", function() {
+        var sourceLoader = loader._loaders[0];
+        should.exist(sourceLoader._fileToTypes);
+
+        // delete all but main class, and and something new
+        sourceLoader.putCache('./Foo.java', {
+            qualifieds: {
+                'net.dhleong.njast.Foo': true
+              , 'net.dhleong.njast.Foo$Unexpected': true
+            }
+        });
+
+        var foo = sourceLoader._fileToTypes['./Foo.java'];
+        should.exist(foo)
+        foo.should.not.contain('net.dhleong.njast.Foo$Fancy');
+        foo.should.not.contain('net.dhleong.njast.Foo$Fancy$Fancier');
+        foo.should.contain('net.dhleong.njast.Foo');
+        foo.should.contain('net.dhleong.njast.Foo$Unexpected');
+
+        sourceLoader._allCachedTypes
+            .should.not.contain('net.dhleong.njast.Foo$Fancy');
+        sourceLoader._allCachedTypes
+            .should.not.contain('net.dhleong.njast.Foo$Fancy$Fancier');
+        sourceLoader._allCachedTypes
+            .should.contain('net.dhleong.njast.Foo$Unexpected');
+
+    });
+});
