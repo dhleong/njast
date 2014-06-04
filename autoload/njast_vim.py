@@ -1,5 +1,11 @@
 
-import vim, os, platform, subprocess, urllib2, json, re, time
+try:
+    import vim
+except ImportError: 
+    # hopefully running in unit test!
+    pass
+
+import os, platform, subprocess, urllib2, json, re, time
 from threading import Thread
 
 class Njast(object):
@@ -542,30 +548,53 @@ class Njast(object):
         
         @classmethod
         def missing(cls, items):
+            # TODO track inserted lines and reposition cursor (if needed)
+            insertedLines = 0
+            autoActions = []
             for item in items:
                 Njast.log("Handling missing", item)
                 if len(item['imports']) == 1:
                     # auto-import
                     path = item['imports'][0]
-                    vim.command("echom 'Auto-imported %s'" % path)
+                    autoActions.append('Imported %s' % path);
 
-                    cls._insertImport(vim.current.buffer, path)
+                    insertedLines += cls._insertImport(vim.current.buffer, path)
+                # TODO else: somehow allow suggestions (quick-fix?)
+
+            # echo auto-actions all at once
+            vim.command("redraw | echon '%s'" % '\n'.join(autoActions))
 
         @staticmethod
         def _insertImport(buf, path):
 
+            firstPackageChar = len('import ') 
+            newImport = 'import %s;' % path
             typedef = re.compile('class|enum|interface')
             insert = 0
+            lastImport = 0
             for i in xrange(0, len(buf)):
                 line = buf[i]
                 if line.find('import') >= 0:
-                    insert = i
-                    break
+                    if line > newImport:
+                        insert = i
+
+                        if buf[insert-1].strip() == '' \
+                                and line[firstPackageChar] != path[0] \
+                                and lastImport:
+                            # group with previous imports
+                            insert = lastImport + 1
+                        break
+                    else:
+                        # safety net
+                        lastImport = i
+
                 if typedef.match(line):
-                    insert = i-1
+                    # we've gone too far
+                    insert = lastImport or i - 1
                     break
 
-            buf.append('import %s;' % path, insert)
+            buf.append(newImport, insert)
+            return 1
 
 # generate classmethod shortcuts
 def _gen_method(name):
