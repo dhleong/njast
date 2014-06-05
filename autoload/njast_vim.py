@@ -548,11 +548,13 @@ class Njast(object):
         
         @classmethod
         def missing(cls, items):
-            # TODO track inserted lines and reposition cursor (if needed)
+
+            # record
+            line, col = vim.current.window.cursor
+
             insertedLines = 0
             autoActions = []
             for item in items:
-                Njast.log("Handling missing", item)
                 if len(item['imports']) == 1:
                     # auto-import
                     path = item['imports'][0]
@@ -560,6 +562,9 @@ class Njast(object):
 
                     insertedLines += cls._insertImport(vim.current.buffer, path)
                 # TODO else: somehow allow suggestions (quick-fix?)
+
+            # reposition cursor
+            vim.current.window.cursor = (line + insertedLines, col)
 
             # echo auto-actions all at once
             vim.command("redraw | echon '%s'" % '\n'.join(autoActions))
