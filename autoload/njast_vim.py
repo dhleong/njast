@@ -446,6 +446,13 @@ class Njast(object):
     def displayError(err):
         vim.command("echo " + json.dumps(str(err)))
 
+    @staticmethod
+    def fixit(data):
+        """Convenient call-out to vim autoload script
+        """
+        vim.command('call njast#fixit#add(%s)' % json.dumps(data))
+        
+
     @classmethod
     def get(cls):
         """Singleton accessor
@@ -561,10 +568,28 @@ class Njast(object):
                     autoActions.append('Imported %s' % path);
 
                     insertedLines += cls._insertImport(vim.current.buffer, path)
-                # TODO else: somehow allow suggestions (quick-fix?)
+                else:
+                    # allow suggestions
+                    if item.has_key('imports') and isinstance(item['imports'], list):
+                        fixes = [{
+                            'desc': 'Import %s' % path,
+                            'exec': 'py Njast.UpdateHandler._insertImport(vim.current.buffer, "%s")' % path
+                        } for path in item['imports']]
+                    else:
+                        fixes = []
+                        
+                    Njast.fixit({
+                        'desc': 'Unresolved type %s' % item['name'],
+                        'line': item['pos']['line'],
+                        'ch': item['pos']['ch'],
+                        'fixes': fixes
+                    })
 
             # reposition cursor
             vim.current.window.cursor = (line + insertedLines, col)
+
+            # show the fixit window if necessary (IN the background)
+            vim.command("call njast#fixit#show(1)")
 
             # echo auto-actions all at once
             vim.command("redraw | echon '%s'" % '\n'.join(autoActions))
