@@ -9,7 +9,8 @@
         "glob"        : "4.*",
         "async"       : ">=0.2.10",
         "express"     : "4.*",
-        "body-parser" : "1.2.*"
+        "body-parser" : "1.2.*",
+        "q"           : "1.0.*"
     },
     "devDependencies": {
         "chai"    : "latest",

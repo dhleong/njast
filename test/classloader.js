@@ -106,7 +106,8 @@ describe("ClassLoader", function() {
         loader.suggestImport('NotImported', function(err, suggestions) {
             should.not.exist(err);
 
-            suggestions.should.be.an('array').of.length(1)
+            suggestions.should.be.an('array').of.length(2)
+                .and.contain('net.dhleong.njast.subpackage.NotImported')
                 .and.contain('net.dhleong.njast.subpackage2.NotImported');
 
         });
@@ -158,5 +159,21 @@ describe("SourceClassLoader", function() {
         sourceLoader._allCachedTypes
             .should.contain('net.dhleong.njast.Foo$Unexpected');
 
+    });
+});
+
+describe("ProxyClassLoader", function() {
+    it("reads project.properties", function(done) {
+        ClassLoader.fromSource('./fakeProject/src/com/fakeproject/FakeProject.java')
+        .then(function(loader) {
+
+            loader._loaders.should.be.an('array')
+                .of.length(2);
+            loader._loaders[0].should.have.property('_root')
+                .that.equals('fakeProject');
+            loader._loaders[1].should.have.property('_root')
+                .that.match(/fakeProject\/third-party\/dependency$/);
+            done();
+        });
     });
 });

@@ -4,6 +4,7 @@ var async = require('async')
   , util = require('util')
   , path = require('path')
   , fs = require('fs')
+  , Q = require('q')
   
   , Ast = require('./ast')  
   , parseFile = Ast.parseFile
@@ -609,8 +610,174 @@ JarClassLoader.prototype.putCache = function() {
 };
 
 
-/** wrap any loader in a ComposedClassLoader for caching */
+/**
+ * The ProxyClassLoader builds on the ComposedClassLoader
+ *  by asynchronously composing ClassLoaders for any
+ *  detected dependencies, and proxying all relevant
+ *  methods to wait until that process is completed.
+ *
+ * It may only be constructed with a SourceClassLoader;
+ *  it does not make sense for a JarClassLoader to be
+ *  the root of a project, anyway!
+ */
+function ProxyClassLoader(loader) {
+    ComposedClassLoader.call(this, [loader]);
+
+    if (!loader._root)
+        throw new Error("ProxyClassLoader can only wrap SourceClassLoaders");
+
+    // use a deferred; it's a bit more elegant
+    //  than trying to roll it ourselves by 
+    //  saving callbacks and whatnot.
+    this._deferred = Q.defer();
+    this._root = loader._root;
+
+    var self = this;
+    Object.keys(ComposedClassLoader.prototype)
+    .filter(function(funName) {
+        // only proxy methods not marked as "unproxied"
+        return !~ProxyClassLoader.UNPROXIED_METHODS.indexOf(funName);
+    })
+    .forEach(function(funName) {
+        self[funName] = function() {
+            // save now
+            var args = Array.prototype.slice.apply(arguments);
+            var fun = ComposedClassLoader.prototype[funName];
+
+            // eventually get called when our deferred resolves
+            this._deferred.promise.then(function() {
+                fun.apply(self, args);
+            });
+        };
+    });
+
+    // look around and try to compose
+    this._compose(loader._root);
+}
+util.inherits(ProxyClassLoader, ComposedClassLoader);
+
+/**
+ * methods that should not be proxied; basically any
+ *  that don't take a callback (so far just one)
+ */
+ProxyClassLoader.UNPROXIED_METHODS = [
+    'putCache'
+];
+
+
+/**
+ * Dictionary of composer functions. Mutually exclusive
+ *  composers should be grouped together in a nested array
+ *  they be evaluated serially, and shortcircuit on the
+ *  first function to find anything.
+ *
+ * A composer function takes two arguments:
+ *  - root: Path to the root project directory
+ *  - callback: To be called with a truthy value on success
+ *
+ * "this" inside a composer refers to the ProxyClassLoader
+ */
+ProxyClassLoader.composers = {    
+    AndroidProject: [
+        // If it's an android project, we'll try to add
+        //  the latest source directory, if found, and
+        //  fallback to jars
+
+        // Local AndroidManifest?
+        function(root, cb) {
+            cb(true);
+        }
+
+        // in a src/main/java?
+      , function(root, cb) {
+            cb(true);
+        }
+    ]
+
+  // , JarLibsDir: [
+  //       // TODO once we have a working JarClassLoader
+  //   ]
+
+    
+    /** Android-style project.properties */
+  , 'project.properties': function(root, cb) {
+        
+        var self = this;
+        var file = path.join(root, 'project.properties');
+        fs.readFile(file, function(err, buf) {
+            if (err) return cb();
+
+            var str = buf.toString("UTF-8");
+            str.split('\n').forEach(function(line) {
+                var parts = line.split('=');
+                if (!(parts && parts[1])) return;
+
+                var dependency = path.resolve(root, parts[1]);
+                if (fs.existsSync(dependency)) {
+                    console.log("Found dependency", dependency);
+                    self._loaders.push(new SourceProjectClassLoader(dependency));
+                }
+            });
+            cb(true);
+        });
+    }
+};
+Object.keys(ProxyClassLoader.composers).forEach(function(type) {
+    var composer = ProxyClassLoader.composers[type];
+    if (!Array.isArray(composer))
+        return;
+
+    function runner(subComposer, cb) {
+        subComposer.call(this, this._root, cb);
+    }
+
+    // replace with the mutual exclusion-handling composer
+    ProxyClassLoader.composers[type] = function(root, cb) {
+        async.detect(composer, runner.bind(this), cb);
+    };
+
+});
+
+ProxyClassLoader.prototype._compose = function(root) {
+
+    var self = this;
+    var tasks = Object.keys(ProxyClassLoader.composers).map(function(type) {
+        var composer = ProxyClassLoader.composers[type];
+        return function(cb) {
+
+            // wrap the callback to ensure it never fails
+            composer.call(self, root, function() { cb(); });
+        };
+    });
+    
+    async.parallel(tasks, this._deferred.resolve.bind(this._deferred));
+    // var self = this;
+    // async.parallel(tasks, function() {
+    //     self._deferred.resolve();
+    // });
+};
+
+/** 
+ * ProxyClassLoader is "thenable"; the callback will
+ *  be fired once dependencies have been resolved.
+ *  The callback will be called with a reference to
+ *  this callback, for convenience.
+ */
+ProxyClassLoader.prototype.then = function(callback) {
+    var self = this;
+    return this._deferred.promise.then(function() {
+        // have to call on next tick so mocha gets
+        //  the exception correctly
+        process.nextTick(callback.bind(self, self));
+    });
+};
+
+
+/** wrap any loader in a ProxyClassLoader for caching */
 function _cached(loader) {
+    if (loader._root)
+        return new ProxyClassLoader(loader);
+
     return new ComposedClassLoader([loader]);
 }
 
@@ -639,15 +806,15 @@ module.exports = {
 
         // find project dir, check cache
         var projectDir = path.join.apply(path, dir.slice(0, srcIndex));
+        if (dir[0] === '')
+            projectDir = path.sep + projectDir;
+
         if (_allowCached && projectDir in CLASS_LOADER_CACHE)
             return CLASS_LOADER_CACHE[projectDir];
 
-        // TODO actually, compose this with any JarClassLoaders there,
-        //  source dir for Android, etc.
-
-        if (dir[0] === '')
-            projectDir = path.sep + projectDir;
-        return _cached(new SourceProjectClassLoader(projectDir));
+        var loader = _cached(new SourceProjectClassLoader(projectDir));
+        CLASS_LOADER_CACHE[projectDir] = loader;
+        return loader;
     },
 
     cachedFromSource: function(sourceFilePath) {
