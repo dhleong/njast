@@ -588,6 +588,10 @@ class Njast(object):
             # reposition cursor
             vim.current.window.cursor = (line + insertedLines, col)
 
+            # reposition fixits
+            # TODO do we actually need to use the last import line?
+            vim.command('call njast#fixit#offset(%d, 1)' % insertedLines)
+
             # show the fixit window if necessary (IN the background)
             vim.command("call njast#fixit#show(1)")
 

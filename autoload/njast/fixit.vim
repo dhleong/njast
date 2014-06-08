@@ -63,7 +63,7 @@ function! njast#fixit#apply()
         let fix = entry.fixes[indexes[1]]
 
         try
-            " jump back...
+            " jump back to source window...
             wincmd p 
 
             " ... execute the command
@@ -74,6 +74,7 @@ function! njast#fixit#apply()
 
             " Done without error! remove the item from the list
             call remove(list, indexes[0])
+            echo "Applied: " . fix.desc
 
             call njast#fixit#show()
         catch 
@@ -90,6 +91,24 @@ function! njast#fixit#apply()
         wincmd p
         call cursor(entry.line, entry.ch)
     endif
+endfunction
+
+"
+" Offset all items in the fixit list
+"   on or after the "after" line
+"   by the given number of "lines." 
+"
+" Used when applying fixes returned
+"   by the server, for example, that
+"   add lines
+"
+function! njast#fixit#offset(lines, after)
+    let list = njast#fixit#getList()
+    for item in list
+        if item.line >= a:after
+            let item.line = item.line + a:lines
+        endif
+    endfor
 endfunction
 
 "
