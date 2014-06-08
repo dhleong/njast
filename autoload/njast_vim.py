@@ -5,9 +5,50 @@ except ImportError:
     # hopefully running in unit test!
     pass
 
-import os, platform, subprocess, urllib2, json, re, time
+import os, platform, subprocess, urllib2, json, re, time, inspect
 from threading import Thread
 
+#
+# Utilities
+#
+
+def publicmethod(method):
+    """Make a method public accessible as a static method
+    on a singleton class. That class MUST be decorated with
+    @publicmethod.container for this to have any effect, and
+    this method's name MUST start with a single underscore"""
+    method.__is_public = True
+    return method
+
+# generate classmethod shortcuts
+def __gen_method(name):
+    def method(cls, *args):
+        inst = cls.get()
+        return getattr(inst, name)(*args)
+    return method
+
+def __publicmethod_container(klass):
+    """To be used as @publicmethod.container. Wraps all methods
+    decorated with @publicmethod so they can be accessed as 
+    static methods with the singleton. Classes decorated as such
+    must provide a staticmethod get() that returns the singleton"""
+    if not hasattr(klass, 'get'):
+        raise Exception(str(klass) + ' must have factory method get()')
+
+    methods = inspect.getmembers(klass, predicate=inspect.ismethod)
+    for methodName, m in methods:
+        if hasattr(m, '__is_public'):
+            method = __gen_method(methodName)
+            setattr(klass, methodName[1:], classmethod(method))
+
+    return klass
+publicmethod.container = __publicmethod_container
+
+#
+# Main class
+#
+
+@publicmethod.container
 class Njast(object):
 
     """Manages interactions with Njast server"""
@@ -39,6 +80,7 @@ class Njast(object):
         self._lastImplementations = None
         self._lastUpdate = None
 
+    @publicmethod
     def _gotoDefinition(self):
         data = self._run('define')
         if not data:
@@ -58,6 +100,7 @@ class Njast(object):
         vim.command('silent! call feedkeys("/\\\<%s\\\>\<CR>")' % word)
         vim.command('echo ""')
 
+    @publicmethod
     def _showJavadoc(self, winno, bufno):
         win = vim.windows[winno-1] # indexing is different
         buf = vim.buffers[bufno]   # indexing is the same (?!)
@@ -90,6 +133,7 @@ class Njast(object):
             
         Njast.appendText(formatted['info'])
 
+    @publicmethod
     def _onInterval(self):
         """Called periodically
 
@@ -105,7 +149,7 @@ class Njast(object):
         # it's been handled!
         self._lastUpdate = None
             
-
+    @publicmethod
     def _ensureCompletionCached(self):
         if self._lastImplementations is not None:
             return
@@ -123,33 +167,7 @@ class Njast(object):
         data = self._run('suggest', [curRow, curCol])
         self._inflateCompletion(data, curRow, curCol, curLine)
 
-    def _inflateCompletion(self, data, curRow, curCol, curLine):
-        if data is None: 
-            # cancel silently, but stay in complete mode;
-            #   hopefully ycm will work
-            vim.command("let b:njastLastCompletionPos.start = -2")
-            vim.command("let b:njastLastCompletion = []")
-            return
-
-        completions = []
-        for type, entries in data["results"].iteritems():
-            formatter = getattr(Njast.SuggestFormat, type)
-            for entry in entries:
-
-                try:
-                    completions.append(formatter(entry))
-                except:
-                    self._log("Error formatting", entry)
-
-        vim.command("let b:njastLastCompletion = " + json.dumps(completions))
-        start, end = (data["start"]["ch"], data["end"]["ch"])
-        vim.command("let b:njastLastCompletionPos = " + json.dumps({
-            "row": curRow,
-            "start": start,
-            "end": end,
-            "word": curLine[start:end]
-        }))
-
+    @publicmethod
     def _fetchImplementations(self):
         curRow, curCol = vim.current.window.cursor
         curLine = vim.current.buffer[curRow - 1]
@@ -162,6 +180,7 @@ class Njast(object):
             for methods in data['results']['methods']:
                 self._lastImplementations[methods['name']] = methods
 
+    @publicmethod
     def _attemptImplement(self):
         _, col = vim.current.window.cursor
         word = vim.current.line[:col].strip()
@@ -190,8 +209,98 @@ class Njast(object):
             UltiSnips_Manager.expand_anon(buf, trigger=word)
         except: pass
         
+    @publicmethod
     def _log(self, message, obj=None):
         self._makeRequest('log', {'data': message, 'obj': obj})
+
+    @publicmethod
+    def _run(self, type, pos=None, vimWindow=None, vimBuffer=None):
+        """Run a command
+        """
+
+        if vimWindow is None:
+            vimWindow = vim.current.window
+        if vimBuffer is None:
+            vimBuffer = vim.current.buffer
+
+        if pos is None:
+            row, col = vimWindow.cursor
+            if vim.eval('mode()') == 'n':
+                col += 1
+            # pos = {'line': row, 'ch': col}
+            pos = [row, col]
+
+        # TODO this stuff
+        # seq = vim.eval("undotree()['seq_cur']")
+        
+        doc = {
+            'path': vimBuffer.name,
+            'pos': pos,
+            'buffer': Njast.extractBuffer(vimWindow, vimBuffer)
+        }
+
+        data = None
+        try:
+            data = self._makeRequest(type, doc)
+            if data is None: return None
+        except: pass
+
+        return data
+
+    @publicmethod
+    def _stop(self):
+        """Stops the njast server, if started
+        """
+        
+        proc = self.proc
+        self.proc = None
+        if proc is None: return
+
+        proc.stdin.close()
+        proc.kill()
+        proc.wait()
+
+    @publicmethod
+    def _update(self):
+        """Update the server's cache with our current file;
+        expects to be run from BufWritePost
+        """
+
+        # may not need to be async
+        path = vim.current.buffer.name
+
+        def on_result(data):
+            Njast.log("update result!", data)
+            self._lastUpdate = data
+        
+        self._asyncRequest('update', {'path': path}, callback=on_result)
+
+    def _inflateCompletion(self, data, curRow, curCol, curLine):
+        if data is None: 
+            # cancel silently, but stay in complete mode;
+            #   hopefully ycm will work
+            vim.command("let b:njastLastCompletionPos.start = -2")
+            vim.command("let b:njastLastCompletion = []")
+            return
+
+        completions = []
+        for type, entries in data["results"].iteritems():
+            formatter = getattr(Njast.SuggestFormat, type)
+            for entry in entries:
+
+                try:
+                    completions.append(formatter(entry))
+                except:
+                    self._log("Error formatting", entry)
+
+        vim.command("let b:njastLastCompletion = " + json.dumps(completions))
+        start, end = (data["start"]["ch"], data["end"]["ch"])
+        vim.command("let b:njastLastCompletionPos = " + json.dumps({
+            "row": curRow,
+            "start": start,
+            "end": end,
+            "word": curLine[start:end]
+        }))
 
     def _makeRequest(self, type, doc, raiseErrors=True, timeout=None):
         
@@ -254,52 +363,6 @@ class Njast(object):
             
         Thread(target=safe_caller).start()
 
-    def _run(self, type, pos=None, vimWindow=None, vimBuffer=None):
-        """Run a command
-        """
-
-        if vimWindow is None:
-            vimWindow = vim.current.window
-        if vimBuffer is None:
-            vimBuffer = vim.current.buffer
-
-        if pos is None:
-            row, col = vimWindow.cursor
-            if vim.eval('mode()') == 'n':
-                col += 1
-            # pos = {'line': row, 'ch': col}
-            pos = [row, col]
-
-        # TODO this stuff
-        # seq = vim.eval("undotree()['seq_cur']")
-        
-        doc = {
-            'path': vimBuffer.name,
-            'pos': pos,
-            'buffer': Njast.extractBuffer(vimWindow, vimBuffer)
-        }
-
-        data = None
-        try:
-            data = self._makeRequest(type, doc)
-            if data is None: return None
-        except: pass
-
-        return data
-
-    def _stop(self):
-        """Stops the njast server, if started
-        """
-        
-        proc = self.proc
-        self.proc = None
-        if proc is None: return
-
-        proc.stdin.close()
-        proc.kill()
-        proc.wait()
-
-
     def _startServer(self):
         """Initialize the njast server
         :returns: the port on which we started, else None
@@ -336,20 +399,6 @@ class Njast(object):
                 return port
             else:
                 output += line
-
-    def _update(self):
-        """Update the server's cache with our current file;
-        expects to be run from BufWritePost
-        """
-
-        # may not need to be async
-        path = vim.current.buffer.name
-
-        def on_result(data):
-            Njast.log("update result!", data)
-            self._lastUpdate = data
-        
-        self._asyncRequest('update', {'path': path}, callback=on_result)
 
     @staticmethod
     def appendText(text):
@@ -629,25 +678,3 @@ class Njast(object):
 
             buf.append(newImport, insert)
             return 1
-
-# generate classmethod shortcuts
-def _gen_method(name):
-    def method(cls, *args):
-        inst = cls.get()
-        return getattr(inst, name)(*args)
-    return method
-    
-SHORTCUTS = ['stop', 'run', 'log',
-    'attemptImplement',
-    'ensureCompletionCached', 
-    'fetchImplementations',
-    'gotoDefinition',
-    'onInterval',
-    'showJavadoc',
-    'update'
-    ]
-for methodName in SHORTCUTS:
-    method = _gen_method('_' + methodName)
-
-    setattr(Njast, methodName, classmethod(method))
-
