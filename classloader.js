@@ -143,31 +143,11 @@ ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
         }
     }
 
-    // var loaders = this._loaders.map(function(loader) {
-    //     return function(resolve) {
-    //         loader.openAst(path, buf, options, resolve);
-    //     };
-    // });
-    //
-    // async.parallel(loaders, function(err, results) {
-    //     if (err) return callback(err);
-    //
-    //     // reduce results into the first successful one
-    //     var result = results.reduce(function(last, item) {
-    //         if (last) return last;
-    //         return item;
-    //     });
-    //
-    //     // finally, call the actual callback
-    //     callback(err, result);
-    // });
-
     var result = [null, null];
     async.detect(this._loaders, function(loader, resolve) {
         loader.openAst(path, buf, options, function(err, ast) {
             if (err) return resolve();
 
-            console.log('detect!', loader._root, err, ast !== undefined);
             result[0] = err
             result[1] = ast;
             resolve(true);
@@ -194,35 +174,29 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
     if (qualifiedName in this._cached)
         return callback(null, this._cached[qualifiedName]);
 
-    // create functions to call that are bound with
-    // the qualifiedName arg, plus caching
     var self = this;
-    var loaders = this._loaders.map(function(loader) {
-        return function(cb) {
-            loader.openClass(qualifiedName, projection, 
-                    function(err, result) {
-                // cache successful results
-                // FIXME merge the projection types
-                if (result && !err && Array.isArray(projection))
-                    self._cached[qualifiedName] = result;
+    var result = [null, null];
+    async.detect(this._loaders, function(loader, resolve) {
+        loader.openClass(qualifiedName, projection, function(err, projected) {
+            // cache successful results
+            // FIXME *merge* the projection types
+            if (projected && !err && Array.isArray(projection))
+                self._cached[qualifiedName] = projected;
 
-                // call through
-                cb(err, result);
-            });
-        };
-    });
+            else if (err)
+                return resolve();
 
-    // evaluate wrapped loaders in parallel
-    async.parallel(loaders, function(err, results) {
-        // reduce results into the first successful one
-        var result = results.reduce(function(last, item) {
-            if (last) return last;
-            return item;
+            // call through
+            result[0] = err;
+            result[1] = projected;
+            resolve(true);
         });
+    }, function() {
+        if (!result[1])
+            return callback(new Error("Could not open class " + qualifiedName));
 
-        // finally, call the actual callback
-        callback(err, result);
-    });
+        callback(result[0], result[1]);
+    })
 };
 
 ComposedClassLoader.prototype.putCache = function(path, obj) {
@@ -743,6 +717,7 @@ ProxyClassLoader.composers = {
         fs.readFile(file, function(err, buf) {
             if (err) return cb();
 
+            var discovered = [];
             var str = buf.toString("UTF-8");
             str.split('\n').forEach(function(line) {
                 var parts = line.split('=');
@@ -750,11 +725,20 @@ ProxyClassLoader.composers = {
 
                 var dependency = path.resolve(root, parts[1]);
                 if (fs.existsSync(dependency)) {
-                    // console.log("Found dependency", dependency);
-                    self._loaders.push(new SourceProjectClassLoader(dependency));
+                    var proxy = _cached(new SourceProjectClassLoader(dependency));
+                    self._loaders.push(proxy);
+                    discovered.push(proxy.promise());
                 }
             });
-            cb(true);
+
+            if (!discovered.length)
+                return cb(true); // nothing to do
+
+            // wait for the dependency to compose itself
+            Q.allSettled(discovered)
+            .then(function() {
+                cb(true);
+            });
         });
     }
 };
@@ -806,6 +790,13 @@ ProxyClassLoader.prototype.then = function(callback) {
         //  the exception correctly
         process.nextTick(callback.bind(self, self));
     });
+};
+
+/**
+ * Return this ProxyClassLoader's Promise instance
+ */
+ProxyClassLoader.prototype.promise = function() {
+    return this._deferred.promise;
 };
 
 
