@@ -445,7 +445,7 @@ class Njast(object):
         end = None
         mode = 'block'
 
-        regex = re.compile(r"^\s*(for|while|if)[ ]*\(")
+        regex = re.compile(r"^\s*(for|while|if|switch|catch|try|synchronized)[ ]*\(")
         depth = 0
         upper = max(0, line - Njast.BASE_PARTIAL_PREV)
         for i in range(line, upper, -1):

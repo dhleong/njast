@@ -135,6 +135,21 @@ describe("Suggestions in Foo.java at", function() {
         });
     });
 
+    it("83, 13: baz() -> Fancy", function(done) {
+        suggestor
+        .at(83, 13)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0].name')
+                    .that.equals('biz');
+
+            done();
+        });
+    });
+
     it("overridable methods"/* , function(done) {
         suggestor
         .at(12, 4)
