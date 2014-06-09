@@ -167,6 +167,7 @@ ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
         loader.openAst(path, buf, options, function(err, ast) {
             if (err) return resolve();
 
+            console.log('detect!', loader._root, err, ast !== undefined);
             result[0] = err
             result[1] = ast;
             resolve(true);
@@ -307,6 +308,15 @@ function SourceClassLoader() {
 util.inherits(SourceClassLoader, ClassLoader);
 
 SourceClassLoader.prototype.openAst = function(path, buf, options, cb) {
+    
+    // make sure the path matches us (prevent redundant parsing
+    //  for dependencies nested, like with gradle subprojects)
+    var matches = this._getSearchPaths().some(function(search) {
+        return ~path.indexOf(search);
+    });
+
+    if (!matches)
+        return cb(new Error("Path not found in classloader at " + this._root));
 
     var cached = this._astCache[path];
     if (cached) return cb(null, cached);
