@@ -183,8 +183,10 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
             if (projected && !err && Array.isArray(projection))
                 self._cached[qualifiedName] = projected;
 
-            else if (err)
+            else if (err) {
+                result[0] = err;
                 return resolve();
+            }
 
             // call through
             result[0] = err;
@@ -192,8 +194,6 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
             resolve(true);
         });
     }, function() {
-        if (!result[1])
-            return callback(new Error("Could not open class " + qualifiedName));
 
         callback(result[0], result[1]);
     })
@@ -653,6 +653,15 @@ function ProxyClassLoader(loader) {
             // save now
             var args = Array.prototype.slice.apply(arguments);
             var fun = ComposedClassLoader.prototype[funName];
+
+            // TODO remove (just debugging)
+            // if (funName == 'openClass' && arguments[0] == 'net.dhleong.njast.FullAst') {
+            //     try {
+            //         throw new Error();
+            //     } catch (e) {
+            //         console.log(e.stack);
+            //     }
+            // }
 
             // eventually get called when our deferred resolves
             this._deferred.promise.then(function() {
