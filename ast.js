@@ -566,6 +566,7 @@ SimpleNode.prototype.getScope = function() {
  * Climb the scope to locate the given identifier
  */
 SimpleNode.prototype.searchScope = function(identifier) {
+    // console.log(this.name, this.start, "Search for", identifier);
     var scope = this.getScope();
     while (scope) {
         var found = scope.getVar(identifier);
@@ -578,11 +579,16 @@ SimpleNode.prototype.searchScope = function(identifier) {
     // all the hacks...
     var root = this._root._root;
     if (this._root._part && root instanceof CompilationUnit) {
+        // console.log("Search root for", identifier);
         // we were looking in the partial buffer;
         //  let's find our scope in the root!
         var closeEnough = root.locate(this.start.line, this.start.ch + 1)
         if (closeEnough) {
-            return closeEnough.searchScope(identifier);
+            if (!(closeEnough.constructor.name == this.constructor.name
+                        && closeEnough.start.line == this.start.line
+                        && closeEnough.start.ch == this.start.ch)) {
+                return closeEnough.searchScope(identifier);
+            }
         }
 
         // no? Okay, well at least look for fields
@@ -2836,10 +2842,11 @@ function IdentifierExpression(prev, state, name) {
 util.inherits(IdentifierExpression, SimpleNode);
 
 IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
-    if (this.name == 'super')
+    var name = this.name;
+    if (name == 'super')
         return cb(new Error('"super" should not be in an IdentifierExpression'));
 
-    if (this.name == 'this') {
+    if (name == 'this') {
         if (this._chain) {
             // use the chain's value, but twiddle it to
             //  be "FROM_OBJECT" since "this" is referring
@@ -2865,14 +2872,18 @@ IdentifierExpression.prototype.evaluateType = function(classLoader, cb) {
 
     // FIXME chain
 
-    var varDef = this.searchScope(this.name);
+    var varDef = this.searchScope(name);
     if (varDef)
         return varDef.evaluateType(classLoader, cb);
 
-    // probably a class name of some kind
-    var self = this;
-    this.getRoot().resolveType(classLoader, this.name, function(resolved) {
-        if (!resolved) return cb(new Error('unable to resolve class ' + self.name));
+    // possibly a class name of some kind?
+    if (name.charAt(0) == name.charAt(0).toLowerCase()) {
+        // nope, nevermind. don't bother.
+        return cb(new Error("Unable to resolve variable " + name));
+    }
+
+    this.getRoot().resolveType(classLoader, name, function(resolved) {
+        if (!resolved) return cb(new Error("Unable to resolve class " + name));
 
         cb(null, {
             type: resolved
