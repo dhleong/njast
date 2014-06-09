@@ -23,7 +23,7 @@ Suggestor.prototype.at = function(line, col) {
 }
 
 Suggestor.prototype.find = function(cb) {
-    
+
     // extract the current line of text
     var line = this._extractLine();
     if (!line) {

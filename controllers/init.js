@@ -10,9 +10,9 @@ module.exports = function(req, res) {
     // nothing to see here, move along...
     res.send(204);
 
-    var loader = ClassLoader.cachedFromSource(path);
     var path = req.body.path;
-    console.log("init...", path);
+    var loader = ClassLoader.cachedFromSource(path);
+    console.log("init...", path, loader);
     readFile(path, {
         strict: false
     }, function(err, ast) {

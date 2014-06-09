@@ -143,23 +143,40 @@ ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
         }
     }
 
-    var loaders = this._loaders.map(function(loader) {
-        return function(resolve) {
-            loader.openAst(path, buf, options, resolve);
-        };
-    });
+    // var loaders = this._loaders.map(function(loader) {
+    //     return function(resolve) {
+    //         loader.openAst(path, buf, options, resolve);
+    //     };
+    // });
+    //
+    // async.parallel(loaders, function(err, results) {
+    //     if (err) return callback(err);
+    //
+    //     // reduce results into the first successful one
+    //     var result = results.reduce(function(last, item) {
+    //         if (last) return last;
+    //         return item;
+    //     });
+    //
+    //     // finally, call the actual callback
+    //     callback(err, result);
+    // });
 
-    async.parallel(loaders, function(err, results) {
-        if (err) return callback(err);
+    var result = [null, null];
+    async.detect(this._loaders, function(loader, resolve) {
+        loader.openAst(path, buf, options, function(err, ast) {
+            if (err) return resolve();
 
-        // reduce results into the first successful one
-        var result = results.reduce(function(last, item) {
-            if (last) return last;
-            return item;
+            result[0] = err
+            result[1] = ast;
+            resolve(true);
         });
+    }, function() {
+        // the arg here would just be the successful loader...
+        if (!result[1])
+            return callback(new Error("Could not open " + path));
 
-        // finally, call the actual callback
-        callback(err, result);
+        callback(result[0], result[1]);
     });
 };
 
@@ -294,10 +311,18 @@ SourceClassLoader.prototype.openAst = function(path, buf, options, cb) {
     var cached = this._astCache[path];
     if (cached) return cb(null, cached);
 
+    var self = this;
+    var cachingCallback = function(err, ast) {
+        if (!err)
+            self._astCache[path] = ast;
+
+        cb(err, ast);
+    };
+
     if (buf) {
-        parseFile(path, buf, options, cb);
+        parseFile(path, buf, options, cachingCallback);
     } else {
-        readFile(path, options, cb);
+        readFile(path, options, cachingCallback);
     }
 };
 
@@ -316,6 +341,7 @@ SourceClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
         }, function(err, ast) {
             if (err) return cb(err);
 
+            self._astCache[path] = cached;
             ast.resolveMethodReturnType(self, type, name, cb);
         });
     });
@@ -714,7 +740,7 @@ ProxyClassLoader.composers = {
 
                 var dependency = path.resolve(root, parts[1]);
                 if (fs.existsSync(dependency)) {
-                    console.log("Found dependency", dependency);
+                    // console.log("Found dependency", dependency);
                     self._loaders.push(new SourceProjectClassLoader(dependency));
                 }
             });
