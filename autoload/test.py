@@ -3,6 +3,8 @@
 import unittest
 from njast_vim import Njast
 
+# Mock object class definitions {{{1
+# VimMock {{{2
 class VimMock(object):
 
     """Mock vim module"""
@@ -11,6 +13,11 @@ class VimMock(object):
         """Initialize vim object """
         self.current = self
 
+    def setWindow(self, win):
+        self.window = win
+        self.buffer = win.buffer
+
+# VimBuffer {{{2
 class VimBuffer(object):
 
     """Fake buffer object"""
@@ -41,6 +48,23 @@ class VimBuffer(object):
             index = len(self._lines)
 
         self._lines.insert(index, line)
+
+# VimWindow {{{2
+class VimWindow(object):
+
+    """Contains a buffer and a cursor"""
+
+    def __init__(self, buffer, cursor=(1, 1)):
+        """Create a window object
+
+        :buffer: @todo
+        :cursor: @todo
+
+        """
+        self.buffer = buffer
+        self.cursor = cursor
+
+# }}}1
 
 # global vim
 vim = VimMock()
@@ -96,7 +120,63 @@ public class Awesome {
 
     # TODO test a com.* package
 
+class BufferExtraction(unittest.TestCase):
+
+    def setUp(self):
+        vim.buffer = VimBuffer(
+'''public class Foo {
+
+    void onReceive(final Message pkt) {
+
+        final Thread thread = pkt.getThread();
+        thread. // imagine we're typing
+        if (thread != null && !MessagingService.isUserShown(pkt.user_slug)) {
+            thread.setTyping(pkt.is_typing);
+            thread. // more typing
+        }
+    }
+    
+    static Message lastMessage = null; // I dunno, whatever
+
+    static Message nextMessage = // also typing
+
+}
+'''
+        )
+        vim.setWindow(VimWindow(vim.buffer, cursor=(7, 19)))
+
+        self.__maxSize = Njast.MAX_FULL_BUFFER_SIZE
+        Njast.MAX_FULL_BUFFER_SIZE = 3 # absurdly small to force partial
+
+    def tearDown(self):
+        Njast.MAX_FULL_BUFFER_SIZE = self.__maxSize
+
+    def test_InsideMethod(self):
+        vim.window.cursor = (5, 16)
+        buf = Njast.extractBuffer(vim.window, vim.buffer)
+        self.assertEquals(buf['start'], 3)
+        self.assertEquals(buf['mode'], 'body')
+
+    # TODO Not sure the best way to handle this case yet, actually;
+    #  Current algorithm just sees the close bracket as possibly
+    #  a closed IF and bumps the depth, which is important as the
+    #  most common case will be typing inside a method...
+    # def test_Block(self):
+    #     vim.window.cursor = (14, 34)
+    #     buf = Njast.extractBuffer(vim.window, vim.buffer)
+    #     self.assertEquals(buf['start'], 11)
+    #     self.assertEquals(buf['mode'], 'block')
+
+    def test_NestedIf(self):
+        vim.window.cursor = (8, 19)
+        buf = Njast.extractBuffer(vim.window, vim.buffer)
+        self.assertEquals(buf['start'], 3)
+        self.assertEquals(buf['mode'], 'body')
+
+
 if __name__ == '__main__':
     tester = unittest.main(failfast=True, exit=False)
     if not tester.result.wasSuccessful():
         print vim.current.buffer
+
+# vim: set sw=4 sts=4 et fdm=marker:
