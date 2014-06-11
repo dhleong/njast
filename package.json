@@ -6,11 +6,12 @@
         "test": "cd test && mocha *.js"
     },
     "dependencies": {
-        "glob"        : "4.*",
-        "async"       : ">=0.2.10",
-        "express"     : "4.*",
-        "body-parser" : "1.2.*",
-        "q"           : "1.0.*"
+        "async"           : ">=0.2.10",
+        "express"         : "4.*",
+        "body-parser"     : "1.2.*",
+        "glob"            : "4.*",
+        "q"               : "1.0.*",
+        "stream-splitter" : "0.3.*"
     },
     "devDependencies": {
         "chai"    : "latest",

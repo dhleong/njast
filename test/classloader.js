@@ -2,6 +2,8 @@
 
 var ClassLoader = require('../classloader')
   , Ast = require('../ast')
+  , extractPackage = ClassLoader.extractPackage
+
   , should = require('chai').should();
 
 /* 
@@ -9,7 +11,7 @@ var ClassLoader = require('../classloader')
 /* jshint ignore:start 
  */
 console.oldError = console.error;
-console.error = function () {
+console.aerror = function () {
     if (typeof arguments.stack !== 'undefined') {
         console.oldError.call(console, arguments.stack);
     } else {
@@ -168,11 +170,59 @@ describe("ProxyClassLoader", function() {
         .then(function(loader) {
 
             loader._loaders.should.be.an('array')
-                .of.length(2);
+                .of.length(3);
             loader._loaders[0].should.have.property('_root')
                 .that.equals('fakeProject');
-            loader._loaders[1].should.have.property('_root')
+            // loader[1] is now the core java classes loader
+            loader._loaders[2].should.have.property('_root')
                 .that.match(/fakeProject\/third-party\/dependency$/);
+            done();
+        });
+    });
+});
+
+describe("extractPackage handles", function() {
+    it("normal class", function() {
+        extractPackage('java.util.HashMap').should.equal('java.util');
+    });
+    it("inner class", function() {
+        extractPackage('java.util.Map$Entry').should.equal('java.util');
+    });
+});
+describe("JarClassLoader", function() {
+    var jloader;
+    before(function() {
+        // wackiness so we actually get our assertions
+        jloader = loader._loaders[1];
+        return loader.promise();
+    });
+
+    it("is included for core", function() {
+        loader._loaders.should.be.an('array')
+            .of.length(2);
+
+        should.exist(jloader);
+        jloader.should.have.deep.property('constructor.name')
+            .that.equals('JarClassLoader');
+    });
+
+    it("finds HashMap", function(done) {
+        jloader.openClass("java.util.HashMap", function(err) {
+            should.not.exist(err);
+
+            done();
+        });
+    });
+
+    it("projects HashMap", function(done) {
+        jloader.openClass("java.util.HashMap", ['fields', 'methods'], function(err, projection) {
+            should.not.exist(err);
+
+            projection.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0].name')
+                    .that.equals('size');
+
             done();
         });
     });

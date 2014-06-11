@@ -5,6 +5,8 @@ var async = require('async')
   , path = require('path')
   , fs = require('fs')
   , Q = require('q')
+  , StreamSplitter = require('stream-splitter')
+  , spawn = require('child_process').spawn
   
   , Ast = require('./ast')  
   , parseFile = Ast.parseFile
@@ -215,35 +217,29 @@ ComposedClassLoader.prototype.resolveMethodReturnType = function(type, name, cb)
     if (qualifiedName in this._cached)
         return cb(null, this._cached[qualifiedName]);
 
-    // create functions to call that are bound with
-    // the qualifiedName arg, plus caching
+    // use detect!
     var self = this;
-    var loaders = this._loaders.map(function(loader) {
-        return function(onResolved) {
-            loader.resolveMethodReturnType(type, name, function(err, result) {
-                // cache successful results
-                if (result && !err)
-                    self._cached[qualifiedName] = result;
+    var result = [null, null];
+    async.detect(this._loaders, function(loader, resolve) {
+        loader.resolveMethodReturnType(type, name, function(err, resolved) {
+            // cache successful results
+            if (resolved && !err)
+                self._cached[qualifiedName] = resolved;
 
-                // call through
-                onResolved(err, result);
-            });
-        };
-    });
+            else if (err) {
+                result[0] = err;
+                return resolve();
+            }
 
-    // evaluate wrapped loaders in parallel
-    async.parallel(loaders, function(err, results) {
-        if (err) return cb(err);
-
-        // reduce results into the first successful one
-        var result = results.reduce(function(last, item) {
-            if (last) return last;
-            return item;
+            // call through
+            result[0] = err;
+            result[1] = resolved;
+            resolve(true);
         });
+    }, function() {
 
-        // finally, call the actual callback
-        cb(null, result);
-    });
+        cb(result[0], result[1]);
+    })
 }
 
 ComposedClassLoader.prototype.suggestImport = function(name, callback) {
@@ -601,23 +597,168 @@ SourceDirectoryClassLoader.prototype._getSearchPaths = function() {
 
 
 /**
- * The JarClassLoader loads classes from their bytecode
- *  found in a jar file
+ * The JarClassLoader loads projections of classes
+ *  found in a jar file. For laziness, we simply
+ *  use jar/javap and parse the output rather than
+ *  try to learn the .class format
  */
 function JarClassLoader(jarPath) {
     this._jar = jarPath;
+    this._classCache = {};
 }
 util.inherits(JarClassLoader, ClassLoader);
 
 JarClassLoader.prototype.openAst = function(path, buf, options, callback) {
-    // we can't open ast
+    // nop; we can't open ast
     callback(null, null);
+};
+
+JarClassLoader.prototype.openClass = function(qualifiedName, 
+        projection, callback) {
+
+    if (!callback) {
+        callback = projection;
+        projection = undefined;
+    }
+
+    // FIXME match projection
+    if (qualifiedName in this._classCache)
+        return this._classCache[qualifiedName];
+
+    // nop for now?
+    var self = this;
+    this.getTypes(function(types) {
+
+        // find that class, and any nested classes
+        var found = false;
+        var inPackage = types.filter(function(type) {
+            found |= type == qualifiedName;
+            return (type == qualifiedName
+                || ~type.indexOf(qualifiedName + '$'))
+                    && !(type in self._classCache)
+                    && !type.match(/\$[0-9]+$/); // omit anonymous classes
+        });
+
+        if (!found) {
+            return callback(new Error(qualifiedName + " not in " + this._jar));
+        } else if (!projection) {
+            // only care that it exists
+            return callback(null, true);
+        }
+
+        if (!(inPackage && inPackage.length))
+            callback(new Error(qualifiedName + " not in " + this._jar));
+
+        var foundType = false;
+        var buffer = null;
+
+        // use javap to proactively cache all classes in that package
+        // (faster, I think, than going one-by-one?)
+        var args = ['-public', '-classpath', self._jar].concat(inPackage);
+        var splitter = spawn('javap', args)
+            .stdout.pipe(StreamSplitter('\n'));
+        splitter.on('error', callback);
+        splitter.on('token', function(line) {
+            var utf8 = line.toString("UTF-8");
+            if (~utf8.indexOf('{')) {
+                buffer = line;
+            } else if (~utf8.indexOf('}')) {
+                buffer.write('}');
+                self._parseBuffer(buffer, function(err, ast) {
+                    if (ast && ast.qualifiedName == qualifiedName) {
+                        foundType = true;
+                        callback(null, ast);
+                    }
+                });
+
+                buffer = null;
+
+            } else if (buffer != null) {
+                buffer = Buffer.concat([buffer, line]);
+            }
+        });
+        splitter.on('done', function() {
+            if (!foundType)
+                callback(new Error("Could not find/parse " + qualifiedName));
+        });
+
+    });
+}
+
+/**
+ * Parse and cache the buffer output from javap 
+ *  and return the projection. 
+ * TODO Include nested classes? Normal openClass
+ *  doesn't do this yet, either
+ */
+JarClassLoader.prototype._parseBuffer = function(buf, callback) {
+    // TODO
+    callback();
 };
 
 
 JarClassLoader.prototype.putCache = function() {
     // nop; we won't need to update cache
 };
+
+JarClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
+    cb(new Error("resolveMethodReturnType not implemented")); // TODO
+};
+
+JarClassLoader.prototype.suggestImport = function(name, callback) {
+    callback(new Error("suggestImport not implemented")); // TODO
+};
+
+/**
+ * Passes a list of all known types in this .jar
+ *  to the callback
+ */
+JarClassLoader.prototype.getTypes = function(cb) {
+    if (this._classListCache)
+        return cb(this._classListCache);
+
+    var self = this;
+    var types = [];
+    var jar = spawn('jar', ['tf', this._jar]);
+    var spawned = jar.stdout.pipe(StreamSplitter('\n'));
+    spawned.on('token', function(entry) {
+        entry = entry.toString("UTF-8");
+        if (entry.substr(-5) != 'class')
+            return;
+
+        var qualifiedName = entry.substr(0, entry.length - 6) // strip .class
+                                 .replace(/\//g, '.');
+        types.push(qualifiedName);
+    });
+    spawned.on('done', function() {
+        self._classListCache = types;
+        cb(types);
+    });
+};
+
+function extractPackage(qualifiedName) {
+
+    // now, was this import an inner class?
+    // A bit gross, but only idiots would have
+    //  capital letters in a package, or lower
+    //  case to start a class.
+    var parts = qualifiedName.split('.');
+    if (parts.length > 1) {
+        // len-1 is the name again
+        for (var i=parts.length-2; i >= 0; i--) {
+            var part = parts[i];
+            var first = part.charAt(0);
+            if (first == first.toLowerCase()) {
+                return parts.slice(0, i+1).join('.');
+            }
+        }
+
+    } else {
+        // default package. yuck.
+        return ''; // ???
+    }
+
+}
 
 
 /**
@@ -664,8 +805,8 @@ function ProxyClassLoader(loader) {
             // }
 
             // eventually get called when our deferred resolves
-            this._deferred.promise.then(function() {
-                fun.apply(self, args);
+            return this._deferred.promise.then(function() {
+                return fun.apply(self, args);
             });
         };
     });
@@ -697,7 +838,37 @@ ProxyClassLoader.UNPROXIED_METHODS = [
  * "this" inside a composer refers to the ProxyClassLoader
  */
 ProxyClassLoader.composers = {    
-    AndroidProject: [
+
+    JavaCore: [
+        // we always want Java core classes. first, let's
+        //  check JAVA_HOME, then fall back to some sane defaults
+        function(root, cb) {
+            if (!process.env.JAVA_HOME)
+                return cb();
+
+            var jar = path.join(process.env.JAVA_HOME, 'jre/lib/rt.jar');
+            if (fs.existsSync(jar)) {
+                this._loaders.push(new JarClassLoader(jar));
+                return cb(true);
+            }
+
+            cb();
+        },
+
+        // OSX?
+        function(root, cb) {
+
+            var jar = '/System/Library/Frameworks/JavaVM.framework/Classes/classes.jar';
+            if (fs.existsSync(jar)) {
+                this._loaders.push(new JarClassLoader(jar));
+                return cb(true);
+            }
+
+            cb();
+        }
+    ]
+
+  , AndroidProject: [
         // If it's an android project, we'll try to add
         //  the latest source directory, if found, and
         //  fallback to jars
@@ -855,7 +1026,9 @@ module.exports = {
 
     cachedFromSource: function(sourceFilePath) {
         return module.exports.fromSource(sourceFilePath, true);
-    }
+    },
+
+    extractPackage: extractPackage
 }
 
 function isType(qualified) {
