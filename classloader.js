@@ -627,20 +627,22 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
 
     // nop for now?
     var self = this;
-    this.getTypes(function(types) {
+    this.getTypes(function(types) { // jshint ignore:line 
 
         // find that class, and any nested classes
         var found = false;
         var inPackage = types.filter(function(type) {
             found |= type == qualifiedName;
-            return (type == qualifiedName
-                || ~type.indexOf(qualifiedName + '$'))
+            return /* ( */type == qualifiedName
+                // TODO include nested classes
+                // || ~type.indexOf(qualifiedName + '$'))
                     && !(type in self._classCache)
                     && !type.match(/\$[0-9]+$/); // omit anonymous classes
         });
 
+
         if (!found) {
-            return callback(new Error(qualifiedName + " not in " + this._jar));
+            return callback(new Error(qualifiedName + " not in " + self._jar));
         } else if (!projection) {
             // only care that it exists
             return callback(null, true);
@@ -660,10 +662,16 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
         splitter.on('error', callback);
         splitter.on('token', function(line) {
             var utf8 = line.toString("UTF-8");
-            if (~utf8.indexOf('{')) {
+            if (~utf8.indexOf("$SWITCH_TABLE$")
+                    || ~utf8.indexOf("access$")) {
+                // skip internal things
+                return;
+            } else if (~utf8.indexOf('{')) {
                 buffer = line;
             } else if (~utf8.indexOf('}')) {
-                buffer.write('}');
+                buffer = Buffer.concat([buffer, line]);
+
+                // TODO include child classes?
                 self._parseBuffer(buffer, function(err, ast) {
                     if (ast && ast.qualifiedName == qualifiedName) {
                         foundType = true;
@@ -692,8 +700,14 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
  *  doesn't do this yet, either
  */
 JarClassLoader.prototype._parseBuffer = function(buf, callback) {
-    // TODO
-    callback();
+    var self = this;
+    Ast.parseFile('', buf, {
+        fromJavap: true
+    }, function(err, ast) {
+        if (err) return callback(err);
+
+        ast.projectType(self, ast.toplevel[0].qualifiedName, Ast.PROJECT_ALL, callback);
+    });
 };
 
 

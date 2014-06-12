@@ -40,6 +40,9 @@ function Ast(path, buffer, options) {
         this.log = function(){};
     }
 
+    if (options)
+        this.fromJavap = options.fromJavap;
+
     var self = this;
     this.on('qualified', function(node) {
         self.qualifieds[node.qualifiedName] = node;
@@ -48,7 +51,7 @@ function Ast(path, buffer, options) {
         self.toplevel.push(node);
     })
 
-    if (options.checkImports) {
+    if (options && options.checkImports) {
         var loader = options.loader || 
             require('./classloader').cachedFromSource(path);
 
@@ -778,6 +781,25 @@ function JavadocNode(prev) {
 }
 util.inherits(JavadocNode, SimpleNode);
 
+JavadocNode.prototype.readTypeName = function() {
+    var tok = this.tok;
+    if (this.getRoot().fromJavap) {
+        this.qualifiedName = tok.readQualified();
+
+        var lastDollar = this.qualifiedName.indexOf('$');
+        this.name = (~lastDollar)
+            ? this.qualifiedName.substr(lastDollar+1)
+            : this.qualifiedName.substr(this.qualifiedName.lastIndexOf('.') + 1);
+
+        // if javap, this will always be a toplevle
+        this.getRoot().emit('toplevel', this);
+    } else {
+        this.name = tok.readIdentifier();
+        this._qualify('$');
+    }
+};
+
+
 
 function VarDef(prev, mods, type, name, isInitable) {
     SimpleNode.call(this, prev);
@@ -902,7 +924,6 @@ util.inherits(CompilationUnit, SimpleNode);
 CompilationUnit.prototype.read = function() {
 
     var tok = this.tok;
-    tok.expectSemicolon();
 
     // imports
     while (tok.readString("import")) {
@@ -967,11 +988,16 @@ CompilationUnit.prototype.read = function() {
 }
 
 CompilationUnit.prepare = function(ast) {
+    var tok = ast.tok;
+    var state = tok.save();
     var mods = Modifiers.read(ast);
-    if (ast.tok.readString("package")) {
-        return new CompilationUnit(ast, mods, ast.tok.readQualified());
+    if (tok.readString("package")) {
+        var package = tok.readQualified();
+        tok.expectSemicolon();
+        return new CompilationUnit(ast, mods, package);
     } else {
-        return new CompilationUnit(ast, mods, "default");
+        tok.restore(state);
+        return new CompilationUnit(ast, null, "default");
     }
 };
 
@@ -1016,8 +1042,7 @@ function Class(prev, mods) {
         this.start = mods.start;
 
     var tok = this.tok;
-    this.name = tok.readIdentifier();
-    this._qualify('$');
+    this.readTypeName();
 
     this.typeParams = TypeParameters.read(this);
 
@@ -1059,8 +1084,7 @@ function Enum(prev, mods) {
         this.start = mods.start;
 
     var tok = this.tok;
-    this.name = tok.readIdentifier();
-    this._qualify('$');
+    this.readTypeName();
 
     if (tok.readString('implements')) {
         this.implements = [];
@@ -1145,8 +1169,7 @@ function Interface(prev, mods) {
         this.start = mods.start;
 
     var tok = this.tok;
-    this.name = tok.readIdentifier();
-    this._qualify('$');
+    this.readTypeName();
 
     this.typeParams = TypeParameters.read(this);
     
@@ -1175,9 +1198,7 @@ function AnnotationDecl(prev, mods) {
     if (mods)
         this.start = mods.start;
 
-    var tok = this.tok;
-    this.name = tok.readIdentifier();
-    this._qualify('$');
+    this.readTypeName();
 
     this.body = new AnnotationBody(this);
 
@@ -1329,9 +1350,7 @@ ClassBody.prototype.getKids = function() {
 
 ClassBody.prototype.project = function(classLoader, projection, callback) {
     var self = this;
-    var result;
     if (Array.isArray(projection)) {
-        result = {};
         var tasks = projection.reduce(function(res, type) {
             if (!self[type])
                 return res;
@@ -1347,7 +1366,12 @@ ClassBody.prototype.project = function(classLoader, projection, callback) {
             };
 
             return res;
-        }, {});
+        }, {
+            // always include the parent's qualifiedName
+            qualifiedName: function(callback) {
+                callback(null, self.getParent().qualifiedName);
+            }
+        });
 
         async.parallel(tasks, callback);
     } else {
@@ -3112,11 +3136,13 @@ function FormalParameters(prev) {
         //  (allow incompleteness, if Tokenizer is non-strict)
         if (type) {
             var name = tok.readIdentifier();
-            if (name) {
-                this.kids.push(new VarDef(this, mods, type, name, false));
-            } else {
-                tok.raise("Name (for Params)");
+            if (!name) {
+                name = 'arg' + this.kids.length;
+                if (!this.getRoot().fromJavap)
+                    tok.raise("Name (for Params)");
             }
+
+            this.kids.push(new VarDef(this, mods, type, name, false));
         } else {
             tok.raise("Type (for Params)");
         }
@@ -3586,6 +3612,9 @@ module.exports = {
     FROM_BODY: Ast.FROM_BODY,
     FROM_TYPE: Ast.FROM_TYPE,
 
+    /** projection that includes everything projectable */
+    PROJECT_ALL: ['fields', 'methods'],
+
     /**
      * @param buffer Either a node Buffer, or a dict with:
      *  - type: 'full' or 'part'; if 'part,' 'start' is required
@@ -3602,6 +3631,8 @@ module.exports = {
      *      (IE: imported, or in same package). If `true`, the results
      *      will be in the `missing` array on the Ast root, and an
      *      event `missing` will be emitted
+     *  - fromJavap: True if we're parsing the output of javap. There are
+     *      some differences, such as type names being fully qualified, etc.
      *  - loader: A ClassLoader to use when checking imports. If not
      *      provided, we will fetch a cached one if needed
      */

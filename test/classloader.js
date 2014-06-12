@@ -214,7 +214,7 @@ describe("JarClassLoader", function() {
         });
     });
 
-    it("projects HashMap", function(done) {
+    it.only("projects HashMap", function(done) {
         jloader.openClass("java.util.HashMap", ['fields', 'methods'], function(err, projection) {
             should.not.exist(err);
 
