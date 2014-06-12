@@ -3,7 +3,8 @@ var fs = require('fs')
   , events = require('events')
   , util = require('util')
   , async = require('async')
-  , Tokenizer = require('./tokenizer');
+  , Tokenizer = require('./tokenizer')
+  , autoimport = require('./util/autoimport');
 
 function indent(level) {
     var buf = '';
@@ -299,6 +300,10 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
     var full = this._root.namedImports[type];
     if (full)
         return cb(full);
+
+    var auto = autoimport.findByName(type);
+    if (auto)
+        return cb(auto);
 
     if (type in this.qualifieds)
         return cb(type); // already fully-qualified

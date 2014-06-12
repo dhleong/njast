@@ -22,6 +22,7 @@ module.exports = function(req, res) {
         // if (formatter)
         //     resolved = formatter(resolved);
 
+        resolved.qualifiedName = undefined; // strip this field... unneeded
         res.results(resolved);
         console.log('Suggested', require('util').inspect(resolved, {depth:5}));
     });

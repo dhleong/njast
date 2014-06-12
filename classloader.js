@@ -148,7 +148,10 @@ ComposedClassLoader.prototype.openAst = function(path, buf, options, callback) {
     var result = [null, null];
     async.detect(this._loaders, function(loader, resolve) {
         loader.openAst(path, buf, options, function(err, ast) {
-            if (err) return resolve();
+            if (err || !ast) {
+                result[0] = err;
+                return resolve();
+            }
 
             result[0] = err
             result[1] = ast;
