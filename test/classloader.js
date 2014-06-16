@@ -227,4 +227,17 @@ describe("JarClassLoader", function() {
         });
     });
 
+    it("projects ArrayList", function(done) {
+        jloader.openClass("java.util.ArrayList", ['fields', 'methods'], function(err, projection) {
+            should.not.exist(err);
+
+            projection.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0].name')
+                    .that.equals('trimToSize');
+
+            done();
+        });
+    });
+
 });

@@ -12,7 +12,7 @@ module.exports = function(req, res) {
 
     var path = req.body.path;
     var loader = ClassLoader.cachedFromSource(path);
-    console.log("init...", path, loader);
+    // console.log("init...", path, loader);
     readFile(path, {
         strict: false
     }, function(err, ast) {

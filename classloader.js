@@ -708,6 +708,8 @@ JarClassLoader.prototype._parseBuffer = function(buf, callback) {
     Ast.parseFile('', buf, {
         fromJavap: true
     }, function(err, ast) {
+        // console.log(err);
+        // if (err) console.log(buf.toString());
         if (err) return callback(err);
 
         ast.projectType(self, ast.toplevel[0].qualifiedName, Ast.PROJECT_ALL, callback);

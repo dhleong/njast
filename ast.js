@@ -3462,6 +3462,8 @@ function ReferenceType(prev, skipArray, allowDiamond) {
     var state = tok.prepare();
     if (tok.readDot()) {
         this._readQualified(state, allowDiamond);
+    } else if (this.getRoot().fromJavap && tok.readSlash()) {
+        this._readQualified(state, allowDiamond, 'readSlash');
     }
 
     this._readArray();
@@ -3488,7 +3490,11 @@ ReferenceType.prototype.resolveDeclaringType = function(classLoader, cb) {
 };
 
 
-ReferenceType.prototype._readQualified = function(state, allowDiamond) {
+ReferenceType.prototype._readQualified = function(state, allowDiamond, reader) {
+
+    if (!reader) 
+        reader = 'readDot';
+
     var tok = this.tok;
     this.namePath = [[this.name, this.typeArgs]];
     do {
@@ -3504,7 +3510,7 @@ ReferenceType.prototype._readQualified = function(state, allowDiamond) {
         this.typeArgs = TypeArguments.read(this, allowDiamond);
         this.namePath.push([ident, this.typeArgs]);
     
-    } while (tok.readDot());
+    } while (tok[reader]());
 };
 
 

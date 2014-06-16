@@ -425,6 +425,7 @@ Tokenizer.prototype.readBlockOpen  = _doRead(BLOCK_OPEN);
 Tokenizer.prototype.readBlockClose = _doRead(BLOCK_CLOSE);
 Tokenizer.prototype.readAt         = _doRead(AT); // at symbol, for annotations
 Tokenizer.prototype.readDot        = _doRead(DOT);
+Tokenizer.prototype.readSlash      = _doRead(SLASH);
 Tokenizer.prototype.readComma      = _doRead(COMMA);
 Tokenizer.prototype.readUnderline  = _doRead(UNDERLINE);
 Tokenizer.prototype.readColon      = _doRead(COLON);
