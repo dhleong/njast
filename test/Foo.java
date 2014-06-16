@@ -54,12 +54,12 @@ class Foo extends Extended {
                                // parses, now :)
             }
 
-            Fail breaks(Fancier other) {
+            NotImported breaks(Fancier other) {
                 other. 
                 return null;
             }
             
-            Fail failMethod() {
+            NotImported failMethod() {
                 doFancier(). // suggest from method result
                 return null;
             }

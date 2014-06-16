@@ -63,7 +63,6 @@ Suggestor.prototype.find = function(cb) {
         node.evaluateType(loader, function(err, result) {
             if (err) return cb(err);
 
-            // console.log(result);
             self._onTypeResolved(ast, result, cb);
         });
     });

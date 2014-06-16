@@ -188,7 +188,7 @@ ComposedClassLoader.prototype.openClass = function(qualifiedName,
             if (projected && !err && Array.isArray(projection))
                 self._cached[qualifiedName] = projected;
 
-            else if (err) {
+            else if (err && !result[1]) {
                 result[0] = err;
                 return resolve();
             }
@@ -608,6 +608,7 @@ SourceDirectoryClassLoader.prototype._getSearchPaths = function() {
 function JarClassLoader(jarPath) {
     this._jar = jarPath;
     this._classCache = {};
+    this._classesCached = false;
 }
 util.inherits(JarClassLoader, ClassLoader);
 
@@ -626,7 +627,7 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
 
     // FIXME match projection
     if (qualifiedName in this._classCache)
-        return this._classCache[qualifiedName];
+        return callback(null, this._classCache[qualifiedName]);
 
     // nop for now?
     var self = this;
@@ -731,7 +732,7 @@ JarClassLoader.prototype.suggestImport = function(name, callback) {
  *  to the callback
  */
 JarClassLoader.prototype.getTypes = function(cb) {
-    if (this._classListCache)
+    if (this._classesCached)
         return cb(this._classListCache);
 
     var self = this;
@@ -749,6 +750,7 @@ JarClassLoader.prototype.getTypes = function(cb) {
     });
     spawned.on('done', function() {
         self._classListCache = types;
+        self._classesCached = true;
         cb(types);
     });
 };
@@ -875,13 +877,16 @@ ProxyClassLoader.composers = {
         // OSX?
         function(root, cb) {
 
+            var self = this;
             var jar = '/System/Library/Frameworks/JavaVM.framework/Classes/classes.jar';
-            if (fs.existsSync(jar)) {
-                this._loaders.push(new JarClassLoader(jar));
-                return cb(true);
-            }
+            fs.exists(jar, function(exists) {
+                if (exists) {
+                    self._loaders.push(new JarClassLoader(jar));
+                    return cb(true);
+                }
 
-            cb();
+                cb();
+            });
         }
     ]
 
