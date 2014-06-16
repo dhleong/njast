@@ -240,4 +240,17 @@ describe("JarClassLoader", function() {
         });
     });
 
+
+    it("projects String", function(done) {
+        jloader.openClass("java.lang.String", ['fields', 'methods'], function(err, projection) {
+            should.not.exist(err);
+
+            projection.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0].name')
+                    .that.equals('length');
+
+            done();
+        });
+    });
 });
