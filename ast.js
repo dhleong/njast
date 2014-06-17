@@ -2621,6 +2621,14 @@ function StringLiteral(prev, state, value, type) {
 }
 util.inherits(StringLiteral, SimpleNode);
 
+StringLiteral.prototype.evaluateType = function(classLoader, callback) {
+    return callback(null, {
+        type: "java.lang.String"
+      , from: Ast.FROM_OBJECT
+    });
+};
+
+
 StringLiteral.read = function(prev) {
     var tok = prev.tok;
     var state = tok.save();

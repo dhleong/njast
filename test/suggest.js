@@ -96,7 +96,7 @@ describe("Suggestions in Foo.java at", function() {
             if (err) throw err;
 
             resolved.should.have.property('methods')
-                .that.is.an('array').of.length(8)
+                .that.is.an('array')
                 .with.deep.property('[0]')
                     .that.has.property('name').that.equals('baz');
 
@@ -165,5 +165,35 @@ describe("Suggestions in Foo.java at", function() {
             done();
         });
     }*/);
+
+    it("107, 11: String", function(done) {
+        suggestor
+        .at(107, 11)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0].name')
+                    .that.equals('length');
+
+            done();
+        });    
+    });
+
+    it("108, 13: StringLiteral", function(done) {
+        suggestor
+        .at(108, 13)
+        .find(function(err, resolved) {
+            should.not.exist(err);
+
+            resolved.should.have.property('methods')
+                .that.is.an('array')
+                .with.deep.property('[0].name')
+                    .that.equals('length');
+
+            done();
+        });
+    });
 });
 

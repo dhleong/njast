@@ -101,4 +101,10 @@ class Foo extends Extended {
             // should list overridable methods
         };
     }
+
+    void autoImports() {
+        String foo = "bar";
+        foo.
+        "baz".
+    }
 }
