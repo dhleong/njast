@@ -14,6 +14,7 @@ function handleMissing(loader, ast, onComplete) {
 
         async.each(missing, function(data, callback) {
             loader.suggestImport(data.name, function(err, imports) {
+                console.log("Suggest!", data.name, err, imports);
                 if (err) return callback(err);
 
                 data.imports = imports;

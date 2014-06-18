@@ -734,7 +734,16 @@ JarClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {
 };
 
 JarClassLoader.prototype.suggestImport = function(name, callback) {
-    callback(new Error("suggestImport not implemented")); // TODO
+    // TODO cache by name in a map
+    var match = '.' + name;
+    var len = match.length;
+    this.getTypes(function(types) {
+        async.filter(types, function(type, cb) {
+            cb(type.substr(type.length - len) == match);
+        }, function(results) {
+            callback(null, results);
+        });
+    });
 };
 
 /**
