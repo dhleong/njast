@@ -609,6 +609,14 @@ function JarClassLoader(jarPath) {
     this._jar = jarPath;
     this._classCache = {};
     this._classesCached = false;
+    this._deferred = Q.defer();
+
+    var self = this;
+    process.nextTick(function() {
+        self._getTypesImpl(function(types) {
+            self._deferred.resolve(types);
+        });
+    });
 }
 util.inherits(JarClassLoader, ClassLoader);
 
@@ -734,6 +742,10 @@ JarClassLoader.prototype.suggestImport = function(name, callback) {
  *  to the callback
  */
 JarClassLoader.prototype.getTypes = function(cb) {
+    this._deferred.promise.then(cb);
+}
+
+JarClassLoader.prototype._getTypesImpl = function(cb) {
     if (this._classesCached)
         return cb(this._classListCache);
 
