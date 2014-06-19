@@ -42,8 +42,8 @@ function handleMissing(loader, ast, onComplete) {
 
 module.exports = function(req, res) {
 
-    var loader = ClassLoader.cachedFromSource(path);
     var path = req.body.path;
+    var loader = ClassLoader.cachedFromSource(path);
     readFile(path, {
         strict: false
       , checkImports: true
