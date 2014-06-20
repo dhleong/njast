@@ -53,7 +53,7 @@ class Njast(object):
 
     """Manages interactions with Njast server"""
 
-    TIMEOUT = 1
+    TIMEOUT = 1.5
 
     # it's async; take more time if you need
     ASYNC_TIMEOUT = 5

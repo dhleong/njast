@@ -763,16 +763,18 @@ JarClassLoader.prototype.putCache = function(path, ast) {
     // find imported types in this loader
     //  and precache them
     var self = this;
-    this.getTypes(function(types) {
-        var imports = ast.getImports();
-        async.filter(types, function(type, cb) {
-            async.detect(imports, function(imp, onDetect) {
-                onDetect(imp.path == type);
-            }, cb);
-        }, function(filtered) {
+    process.nextTick(function() {
+        self.getTypes(function(types) {
+            var imports = ast.getImports();
+            async.filter(types, function(type, cb) {
+                async.detect(imports, function(imp, onDetect) {
+                    onDetect(imp.path == type);
+                }, cb);
+            }, function(filtered) {
 
-            async.each(filtered, function(type, cb) {
-                self.openClass(type, Ast.PROJECT_ALL, cb);
+                async.each(filtered, function(type, cb) {
+                    self.openClass(type, Ast.PROJECT_ALL, cb);
+                });
             });
         });
     });
