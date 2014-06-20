@@ -114,9 +114,9 @@ class Foo extends Extended {
         //  was causing parse errors on catch
         field1. 
 
-        // try {
-        //     // bla
-        // } catch(Exception e) {
-        // }
+        try {
+            // bla
+        } catch(Exception e) {
+        }
     }
 }

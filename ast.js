@@ -2366,6 +2366,15 @@ function SelectorExpression(primary, connector) {
                 break;
 
             default:
+                // isReserved is too strong, but
+                //  none of these can be in a chain
+                if (Tokenizer.isControl(next)
+                        || Tokenizer.isPrimitive(next)
+                        || Tokenizer.isModifier(next)) {
+                    tok.restore(state);
+                    break; // we're done here
+                }
+
                 var typeArgs = TypeArguments.readNonWildcard(this);
                 if (typeArgs) {
                     next = tok.readIdentifier();
