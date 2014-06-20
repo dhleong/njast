@@ -641,8 +641,10 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
     var self = this;
     this.getTypes(function(types) { // jshint ignore:line 
 
-        // console.time("openClass" + qualifiedName);
-        // console.time("filter" + qualifiedName);
+        // if (projection) {
+        //     console.time("openClass" + qualifiedName);
+        //     console.time("filter" + qualifiedName);
+        // }
 
         // find that class, and any nested classes
         var found = false;
@@ -655,7 +657,8 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
                     && !type.match(/\$[0-9]+$/); // omit anonymous classes
         });
 
-        // console.timeEnd("filter" + qualifiedName);
+        // if (projection)
+        //     console.timeEnd("filter" + qualifiedName);
 
         if (!found) {
             return callback(new Error(qualifiedName + " not in " + self._jar));
@@ -669,6 +672,8 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
 
         var foundType = false;
         var buffer = null;
+
+        // console.time("exec" + qualifiedName);
 
         // use javap to proactively cache all classes in that package
         // (faster, I think, than going one-by-one?)
@@ -687,9 +692,12 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
             } else if (~utf8.indexOf('}')) {
                 buffer = Buffer.concat([buffer, line]);
 
+                // console.timeEnd("exec" + qualifiedName);
+
                 // TODO include child classes?
                 self._parseBuffer(buffer, function(err, ast) {
                     if (ast && ast.qualifiedName == qualifiedName) {
+                        self._classCache[qualifiedName] = ast;
                         foundType = true;
                         callback(null, ast);
                     }
@@ -729,9 +737,32 @@ JarClassLoader.prototype._parseBuffer = function(buf, callback) {
     });
 };
 
+/**
+ * Not normally needed, putCache for a Jar will still
+ *  be called by the ComposedClassLoader from the
+ *  /update server method, providing us an opportunity
+ *  to proactively cache imported classes, since it
+ *  takes so damn long to run javap. In the future,
+ *  perhaps, we could just stop being lazy and learn
+ *  how to directly parse java bytecode, but until then....
+ */
+JarClassLoader.prototype.putCache = function(path, ast) {
+    // find imported types in this loader
+    //  and precache them
+    var self = this;
+    this.getTypes(function(types) {
+        var imports = ast.getImports();
+        async.filter(types, function(type, cb) {
+            async.detect(imports, function(imp, onDetect) {
+                onDetect(imp.path == type);
+            }, cb);
+        }, function(filtered) {
 
-JarClassLoader.prototype.putCache = function() {
-    // nop; we won't need to update cache
+            async.each(filtered, function(type, cb) {
+                self.openClass(type, Ast.PROJECT_ALL, cb);
+            });
+        });
+    });
 };
 
 JarClassLoader.prototype.resolveMethodReturnType = function(type, name, cb) {

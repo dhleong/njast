@@ -163,6 +163,13 @@ Ast.prototype.parse = function(startType) {
     return this._root;
 };
 
+Ast.prototype.getImports = function() {
+    return (this._root instanceof CompilationUnit)
+        ? this._root.imports
+        : []; 
+};
+
+
 Ast.prototype.getPackage = function() {
 
     if (this._root instanceof CompilationUnit)
