@@ -641,6 +641,9 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
     var self = this;
     this.getTypes(function(types) { // jshint ignore:line 
 
+        // console.time("openClass" + qualifiedName);
+        // console.time("filter" + qualifiedName);
+
         // find that class, and any nested classes
         var found = false;
         var inPackage = types.filter(function(type) {
@@ -652,6 +655,7 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
                     && !type.match(/\$[0-9]+$/); // omit anonymous classes
         });
 
+        // console.timeEnd("filter" + qualifiedName);
 
         if (!found) {
             return callback(new Error(qualifiedName + " not in " + self._jar));
@@ -698,6 +702,7 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
             }
         });
         splitter.on('done', function() {
+            // console.timeEnd("openClass" + qualifiedName);
             if (!foundType)
                 callback(new Error("Could not find/parse " + qualifiedName));
         });

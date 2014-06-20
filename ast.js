@@ -294,6 +294,14 @@ Ast.prototype.resolveMethodReturnType = function(classLoader, type, name, cb) {
 
 Ast.prototype.resolveType = function(classLoader, type, cb) {
     
+    if (this.fromJavap) {
+        // Types from javap are already fully qualified.
+        // This will not save us when we're using a fully-qualified
+        //  type name from a jar inside source, but hopefully
+        //  that's pretty rare....
+        return cb(type);
+    }
+
     if (Tokenizer.isPrimitive(type))
         return cb(type);
 
