@@ -123,7 +123,7 @@ for (var i=0; i < DIGITS.length; i++) {
 }
 
 var MODIFIERS = ['public', 'protected', 'private', 'final', 'static', 'abstract',
-                 'volatile', 'transient', 'native', 'strictfp'];
+                 'volatile', 'transient', 'native', 'strictfp', 'synchronized'];
 var CONTROLS = ['if', 'else', 'assert', 'switch', 'while', 'do', 'for', 
                 'break', 'continue', 'return', 'throw', 'synchronized', 'try',
                 'catch', 'finally'];

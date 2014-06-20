@@ -128,7 +128,9 @@ Suggestor.prototype._onTypeResolved = function(ast, resolved, cb) {
     }
 
     // let the class loader handle it
+    console.time('openClass');
     this._loader.openClass(className, projection, function(err, result) {
+        console.timeEnd('openClass');
         cb(err, result);
     });
 };

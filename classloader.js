@@ -564,8 +564,21 @@ SourceProjectClassLoader.prototype._getSearchPaths = function() {
         path.join(this._root, 'src')
       , path.join(this._root, 'src', 'main', 'java')
       , path.join(this._root, 'src', 'debug', 'java')
+      , this._root // I suppose? mostly to make the Android loader happy
     ];
 };
+
+// root -> loader
+SourceProjectClassLoader._CACHED = {};
+SourceProjectClassLoader.from = function(path) {
+    var cached = SourceProjectClassLoader._CACHED[path];
+    if (cached)
+        return cached;
+
+    var loader = _cached(new SourceProjectClassLoader(path));
+    SourceProjectClassLoader._CACHED[path] = loader;
+    return loader;
+}
 
 
 
@@ -814,6 +827,20 @@ JarClassLoader.prototype._getTypesImpl = function(cb) {
     });
 };
 
+// root -> loader
+JarClassLoader._CACHED = {};
+JarClassLoader.from = function(path) {
+    var cached = JarClassLoader._CACHED[path];
+    if (cached)
+        return cached;
+
+    // NB JarClassLoader provides its own
+    //  caching, for various reasons....
+    var loader = new JarClassLoader(path);
+    JarClassLoader._CACHED[path] = loader;
+    return loader;
+}
+
 function extractPackage(qualifiedName) {
 
     // now, was this import an inner class?
@@ -926,7 +953,7 @@ ProxyClassLoader.composers = {
 
             var jar = path.join(process.env.JAVA_HOME, 'jre/lib/rt.jar');
             if (fs.existsSync(jar)) {
-                this._loaders.push(new JarClassLoader(jar));
+                this._loaders.push(JarClassLoader.from(jar));
                 return cb(true);
             }
 
@@ -940,7 +967,7 @@ ProxyClassLoader.composers = {
             var jar = '/System/Library/Frameworks/JavaVM.framework/Classes/classes.jar';
             fs.exists(jar, function(exists) {
                 if (exists) {
-                    self._loaders.push(new JarClassLoader(jar));
+                    self._loaders.push(JarClassLoader.from(jar));
                     return cb(true);
                 }
 
@@ -949,21 +976,48 @@ ProxyClassLoader.composers = {
         }
     ]
 
-  , AndroidProject: [
-        // If it's an android project, we'll try to add
-        //  the latest source directory, if found, and
-        //  fallback to jars
+    /** 
+     * If it's an android project, we'll try to add
+     *  the latest source directory, if found, and
+     *  fallback to jars
+     */
+  , AndroidProject: function(root, cb) {
 
         // Local AndroidManifest?
-        function(root, cb) {
-            cb(true);
-        }
+        var paths = [
+            'AndroidManifest.xml'
+          , 'src/main/java/AndroidManifest.xml'
+        ].map(function(part) {
+            return path.join(root, part);
+        });
 
-        // in a src/main/java?
-      , function(root, cb) {
+        // if any...
+        var self = this;
+        async.detect(paths, fs.exists, function(found) {
+            if (!found) return cb();
+
+            // ...find android!
+            if (!process.env.ANDROID_HOME)
+                return cb(); // TODO any obvious places to look...?
+
+            var search = path.join(process.env.ANDROID_HOME, 
+                            'sources',
+                            '*');
+            glob(search, function(err, files) {
+                // make sure sorted in ascending order.
+                files.sort();
+
+                // TODO actually, we could try to match
+                // with the compile-against version
+                // in the manifest?
+
+                var root = files[files.length-1];
+                self._loaders.push(SourceProjectClassLoader.from(root));
+            });
+            
             cb(true);
-        }
-    ]
+        });
+    }
 
   // , JarLibsDir: [
   //       // TODO once we have a working JarClassLoader
@@ -986,7 +1040,7 @@ ProxyClassLoader.composers = {
 
                 var dependency = path.resolve(root, parts[1]);
                 if (fs.existsSync(dependency)) {
-                    var proxy = _cached(new SourceProjectClassLoader(dependency));
+                    var proxy = SourceProjectClassLoader.from(dependency);
                     self._loaders.push(proxy);
                     discovered.push(proxy.promise());
                 }
@@ -1100,7 +1154,7 @@ module.exports = {
         if (_allowCached && projectDir in CLASS_LOADER_CACHE)
             return CLASS_LOADER_CACHE[projectDir];
 
-        var loader = _cached(new SourceProjectClassLoader(projectDir));
+        var loader = SourceProjectClassLoader.from(projectDir);
         CLASS_LOADER_CACHE[projectDir] = loader;
         return loader;
     },
