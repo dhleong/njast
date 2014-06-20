@@ -1439,7 +1439,7 @@ ClassBody.prototype._readDeclaration = function() {
     while (tok.readSemicolon())
         continue;
 
-    var mods = Modifiers.read(this);
+    var mods = Modifiers.readWithSync(this);
     if (tok.peekBlockOpen()) {
         var block = Block.read(this);
         if (block) {
@@ -3197,7 +3197,7 @@ FormalParameters.prototype._getVars = function() {
 /**
  * Modifiers list
  */
-function Modifiers(prev) {
+function Modifiers(prev, acceptSynchronized) {
     SimpleNode.call(this, prev);
 
     this.kids = [];
@@ -3215,6 +3215,9 @@ function Modifiers(prev) {
         var ident = tok.peekIdentifier();
         if (!Tokenizer.isModifier(ident)) 
             break;
+
+        if (ident == 'synchronized' && !acceptSynchronized)
+            throw new Error("Trying to read synchronized when not allowed");
         
         this.kids.push(tok.readIdentifier());
     }
@@ -3237,14 +3240,30 @@ Modifiers.prototype.project = function(classLoader, cb) {
 };
 
 
-Modifiers.read = function(prev) {
+Modifiers.read = function(prev, acceptSynchronized) {
     var tok = prev.tok;
-    if (!(tok.peekAt()
-            || Tokenizer.isModifier(tok.peekIdentifier())))
+    var nextIdentifier = tok.peekIdentifier();
+    if (!(tok.peekAt() || Tokenizer.isModifier(nextIdentifier)))
+        return; // no chance
+
+    // could be, but is that identifier legal?
+    if (nextIdentifier == 'synchronized' && !acceptSynchronized)
         return;
 
-    return new Modifiers(prev);
-}
+    var state = tok.save();
+    try {
+        return new Modifiers(prev, acceptSynchronized);
+    } catch (e) {
+        // read something we shouldn't have....
+        //  should maybe just pull all the logic out
+        tok.restore(state);
+    }
+};
+
+// semantically meaningful alias
+Modifiers.readWithSync = function(prev) {
+    return Modifiers.read(prev, true);
+};
 
 
 function Annotation(prev) {

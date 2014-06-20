@@ -107,4 +107,16 @@ class Foo extends Extended {
         foo.
         "baz".
     }
+
+    void runOverCatch() {
+
+        // trying suggestions on field1
+        //  was causing parse errors on catch
+        field1. 
+
+        // try {
+        //     // bla
+        // } catch(Exception e) {
+        // }
+    }
 }
