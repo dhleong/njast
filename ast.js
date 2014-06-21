@@ -1037,11 +1037,16 @@ var TypeDeclaration = {
         var mods = modifiers
             ? modifiers // use ones we already found
             : Modifiers.read(prev);
-        if (tok.readString("class")) {
+
+        // NB read the space after to make sure
+        //  we're not doing something crazy.
+        //  @interface doesn't need it because
+        //  the @ isn't valid otherwise
+        if (tok.readString("class ")) {
             return new Class(prev, mods);
-        } else if (tok.readString("enum")) {
+        } else if (tok.readString("enum ")) {
             return new Enum(prev, mods);
-        } else if (tok.readString("interface")) {
+        } else if (tok.readString("interface ")) {
             return new Interface(prev, mods);
         } else if (tok.readString("@interface")) {
             return new AnnotationDecl(prev, mods);
