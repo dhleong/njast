@@ -835,10 +835,11 @@ function VarDef(prev, mods, type, name, isInitable) {
     this.type = type;
     this.name = name;
 
-    // NB: Java grammar supports brackets
+    // Java grammar supports brackets
     //  here for array types, but convention
-    //  discourages that and I don't want
-    //  to deal with the complications.
+    //  discourages that...
+    if (type._readArray)
+        type._readArray(); // just in case
 
     var tok = this.tok;
     if (tok.readEquals()) {
