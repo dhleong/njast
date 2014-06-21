@@ -1824,13 +1824,15 @@ function SwitchStatement(prev) {
     while (!(tok.readBlockClose() || tok.isEof())) {
         var current = new SwitchGroup(prev, this._readLabels());
 
-        if (!current.labels)
+        if (!(current.labels && current.labels.length)) {
             tok.raise("switch labels");
+            break; // non-strict parsing
+        }
 
         while (!(tok.peekBlockClose()
-                || tok.readString('break')
-                || tok.peekString('case')
-                || tok.peekString('default')
+                || tok.readString('break;')
+                || tok.peekString('case ')
+                || tok.peekString('default:')
                 || tok.isEof())) {
             var stmt = BlockStatement.read(this);
             if (!stmt)
@@ -1855,18 +1857,24 @@ SwitchStatement.prototype._readLabels = function() {
     var labels = [];
     var tok = this.tok;
     for (;;) {
+        var state = tok.save();
         if (tok.readString("default")) {
-            labels.push('default');
-        } else if (tok.readString("case")) {
+            if (tok.readColon())
+                labels.push('default');
+            else {
+                tok.restore(state);
+                return labels; // quit early?
+            }
+        } else if (tok.readString("case ")) {
             var expr = Expression.read(this);
             if (expr)
                 labels.push(expr);
+            tok.expectColon();
         } else {
             // no more
             return labels;
         }
 
-        tok.expectColon();
     }
 };
 
@@ -2746,6 +2754,9 @@ NumberLiteral._newInty = function(prev, state, buf) {
     if (tok.readString('L') || tok.readString('l')) {
         buf += 'L';
         type = 'long'
+    } else if (tok.readString('f') || tok.readString('F')) {
+        buf += 'f';
+        type = 'float';
     }
 
     return new NumberLiteral(prev, state, buf, type);
