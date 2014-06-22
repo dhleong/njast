@@ -3171,6 +3171,7 @@ function _dispatchReturnType(classLoader, m, cb) {
 
 /**
  * Params decl for methods
+ * FIXME support VarArgs
  */
 function FormalParameters(prev) {
     ScopeNode.call(this, prev);
@@ -3189,6 +3190,10 @@ function FormalParameters(prev) {
         // let's go out of our way for flexible parsing
         //  (allow incompleteness, if Tokenizer is non-strict)
         if (type) {
+            var isVarArgs = tok.readString('...');
+            if (isVarArgs)
+                type.isVarArgs = true;
+            
             var name = tok.readIdentifier();
             if (!name) {
                 name = 'arg' + this.kids.length;
