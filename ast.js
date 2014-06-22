@@ -2189,10 +2189,10 @@ Expression.read = function(prev) {
     if (!op)
         return expr1; // just expr1
 
-    if (!expr1) {
-        console.error(prev.tok._path);
-        throw prev.tok.raise("No left side of expression!");
-    }
+    // if (!expr1) {
+    //     console.error(prev.tok._path);
+    //     throw prev.tok.raise("No left side of expression!");
+    // }
     
     return new Expression(prev, expr1, op, exprFactory, opFactory);
 };
@@ -2234,8 +2234,13 @@ Expression._expression2 = function(prev) {
     // infix op
     var opFactory = prev.tok.readInfixOp;
     var op = opFactory.call(prev.tok);
-    if (op)
+    if (op) {
+        // The spec says expression3 here, but
+        //  if it's not expression2 then you can't
+        //  do (a instanceof b || a instanceof c)...
+        exprFactory = Expression._expression2;
         return new Expression(prev, expr3, op, exprFactory, opFactory);
+    }
     
     return expr3;
 }
@@ -3176,7 +3181,6 @@ function _dispatchReturnType(classLoader, m, cb) {
 
 /**
  * Params decl for methods
- * FIXME support VarArgs
  */
 function FormalParameters(prev) {
     ScopeNode.call(this, prev);

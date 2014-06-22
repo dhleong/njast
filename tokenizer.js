@@ -80,7 +80,8 @@ var MATH = [
     PLUS, MINUS, STAR, SLASH,
     EQUALS,
     OR, AND, BANG, TILDE,
-    GENERIC_OPEN, GENERIC_CLOSE
+    GENERIC_OPEN, GENERIC_CLOSE,
+    MODULO, XOR
 ]
 
 // build up state machines
