@@ -1673,7 +1673,7 @@ describe("MinusUser.java", function() {
         // var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusUser.java';
         // var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/ui/EmojiHelper.java';
         // var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/fragments/MessageThreadListFragment.java';
-        var path = '/lib/android-sdk/sources/android-19/android/animation/KeyframeSet.java';
+        var path = '/lib/android-sdk/sources/android-19/android/text/style/LineHeightSpan.java';
         fs.readFile(path, function(err, buf) {
             if (err) throw err;
             console.log("parsing!");

@@ -54,6 +54,8 @@ function! njast#ShowJavadoc()
 
     call njast#util#showWindow()
 
+    set ft=java
+
     " fetch doc
     exe 'py Njast.showJavadoc(' . l:window . ', ' . l:buffer . ')'
 

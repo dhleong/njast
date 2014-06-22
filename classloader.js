@@ -453,8 +453,11 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
     var fileTypes = {};
     var self = this;
     async.each(this._getSearchPaths(), function(dir, onEachPath) {
-        var search = dir + path.sep + '**' + path.sep + '*.java';
-        console.log('walk', self._root, search);
+        var search = path.join(dir, '**', '*.java');
+        // console.log('walk', self._root, search);
+
+        // FIXME use version that emits files, instead of waiting
+        //  for all to be found
         glob(search, function(err, files) {
             if (err) return onEachPath(err);
 
@@ -474,11 +477,11 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
 
                 // load the AST and iterate
                 //  over the qualifieds array
-                console.log("parse", file);
+                // console.log("parse", file);
                 readFile(file, {
                     strict: false
                 }, function(err, ast) {
-                    console.log("-----", file);
+                    // console.log("-----", file);
                     if (err) return onEach(err);
 
                     var thisTypes = [];
