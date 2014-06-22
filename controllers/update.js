@@ -61,9 +61,9 @@ module.exports = function(req, res) {
         // async.map them and reduce the results into
         // a single dict
         handleMissing(loader, ast, function(err, json) {
+            console.log("suggest", err, json);
             if (err) return res.send(400, err.message);
 
-            console.log("suggest", json);
             res.json(json);
         });
     });

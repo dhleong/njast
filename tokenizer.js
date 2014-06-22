@@ -675,6 +675,8 @@ Tokenizer.prototype.raise = function(expecting) {
     var err = this._error(message);
     if (this._strict)
         throw err;
+
+    return err;
 };
 
 var _jdkCheck = function(level) {

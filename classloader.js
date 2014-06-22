@@ -10,7 +10,9 @@ var async = require('async')
   
   , Ast = require('./ast')  
   , parseFile = Ast.parseFile
-  , readFile = Ast.readFile;
+  , readFile = Ast.readFile
+  
+  , MAX_PARALLEL = 20;
 
 /**
  * Base ClassLoader interface; mostly for the
@@ -404,16 +406,16 @@ SourceClassLoader.prototype.suggestImport = function(name, callback) {
     var suggestions = [];
 
     // basically, we have to scan each file looking for "name."
-    var self = this;
+    // var self = this;
     var len = name.length;
-    console.log(self._root, "Walk types", name);
+    // console.log(self._root, "Walk types", name);
     this.walkTypes(function(type) {
         // console.log(type.indexOf(name), type.length - len);
         if (type.indexOf(name) == type.length - len)
             suggestions.push(type);
     }, function(err) {
 
-        console.log(self._root, "Walked types", name);
+        // console.log(self._root, "Walked types", name);
         callback(err, suggestions);
     });
 };
@@ -462,18 +464,14 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
             if (err) return onEachPath(err);
 
             var filtered = files.filter(function(file) {
-                if (file in fileTypes)
-                    console.log("Dup!", file);
                 return !(file in fileTypes);
             });
 
-            if (!filtered.length) {
-                console.log("onNoPaths", search);
+            if (!filtered.length) 
                 return onEachPath();
-            }
 
             // console.log(self._root, search, filtered);
-            async.each(filtered, function(file, onEach) {
+            async.eachLimit(filtered, MAX_PARALLEL, function(file, onEach) {
 
                 // load the AST and iterate
                 //  over the qualifieds array
@@ -493,12 +491,14 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
                         allTypes.push(qualified);
                         iterate(qualified, cb);
                     }, function(err) {
-                        onEach(err);
 
                         fileTypes[file] = thisTypes;
+                        onEach(err);
                     });
                 });
             }, function(err) {
+                if (err)
+                    throw err;
                 console.log("OnPath", search, err);
                 onEachPath(err);
             });
@@ -510,7 +510,7 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
             self._fileToTypes = fileTypes;
         }
                     
-        console.log("Walked", self._root);
+        // console.log("Walked", self._root);
         onComplete(err);
     });
 };

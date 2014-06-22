@@ -2189,6 +2189,11 @@ Expression.read = function(prev) {
     if (!op)
         return expr1; // just expr1
 
+    if (!expr1) {
+        console.error(prev.tok._path);
+        throw prev.tok.raise("No left side of expression!");
+    }
+    
     return new Expression(prev, expr1, op, exprFactory, opFactory);
 };
 
@@ -3196,6 +3201,7 @@ function FormalParameters(prev) {
             
             var name = tok.readIdentifier();
             if (!name) {
+                console.log(mods && mods.toJSON(), type.toJSON(), name);
                 name = 'arg' + this.kids.length;
                 if (!this.getRoot().fromJavap)
                     tok.raise("Name (for Params)");
@@ -3440,7 +3446,14 @@ var Type = {
         else if (Tokenizer.isReserved(ident))
             return; // not a type
 
-        return new ReferenceType(prev, skipArray, allowDiamond);
+        // the lazy way....
+        var state = prev.tok.save();
+        try {
+
+            return new ReferenceType(prev, skipArray, allowDiamond);
+        } catch (e) {
+            prev.tok.restore(state);
+        }
     },
 
     /** Read CreatedName */
@@ -3574,6 +3587,10 @@ ReferenceType.prototype._readQualified = function(state, allowDiamond, reader) {
         var ident = tok.readIdentifier();
         if (Tokenizer.isReserved(ident)) {
             // else, eg: Type.this
+            tok.restore(state);
+            return;
+        } else if (!ident) {
+            // it was a lie!
             tok.restore(state);
             return;
         }
