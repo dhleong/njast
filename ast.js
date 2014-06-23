@@ -1322,7 +1322,8 @@ function ClassBody(prev, skipBlockOpen, autoRead) {
     if (!skipBlockOpen)
         tok.expectBlockOpen();
 
-    while (!(tok.readBlockClose() || tok.isEof())) {
+    var closed = false;
+    while (!((closed = tok.readBlockClose()) || tok.isEof())) {
         var el = this._readDeclaration();
         if (!el) break; // probably end of a partial buffer
 
@@ -1343,6 +1344,9 @@ function ClassBody(prev, skipBlockOpen, autoRead) {
             this.blocks.push(el);
         }
     }
+
+    if (!closed)
+        tok.expectBlockClose();
 
     this._end();
 }
