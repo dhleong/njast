@@ -3687,6 +3687,7 @@ TypeArguments.Diamond = {
 
 TypeArguments.read = function(prev, allowDiamond, disallowWildcard) {
     var tok = prev.tok;
+    var state = tok.save();
     if (!tok.readGenericOpen())
         return;
     if (allowDiamond 
@@ -3694,7 +3695,17 @@ TypeArguments.read = function(prev, allowDiamond, disallowWildcard) {
             && tok.checkJdk7("diamonds"))
         return TypeArguments.Diamond;
 
-    return new TypeArguments(prev, disallowWildcard);
+    try {
+        return new TypeArguments(prev, disallowWildcard);
+    } catch (e) {
+        if (!~e.message.lastIndexOf('Expecting=`>'))
+            throw e; // dunno, just rethrow
+
+        // expecting generics but wasn't.
+        //  probably not even trying
+        tok.restore(state);
+        return;
+    }
 };
 
 TypeArguments.readNonWildcard = function(prev, allowDiamond) {
