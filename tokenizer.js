@@ -560,8 +560,11 @@ Tokenizer.prototype.readInfixOp = function() {
     case GENERIC_OPEN:
         if (this.readEquals())
             return '<=';
-        if (this.readGenericOpen())
+        if (this.readGenericOpen()) {
+            if (this.readEquals())
+                return this.restore(state);
             return '<<';
+        }
         break;
     case GENERIC_CLOSE:
         if (this.readEquals())

@@ -41,6 +41,11 @@ describe("readAssignment", function() {
         tokify('>>=').readAssignment().should.equal('>>=');
     });
 
+    it("accepts <<=", function() {
+        tokify('<<=').readAssignment().should.equal('<<=');
+    });
+
+
     it("accepts >>>=", function() {
         tokify('>>>=').readAssignment().should.equal('>>>=');
     });
@@ -129,6 +134,9 @@ describe("readInfixOp", function() {
     });
     it("rejects >>>=", function() {
         should.not.exist(tokify('>>>=').readInfixOp());
+    });
+    it("rejects <<=", function() {
+        should.not.exist(tokify('<<=').readInfixOp());
     });
 });
 
