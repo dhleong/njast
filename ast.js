@@ -2822,7 +2822,8 @@ NumberLiteral._readFloaty = function(prev, state, buffer) {
         if (next == 'f' || next == 'F') {
             tok.read(); // eat the char
             type = 'float';
-        }
+        } else if (next == 'd' || next == 'D')
+            tok.read(); // already know it's double, but eat it
     }
 
     return new NumberLiteral(prev, state, buffer, type);
