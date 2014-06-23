@@ -1945,6 +1945,7 @@ util.inherits(ForStatement, SimpleNode);
 
 ForStatement.prototype._readControl = function() {
     var tok = this.tok;
+    var state = tok.save();
     var mods = Modifiers.read(this);
     var type = Type.read(this);
     if (type) {
@@ -1955,6 +1956,9 @@ ForStatement.prototype._readControl = function() {
             else
                 return new ClassicForControl(this, mods, type, name);
         }
+
+        // no name? okay, rewind and try again
+        tok.restore(state);
     }
 
     return new ClassicForControl(this);
@@ -2184,14 +2188,18 @@ Expression.read = function(prev) {
     var exprFactory = Expression._expression1;
     var opFactory = prev.tok.readAssignment;
 
+    // var next = prev.tok.peek();
     var expr1 = exprFactory(prev);
     var op = opFactory.call(prev.tok);
     if (!op)
         return expr1; // just expr1
 
+    // debugging purposes
     // if (!expr1) {
     //     console.error(prev.tok._path);
-    //     throw prev.tok.raise("No left side of expression!");
+    //     console.error('prev.init=', prev.init);
+    //     console.error('peek=', String.fromCharCode(next));
+    //     throw prev.tok.raise("No left side of expression! op=" + op);
     // }
     
     return new Expression(prev, expr1, op, exprFactory, opFactory);
