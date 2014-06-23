@@ -1668,25 +1668,25 @@ describe("Ast of Foo.java", function() {
     });
 });
 
-describe("MinusUser.java", function() {
-    it.only("test", function(done) {
-        // var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusUser.java';
-        // var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/ui/EmojiHelper.java';
-        // var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/fragments/MessageThreadListFragment.java';
-        var path = '/lib/android-sdk/sources/android-19/java/lang/Math.java';
-        fs.readFile(path, function(err, buf) {
-            if (err) throw err;
-            console.log("parsing!");
-            parseFile(path, buf, {
-                strict: true
-              // , debug: true
-            }, function(err/* , ast */) {
-                if (err) throw err;
-                console.log("PARSED!");
-                // var node = ast.locate(196, 9);
-                // should.exist(node);
-                done();
-            });
-        });
-    });
-});
+// describe("MinusUser.java", function() {
+//     it.only("test", function(done) {
+//         // var path = '/Users/dhleong/git/ape-minus/src/main/java/com/minus/ape/MinusUser.java';
+//         // var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/ui/EmojiHelper.java';
+//         // var path = '/Users/dhleong/git/minus-for-Android/src/com/minus/android/fragments/MessageThreadListFragment.java';
+//         var path = '/lib/android-sdk/sources/android-19/java/lang/Math.java';
+//         fs.readFile(path, function(err, buf) {
+//             if (err) throw err;
+//             console.log("parsing!");
+//             parseFile(path, buf, {
+//                 strict: true
+//               // , debug: true
+//             }, function(err/* , ast */) {
+//                 if (err) throw err;
+//                 console.log("PARSED!");
+//                 // var node = ast.locate(196, 9);
+//                 // should.exist(node);
+//                 done();
+//             });
+//         });
+//     });
+// });

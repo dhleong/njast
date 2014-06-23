@@ -11,12 +11,6 @@ glob(source, function(err, files) {
     if (err) return console.error(err);
 
     async.eachSeries(files, function(file, cb) {
-        // skip passing android classes, for now
-        if (~file.indexOf("19/android"))
-            return cb();
-        if (~file.indexOf("19/com/android"))
-            return cb();
-
         var timer = setTimeout(function() {
             cb(new Error('Timeout parsing ' + file));
         }, 4000);
