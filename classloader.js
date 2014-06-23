@@ -370,6 +370,11 @@ SourceClassLoader.prototype.putCache = function(path, ast) {
             return;
 
         var existing = this._fileToTypes[path];
+        if (!existing) {
+            existing = [];
+            this._fileToTypes[path] = existing;
+        }
+
         var newtypes = Object.keys(ast.qualifieds);
         var self = this;
 
@@ -499,7 +504,7 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
             }, function(err) {
                 if (err)
                     throw err;
-                console.log("OnPath", search, err);
+                // console.log("OnPath", search, err);
                 onEachPath(err);
             });
         });
@@ -739,6 +744,10 @@ JarClassLoader.prototype.openClass = function(qualifiedName,
                         self._classCache[qualifiedName] = ast;
                         foundType = true;
                         callback(null, ast);
+                    } else if (err) {
+                        // pass the error along (at least for now?)
+                        foundType = true;
+                        callback(err);
                     }
                 });
 

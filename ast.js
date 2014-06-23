@@ -3203,6 +3203,8 @@ function FormalParameters(prev) {
 
     this.kids = [];
 
+    var fromJavap = this.getRoot().fromJavap; 
+
     var tok = this.tok;
     while (!(tok.readParenClose() || tok.isEof())) {
 
@@ -3217,12 +3219,14 @@ function FormalParameters(prev) {
             if (isVarArgs)
                 type.isVarArgs = true;
             
-            var name = tok.readIdentifier();
-            if (!name) {
-                // console.log(mods && mods.toJSON(), type.toJSON(), name);
-                name = 'arg' + this.kids.length;
-                if (!this.getRoot().fromJavap)
+            // NB in javap, there are no names, even for varargs
+            var name = 'arg' + this.kids.length;
+            if (!fromJavap) {
+                name = tok.readIdentifier();
+                if (!name) {
+                    // console.log(mods && mods.toJSON(), type.toJSON(), name);
                     tok.raise("Name (for Params)");
+                }
             }
 
             this.kids.push(new VarDef(this, mods, type, name, false));
@@ -3617,6 +3621,8 @@ ReferenceType.prototype._readQualified = function(state, allowDiamond, reader) {
         this.simpleName = ident;
         this.typeArgs = TypeArguments.read(this, allowDiamond);
         this.namePath.push([ident, this.typeArgs]);
+
+        state = tok.save();
     
     } while (tok[reader]());
 };

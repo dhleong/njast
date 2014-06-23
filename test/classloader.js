@@ -125,7 +125,7 @@ describe("SourceClassLoader", function() {
 
             should.exist(sourceLoader._fileToTypes);
 
-            var foo = sourceLoader._fileToTypes['./Foo.java'];
+            var foo = sourceLoader._fileToTypes['Foo.java'];
             should.exist(foo);
             foo.should.contain('net.dhleong.njast.Foo$Fancy$Fancier');
             sourceLoader._allCachedTypes
@@ -140,14 +140,14 @@ describe("SourceClassLoader", function() {
         should.exist(sourceLoader._fileToTypes);
 
         // delete all but main class, and and something new
-        sourceLoader.putCache('./Foo.java', {
+        sourceLoader.putCache('Foo.java', {
             qualifieds: {
                 'net.dhleong.njast.Foo': true
               , 'net.dhleong.njast.Foo$Unexpected': true
             }
         });
 
-        var foo = sourceLoader._fileToTypes['./Foo.java'];
+        var foo = sourceLoader._fileToTypes['Foo.java'];
         should.exist(foo)
         foo.should.not.contain('net.dhleong.njast.Foo$Fancy');
         foo.should.not.contain('net.dhleong.njast.Foo$Fancy$Fancier');
