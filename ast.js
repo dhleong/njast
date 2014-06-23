@@ -1638,12 +1638,17 @@ function Block(prev) {
 
     var tok = this.tok;
     tok.expectBlockOpen();
-    while (!(tok.readBlockClose() || tok.isEof())) {
+    var closed = false;
+    while (!((closed = tok.readBlockClose()) || tok.isEof())) {
+        // ex: while(...) { ; } 
         var stmt = BlockStatement.read(this);
         if (stmt)
             this.kids.push(stmt);
-        else
+        else {
+            if (!closed)
+                tok.expectBlockClose();
             break;
+        }
     }
 
     this._end();
