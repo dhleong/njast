@@ -411,6 +411,23 @@ Tokenizer.prototype.readString = function(expected) {
     return true;
 };
 
+/**
+ * Like readString, but ensures that the value
+ *  is not part of something else. Not quite
+ *  as efficient as readString, since it has
+ *  to read ahead
+ */
+Tokenizer.prototype.readLiteral = function(expected) {
+    var state = this.prepare();
+    var ident = this.readIdentifier();
+    if (ident == expected)
+        return true;
+
+    this.restore(state);
+    return false;
+};
+
+
 Tokenizer.prototype._readToken = function(token) {
     if (this._peekChar() == token) {
         this.read();

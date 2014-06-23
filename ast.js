@@ -2644,15 +2644,15 @@ var Literal = {
                 tok.raise("String literal");
             return lit;
         case 'f':
-            if (!tok.readString("false"))
+            if (!tok.readLiteral("false"))
                 return;
             return new Literal._Value(prev, state, false);
         case 'n':
-            if (!tok.readString("null"))
+            if (!tok.readLiteral("null"))
                 return;
             return new Literal._Value(prev, state, null);
         case 't':
-            if (!tok.readString("true"))
+            if (!tok.readLiteral("true"))
                 return;
             return new Literal._Value(prev, state, true);
         }
@@ -3064,7 +3064,7 @@ IdentifierExpression.read = function(prev) {
             tok.readBracketClose();
         } while(tok.readBracketOpen());
 
-        if (tok.readDot() && tok.readString("class")) {
+        if (tok.readDot() && tok.readLiteral("class")) {
             // actually a class array literal
             tok.restore(state);
             return new ReferenceType(prev);
@@ -3219,7 +3219,7 @@ function FormalParameters(prev) {
             
             var name = tok.readIdentifier();
             if (!name) {
-                console.log(mods && mods.toJSON(), type.toJSON(), name);
+                // console.log(mods && mods.toJSON(), type.toJSON(), name);
                 name = 'arg' + this.kids.length;
                 if (!this.getRoot().fromJavap)
                     tok.raise("Name (for Params)");
