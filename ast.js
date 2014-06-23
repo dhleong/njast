@@ -1731,12 +1731,17 @@ util.inherits(LocalVarDefs, VariableDeclNode);
  * Statement factory
  */
 var Statement = {
-    read: function(prev) {
+    read: function(prev, acceptSemiOnly) {
         var tok = prev.tok;
 
         // it can be just a semicolon
-        while (tok.readSemicolon())
-            continue;
+        if (acceptSemiOnly) {
+            if (tok.readSemicolon())
+                return;
+        } else {
+            while (tok.readSemicolon())
+                continue;
+        }
 
         var block = Block.read(prev);
         if (block)
@@ -1901,7 +1906,7 @@ function IfStatement(prev) {
     var tok = this.tok;
     tok.expectString("if");
     this.condition = Expression.readParen(this);
-    this.trueStatement = Statement.read(this);
+    this.trueStatement = Statement.read(this, true);
 
     if (tok.readString("else")) {
         this.falseStatement = Statement.read(this);
