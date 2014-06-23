@@ -2340,7 +2340,7 @@ CastExpression.read = function(prev) {
     }
     tok.expectParenClose();
     
-    if (tok.peekDot() || tok.peekInfixOp()) {
+    if (tok.peekDot() || tok.peekInfixOp() || tok.peekString('instanceof')) {
         // this is kind of shitty, but necessary for sane parsing.
         // EX: ((Foo) obj).bar();
         // the stuff inside the paren is a nice CastExpression, 
