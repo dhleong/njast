@@ -2550,7 +2550,8 @@ function TernaryExpression(prev, question) {
     // the spec says Expression.read, but
     //  that doesn't make sense... you can't
     //  do an assignment *only* in the "true" branch
-    this.ifTrue = Expression._expression1(this);
+    // NB APPARENTLY YOU CAN (See android.net.Uri for proof)
+    this.ifTrue = Expression.read(this);
     prev.tok.expectColon();
     this.ifFalse = Expression._expression1(this);
 
