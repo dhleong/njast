@@ -2705,6 +2705,9 @@ StringLiteral.read = function(prev) {
         if (last != '\\' && next == target)
             break;
 
+        if (next == last && last == '\\')
+            next = null; // handle escaped backslash
+
         buffer += next;
         last = next;
     }
