@@ -2711,7 +2711,9 @@ StringLiteral.read = function(prev) {
 
     // special case
     if (target == "'") {
-        if (buffer.length > 1)
+        // buffer >1, and NOT the case that it's \0, for example
+        if (buffer.length > 1 && 
+                !(buffer.length == 2 && buffer[0] == '\\'))
             tok.raise("char literal should be only 1");
         return new StringLiteral(prev, state, buffer, 'char');
     }
