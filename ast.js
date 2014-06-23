@@ -2763,7 +2763,7 @@ NumberLiteral.read = function(prev) {
     buf = digit;
     buf += NumberLiteral._readNumber(tok, 10);
 
-    if (tok.readDot()) {
+    if (tok.readDot() || tok.peekString('e') || tok.peekString('E')) {
         buf += '.';
         return NumberLiteral._readFloaty(prev, state, buf);
     }
@@ -2813,7 +2813,7 @@ NumberLiteral._readFloaty = function(prev, state, buffer) {
     }
 
     var type = 'double';
-    if (tok.readString('e')) {
+    if (tok.readString('e') || tok.readString('E')) {
         // scientific notation
         buffer += 'e' + NumberLiteral._readNumber(tok, 10);
     } else {
