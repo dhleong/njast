@@ -14,6 +14,8 @@ glob(source, function(err, files) {
         // skip passing android classes, for now
         if (~file.indexOf("19/android"))
             return cb();
+        if (~file.indexOf("19/com/android"))
+            return cb();
 
         var timer = setTimeout(function() {
             cb(new Error('Timeout parsing ' + file));

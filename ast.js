@@ -2804,6 +2804,9 @@ NumberLiteral._newInty = function(prev, state, buf) {
     } else if (tok.readString('f') || tok.readString('F')) {
         buf += 'f';
         type = 'float';
+    } else if (tok.readString('d') || tok.readString('D')) {
+        buf += 'd';
+        type = 'double';
     }
 
     return new NumberLiteral(prev, state, buf, type);
