@@ -2430,7 +2430,7 @@ function SelectorExpression(primary, connector) {
                 if (tok.peekParenOpen())
                     this._push(new MethodInvocation(this, state, next, typeArgs));
                 else
-                    this._push(new IdentifierExpression(this, state, next));
+                    this._push(IdentifierExpression.read(this, state, next));
             }
 
         } else if ('[' == connector) {
@@ -3038,14 +3038,18 @@ IdentifierExpression.prototype.resolveDeclaringType = function(classLoader, cb) 
 };
 
 
-IdentifierExpression.read = function(prev) {
+IdentifierExpression.read = function(prev, state, name) {
     var tok = prev.tok;
-    var state = tok.prepare();
+
+    if (!state)
+        state = tok.prepare();
+
     // NB the spec suggests qualified, here,
     //  but I'd rather be more consistent and use
     //  SelectorExpressions
     // var name = tok.readQualified();
-    var name = tok.readIdentifier();
+    if (!name)
+        name = tok.readIdentifier();
 
     if (Tokenizer.isPrimitive(name)) {
         // actually, a BasicType
