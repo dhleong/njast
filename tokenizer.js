@@ -550,8 +550,14 @@ Tokenizer.prototype.readInfixOp = function() {
         if (this.readEquals())
             return '>=';
         if (this.readGenericClose()) {
-            if (this.readGenericClose())
+            if (this.readGenericClose()) {
+                if (this.readEquals())
+                    return this.restore(state);
                 return '>>>';
+            }
+
+            if (this.readEquals())
+                return this.restore(state);
             return '>>';
         }
         break;
