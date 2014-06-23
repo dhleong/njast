@@ -2758,22 +2758,25 @@ NumberLiteral.read = function(prev) {
         return NumberLiteral._readFloaty(prev, state, '.');
     }
 
-    var buf;
+    var buf = '';
+    if (tok.readString('-'))
+        buf = '-'; // negative number!
+
     var digit = tok.readDigit(10);
     if (digit === undefined)
         return; // not a number
 
     if (digit == '0' && (tok.readString('x') || tok.readString('X'))) {
         // hex number
-        buf = '0x' + NumberLiteral._readNumber(tok, 16);
+        buf += '0x' + NumberLiteral._readNumber(tok, 16);
         return NumberLiteral._newInty(prev, state, buf);
     } else if (digit == '0' && tok.readString('b')) {
         // binary number
-        buf = '0b' + NumberLiteral._readNumber(tok, 2);
+        buf += '0b' + NumberLiteral._readNumber(tok, 2);
         return NumberLiteral._newInty(prev, state, buf);
     }
 
-    buf = digit;
+    buf += digit;
     buf += NumberLiteral._readNumber(tok, 10);
 
     if (tok.readDot() || tok.peekString('e') || tok.peekString('E')) {
@@ -2829,15 +2832,15 @@ NumberLiteral._readFloaty = function(prev, state, buffer) {
     if (tok.readString('e') || tok.readString('E')) {
         // scientific notation
         buffer += 'e' + NumberLiteral._readNumber(tok, 10);
-    } else {
-        // normal
-        var next = String.fromCharCode(tok.peek());
-        if (next == 'f' || next == 'F') {
-            tok.read(); // eat the char
-            type = 'float';
-        } else if (next == 'd' || next == 'D')
-            tok.read(); // already know it's double, but eat it
-    }
+    } 
+
+    // normal
+    var next = String.fromCharCode(tok.peek());
+    if (next == 'f' || next == 'F') {
+        tok.read(); // eat the char
+        type = 'float';
+    } else if (next == 'd' || next == 'D')
+        tok.read(); // already know it's double, but eat it
 
     return new NumberLiteral(prev, state, buffer, type);
 };
