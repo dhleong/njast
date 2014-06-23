@@ -1842,7 +1842,7 @@ function SwitchStatement(prev) {
 
         while (!(tok.peekBlockClose()
                 || tok.readString('break;')
-                || tok.peekString('case ')
+                || tok.peekLiteral('case')
                 || tok.peekString('default:')
                 || tok.isEof())) {
             var stmt = BlockStatement.read(this);
@@ -1869,14 +1869,14 @@ SwitchStatement.prototype._readLabels = function() {
     var tok = this.tok;
     for (;;) {
         var state = tok.save();
-        if (tok.readString("default")) {
+        if (tok.readLiteral("default")) {
             if (tok.readColon())
                 labels.push('default');
             else {
                 tok.restore(state);
                 return labels; // quit early?
             }
-        } else if (tok.readString("case ")) {
+        } else if (tok.readLiteral("case")) {
             var expr = Expression.read(this);
             if (expr)
                 labels.push(expr);

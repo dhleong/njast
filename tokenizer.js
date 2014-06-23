@@ -657,6 +657,7 @@ Tokenizer.prototype.peekGenericClose = _peekMethod('GenericClose');
 
 Tokenizer.prototype.peekInfixOp = _peekMethod('InfixOp');
 Tokenizer.prototype.peekString = _peekMethod('String');
+Tokenizer.prototype.peekLiteral = _peekMethod('Literal');
 
 Tokenizer.prototype.readQualified = function() {
     var ident = this.readIdentifier();
