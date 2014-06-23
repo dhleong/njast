@@ -2707,8 +2707,9 @@ StringLiteral.read = function(prev) {
 
         if (next == last && last == '\\')
             next = null; // handle escaped backslash
+        else
+            buffer += next;
 
-        buffer += next;
         last = next;
     }
 
@@ -2717,7 +2718,7 @@ StringLiteral.read = function(prev) {
         // buffer >1, and NOT the case that it's \0, for example
         if (buffer.length > 1 && 
                 !(buffer.length == 2 && buffer[0] == '\\'))
-            tok.raise("char literal should be only 1");
+            tok.raise("char literal should be only 1; was: " + buffer.length);
         return new StringLiteral(prev, state, buffer, 'char');
     }
 
