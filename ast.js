@@ -2745,7 +2745,7 @@ NumberLiteral.read = function(prev) {
     if (digit === undefined)
         return; // not a number
 
-    if (digit == '0' && tok.readString('x')) {
+    if (digit == '0' && (tok.readString('x') || tok.readString('X'))) {
         // hex number
         buf = '0x' + NumberLiteral._readNumber(tok, 16);
         return NumberLiteral._newInty(prev, state, buf);
