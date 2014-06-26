@@ -348,6 +348,8 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
         }
     }
 
+    // TODO type declared in parent class
+
     // probably another class in this package 
     var self = this;
     var thisPackage = path + '.' + type;

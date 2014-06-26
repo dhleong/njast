@@ -12,7 +12,8 @@ var async = require('async')
   , parseFile = Ast.parseFile
   , readFile = Ast.readFile
   
-  , MAX_PARALLEL = 20;
+  , MAX_PARALLEL = 20
+  , SUGGEST_LIMIT = 2500;
 
 /**
  * Base ClassLoader interface; mostly for the
@@ -410,15 +411,31 @@ SourceClassLoader.prototype.suggestImport = function(name, callback) {
 
     var suggestions = [];
 
+    var timeout = setTimeout(function() {
+        var found = suggestions;
+
+        // clear this so we know to stop
+        suggestions = null;
+
+        callback(null, found);
+    }, SUGGEST_LIMIT);
+
     // basically, we have to scan each file looking for "name."
     // var self = this;
     var len = name.length;
     // console.log(self._root, "Walk types", name);
     this.walkTypes(function(type) {
+        if (suggestions === null)
+            return;
+
         // console.log(type.indexOf(name), type.length - len);
         if (type.indexOf(name) == type.length - len)
             suggestions.push(type);
     }, function(err) {
+
+        clearTimeout(timeout);
+        if (suggestions === null)
+            return;
 
         // console.log(self._root, "Walked types", name);
         callback(err, suggestions);
