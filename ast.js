@@ -348,13 +348,11 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
         }
     }
 
-    // TODO type declared in parent class
-
     // probably another class in this package 
     var self = this;
     var thisPackage = path + '.' + type;
     classLoader.openClass(thisPackage, function(err) {
-        if (err) return cb(null); // couldn't resolve...
+        if (err) return self._resolveTypeInParents(classLoader, type, cb);
 
         // yep! cache it for future reference...
         self._root.namedImports[type] = thisPackage;
@@ -362,6 +360,41 @@ Ast.prototype.resolveType = function(classLoader, type, cb) {
         // ...and notify
         cb(thisPackage);
     });
+};
+
+/** 
+ * Look for a type that's (maybe) declared in parent Type
+ * This should probably take precidence over a Type
+ *  in the same package, but this is probably slower, so....
+ *
+ * A potential refactoring could do all of them in parallel?
+ *  Maybe not, since this is recursive....
+ *
+ */
+Ast.prototype._resolveTypeInParents = function(classLoader, type, cb) {
+
+    var parents = this.toplevel.reduce(function(arr, type) {
+        if (type.extends)
+            arr.push(type.extends);
+        if (type.implements)
+            arr = arr.concat(type.implements);
+        return arr;
+    }, []);
+    
+    // nope :(
+    if (!parents.length)
+        return cb(null);
+
+    // okay, let's look...
+    async.detect(parents, function(parentType, onDetect) {
+        parentType.evaluateType(classLoader, function(err, result) {
+            if (!result) return onDetect(false);
+
+            // TODO
+            // console.log(result);
+            onDetect(false);
+        });
+    }, cb);
 };
 
 

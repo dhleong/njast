@@ -119,4 +119,7 @@ class Foo extends Extended {
         } catch(Exception e) {
         }
     }
+
+    static class SubClass extends Extendable {
+    }
 }

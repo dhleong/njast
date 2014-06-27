@@ -11,4 +11,7 @@ public class Extended {
         return new Extended() {
         };
     }
+
+    public static abstract class Extendable {
+    }
 }

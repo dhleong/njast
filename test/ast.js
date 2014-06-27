@@ -1664,6 +1664,16 @@ describe("Ast of Foo.java", function() {
             });
         }); 
 
+        it("123, 35: Extendable (Parent class-nested)", function(done) {
+            ast.locate(123, 35)
+            .evaluateType(loader, function(err, value) {
+                if (err) throw err;
+                value.type.should.equal('net.dhleong.njast.subpackage.Extended$Extendable');
+                value.from.should.equal(Ast.FROM_TYPE);
+                done();
+            });
+        }); 
+
         it("overloaded methods?"); // Will need to specify args & fallback if missing
     });
 });
