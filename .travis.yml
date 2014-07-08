@@ -2,4 +2,4 @@ language: node_js
 node_js:
     - "0.11"
     - "0.10"
-script: cd test && mocha --reporter list *.js
+script: cd test && ../node_modules/mocha/bin/mocha --reporter list *.js
