@@ -469,14 +469,14 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
 
     // use cached types
     if (this._allCachedTypes) {
-        async.each(this._allCachedTypes, iterate, onComplete);
+        async.eachLimit(this._allCachedTypes, MAX_PARALLEL, iterate, onComplete);
         return;
     }
 
     var allTypes = [];
     var fileTypes = {};
     var self = this;
-    async.each(this._getSearchPaths(), function(dir, onEachPath) {
+    async.eachLimit(this._getSearchPaths(), MAX_PARALLEL, function(dir, onEachPath) {
         var search = path.join(dir, '**', '*.java');
         // console.log('walk', self._root, search);
 
@@ -505,7 +505,7 @@ SourceClassLoader.prototype.walkTypes = function(iterator, onComplete) {
                     if (err) return onEach(err);
 
                     var thisTypes = [];
-                    async.each(Object.keys(ast.qualifieds), function(qualified, cb) {
+                    async.eachLimit(Object.keys(ast.qualifieds), MAX_PARALLEL, function(qualified, cb) {
                         if (!isType(qualified))
                             return cb(); // method or field
 
@@ -824,7 +824,7 @@ JarClassLoader.prototype.putCache = function(path, ast) {
                 }, cb);
             }, function(filtered) {
 
-                async.each(filtered, function(type, cb) {
+                async.eachLimit(filtered, MAX_PARALLEL, function(type, cb) {
                     self.openClass(type, Ast.PROJECT_ALL, cb);
                 });
             });

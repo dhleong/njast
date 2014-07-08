@@ -6,13 +6,15 @@
 
 var async = require('async')
   , ClassLoader = require('../classloader')
-  , readFile = require('../ast').readFile;
+  , readFile = require('../ast').readFile
+  
+  , MAX_PARALLEL = 20;
 
 function handleMissing(loader, ast, onComplete) {
     ast.on('missing', function(missing) {
         if (!missing) return onComplete({});
 
-        async.each(missing, function(data, callback) {
+        async.eachLimit(missing, MAX_PARALLEL, function(data, callback) {
             loader.suggestImport(data.name, function(err, imports) {
                 console.log("Suggest!", data.name, err, imports);
                 if (err) return callback(err);
